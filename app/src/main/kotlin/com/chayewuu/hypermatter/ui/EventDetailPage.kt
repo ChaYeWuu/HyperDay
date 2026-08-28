@@ -71,6 +71,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.CardDefaults
+import top.yukonga.miuix.kmp.basic.ColorPalette
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
 import top.yukonga.miuix.kmp.basic.Scaffold
@@ -192,13 +193,14 @@ fun EventDetailPage(
     }
     val hasWallpaper = event.wallpaperUri != null && wallpaperBitmap != null
 
-    // Custom color is chosen with a hue slider: live-preview while the
-    // customize dialog is open, persisted when the drag finishes.
-    var liveHue by remember { mutableFloatStateOf(210f) }
-    var huePreviewActive by remember { mutableStateOf(false) }
+    // Custom color is chosen with the official Miuix ColorPalette component:
+    // live-preview while the customize dialog is open, persisted on change.
+    // White is the default palette selection (matches the default card).
+    var liveColor by remember { mutableStateOf(Color.White) }
+    var colorPreviewActive by remember { mutableStateOf(false) }
     val customColor = event.cardColor?.let { Color(it) }
     val effCustomColor = when {
-        showBackgroundDialog && huePreviewActive -> hueColor(liveHue)
+        showBackgroundDialog && colorPreviewActive -> liveColor
         else -> customColor
     }
 
@@ -330,8 +332,8 @@ fun EventDetailPage(
             liveBgDim = event.wallpaperDim ?: DEFAULT_WALLPAPER_DIM
             liveCardBlur = event.cardBlur ?: DEFAULT_CARD_BLUR
             liveCardOpacity = event.cardOpacity ?: DEFAULT_CARD_OPACITY
-            liveHue = event.cardColor?.let { hueFromArgb(it) } ?: 210f
-            huePreviewActive = event.cardColor != null
+            liveColor = event.cardColor?.let { Color(it) } ?: Color.White
+            colorPreviewActive = event.cardColor != null
         }
     }
     // The preview follows the live slider values while the dialog is open.
@@ -642,41 +644,31 @@ fun EventDetailPage(
             renderInRootScaffold = false,
         ) {
             Column {
-                // Hue slider: replaces the old preset color swatches —
-                // any color is reachable, previewed live while dragging.
-                SliderPreference(
-                    title = "背景颜色",
-                    value = liveHue,
-                    onValueChange = {
-                        liveHue = it
-                        huePreviewActive = true
-                    },
-                    valueRange = 0f..360f,
-                    valueText = "${liveHue.toInt()}°",
-                    startAction = {
-                        Box(
-                            modifier = Modifier
-                                .size(24.dp)
-                                .clip(CircleShape)
-                                .background(hueColor(liveHue)),
-                        )
-                    },
-                    onValueChangeFinished = {
+                // Official Miuix ColorPalette: a 7x13 HSV grid (+ gray column)
+                // with a live preview strip. White is the default selection;
+                // picking a color previews the whole page live and persists
+                // immediately.
+                ColorPalette(
+                    color = if (colorPreviewActive) liveColor
+                    else customColor ?: Color.White,
+                    onColorChanged = { color ->
+                        liveColor = color
+                        colorPreviewActive = true
                         viewModel.updateEvent(
                             event.copy(
-                                cardColor = hueColor(liveHue).toArgb().toLong() and 0xFFFFFFFFL,
+                                cardColor = color.toArgb().toLong() and 0xFFFFFFFFL,
                                 wallpaperUri = null,
                             )
                         )
                     },
                 )
-                if (event.cardColor != null || huePreviewActive) {
+                if (event.cardColor != null || colorPreviewActive) {
                     WallpaperOptionRow(
                         icon = MiuixIcons.Background,
                         label = "恢复默认背景色",
                     ) {
                         viewModel.updateEvent(event.copy(cardColor = null))
-                        huePreviewActive = false
+                        colorPreviewActive = false
                         showBackgroundDialog = false
                     }
                 }
@@ -842,33 +834,6 @@ private fun ActionButton(
             style = MiuixTheme.textStyles.footnote1,
         )
     }
-}
-
-/**
- * A saturated, brightness-full color for a hue value (0..360). Saturation is
- * dialed to ~0.75 (blended toward white) so the palette stays pleasant.
- */
-private fun hueColor(hue: Float): Color {
-    val h = ((hue % 360f) + 360f) % 360f
-    val sector = (h / 60f).toInt()
-    val f = h / 60f - sector
-    val q = 1f - f
-    val pure = when (sector) {
-        0 -> Color(1f, f, 0f)
-        1 -> Color(q, 1f, 0f)
-        2 -> Color(0f, 1f, f)
-        3 -> Color(0f, q, 1f)
-        4 -> Color(f, 0f, 1f)
-        else -> Color(1f, 0f, q)
-    }
-    return lerp(Color.White, pure, 0.75f)
-}
-
-/** Recover the hue (0..360) of a stored ARGB card color. */
-private fun hueFromArgb(argb: Long): Float {
-    val hsv = FloatArray(3)
-    android.graphics.Color.colorToHSV((argb and 0xFFFFFFFFL).toInt(), hsv)
-    return hsv[0]
 }
 
 /**
