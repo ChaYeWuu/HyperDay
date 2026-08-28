@@ -330,24 +330,29 @@ fun AboutPage(
                 }
             }
         }
-    }
 
-    OverlayDialog(
-        title = "开源许可",
-        summary = "本应用使用了以下开源项目：\n\n" +
-            "· Miuix UI — HyperOS 风格 Compose 组件库\n" +
-            "· Jetpack Compose — Android 声明式 UI 框架\n" +
-            "· Kotlin & kotlinx.serialization — JetBrains\n" +
-            "· desugar_jdk_libs — Google\n\n" +
-            "各项目的完整许可文本请见其源码仓库。",
-        show = showLicenseDialog,
-        onDismissRequest = { showLicenseDialog = false },
-    ) {
-        TextButton(
-            text = "关闭",
-            onClick = { showLicenseDialog = false },
-            modifier = Modifier.fillMaxWidth(),
-        )
+        // License dialog: INSIDE the Scaffold content with
+        // renderInRootScaffold = false — by default an OverlayDialog renders
+        // into the ROOT (main tabs) Scaffold, which is covered by this page,
+        // so the dialog would be invisible.
+        OverlayDialog(
+            title = "开源许可",
+            summary = "本应用使用了以下开源项目：\n\n" +
+                "· Miuix UI — HyperOS 风格 Compose 组件库\n" +
+                "· Jetpack Compose — Android 声明式 UI 框架\n" +
+                "· Kotlin & kotlinx.serialization — JetBrains\n" +
+                "· desugar_jdk_libs — Google\n\n" +
+                "各项目的完整许可文本请见其源码仓库。",
+            show = showLicenseDialog,
+            onDismissRequest = { showLicenseDialog = false },
+            renderInRootScaffold = false,
+        ) {
+            TextButton(
+                text = "关闭",
+                onClick = { showLicenseDialog = false },
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
     }
 }
 

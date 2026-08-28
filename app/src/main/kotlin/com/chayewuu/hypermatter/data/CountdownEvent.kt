@@ -12,8 +12,10 @@ import kotlinx.serialization.Serializable
  * @param note      optional note shown under the title.
  * @param isPast    when true, this event counts "days since"; when false, "days until".
  *                  If null, the direction is auto-calculated from today's date.
- * @param cardColor optional detail-card background color stored as ARGB Long;
- *                  null means the Miuix default Card color.
+ * @param cardColor    optional detail-card background color stored as ARGB Long;
+ *                     null means the Miuix default Card color.
+ * @param wallpaperUri optional content URI of a gallery image used as the
+ *                     detail-page background (shown blurred, frosted-glass card).
  */
 @Serializable
 data class CountdownEvent(
@@ -23,4 +25,5 @@ data class CountdownEvent(
     val note: String? = null,
     val isPast: Boolean? = null,
     val cardColor: Long? = null,
+    val wallpaperUri: String? = null,
 )
