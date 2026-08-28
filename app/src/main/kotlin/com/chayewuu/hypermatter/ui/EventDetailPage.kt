@@ -116,7 +116,6 @@ private val GlassBlendLight = listOf(
 private const val DEFAULT_WALLPAPER_BLUR = 28f
 private const val DEFAULT_WALLPAPER_DIM = 0.35f
 private const val DEFAULT_CARD_BLUR = 60f
-private const val DEFAULT_CARD_OPACITY = 0.10f
 
 /** Decoded wallpaper plus its average luminance (drives adaptive colors). */
 private data class WallpaperInfo(
@@ -213,9 +212,10 @@ fun EventDetailPage(
     val bgBlur = event.wallpaperBlur?.toFloat() ?: DEFAULT_WALLPAPER_BLUR
     val bgDim = event.wallpaperDim ?: DEFAULT_WALLPAPER_DIM
     val cardBlur = event.cardBlur ?: DEFAULT_CARD_BLUR
-    val cardOpacity = event.cardOpacity ?: DEFAULT_CARD_OPACITY
 
-    // Adaptive text colors over the card.
+    // Adaptive text colors: on wallpaper, driven by the photo's luminance;
+    // on solid/dynamic, the glass card shows a soft surface tint so the
+    // theme's onSurface stays readable.
     val onCard = when {
         hasWallpaper -> if (isLightWallpaper) Color(0xFF1B1B1F) else Color.White
         else -> MiuixTheme.colorScheme.onSurface
@@ -317,21 +317,17 @@ fun EventDetailPage(
     var liveBgBlur by remember { mutableFloatStateOf(bgBlur) }
     var liveBgDim by remember { mutableFloatStateOf(bgDim) }
     var liveCardBlur by remember { mutableFloatStateOf(cardBlur) }
-    var liveCardOpacity by remember { mutableFloatStateOf(cardOpacity) }
     LaunchedEffect(showBackgroundDialog) {
         if (showBackgroundDialog) {
             liveBgBlur = event.wallpaperBlur?.toFloat() ?: DEFAULT_WALLPAPER_BLUR
             liveBgDim = event.wallpaperDim ?: DEFAULT_WALLPAPER_DIM
             liveCardBlur = event.cardBlur ?: DEFAULT_CARD_BLUR
-            liveCardOpacity = event.cardOpacity ?: DEFAULT_CARD_OPACITY
         }
     }
     // The preview follows the live slider values while the dialog is open.
     val effBgBlur = if (showBackgroundDialog) liveBgBlur else bgBlur
     val effBgDim = if (showBackgroundDialog) liveBgDim else bgDim
     val effCardBlur = if (showBackgroundDialog) liveCardBlur else cardBlur
-    val effCardOpacity = if (showBackgroundDialog) liveCardOpacity else cardOpacity
-    val effCardScrim = MiuixTheme.colorScheme.surface.copy(alpha = effCardOpacity)
 
     val pageCanvas = MiuixTheme.colorScheme.surface
     val backdrop = rememberBlurBackdrop()
@@ -401,20 +397,10 @@ fun EventDetailPage(
                     CardDefaults.defaultColors()
                 },
             ) {
-                Box {
-                    // Adjustable surface tint over the glass (opacity slider).
-                    if (cardBackdrop != null && effCardOpacity > 0.01f) {
-                        Box(
-                            modifier = Modifier
-                                .matchParentSize()
-                                .clip(RoundedCornerShape(16.dp))
-                                .background(effCardScrim),
-                        )
-                    }
-                    Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                    ) {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
                         // Status pill: upcoming vs past
                         Box(
                             modifier = Modifier
@@ -488,7 +474,6 @@ fun EventDetailPage(
                             style = MiuixTheme.textStyles.body1,
                         )
                     }
-                }
             }
         }
 
@@ -505,7 +490,16 @@ fun EventDetailPage(
 
                 Spacer(Modifier.height(44.dp))
 
-                // Three actions: share / save as image / customize background
+                // Three actions: share / save as image / customize background.
+                // Labels sit directly on the page background (outside the
+                // glass circles), so they adapt to the background's
+                // brightness — not to the card text colors.
+                val onBackgroundText = when {
+                    hasWallpaper -> if (isLightWallpaper) Color(0xFF1B1B1F) else Color.White
+                    bgMode == BgMode.DYNAMIC ->
+                        if (isDarkTheme) Color.White else Color(0xFF1B1B1F)
+                    else -> MiuixTheme.colorScheme.onSurfaceVariantSummary
+                }
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -515,7 +509,7 @@ fun EventDetailPage(
                     ActionButton(
                         icon = MiuixIcons.Share,
                         label = "分享",
-                        onCardText = onCard,
+                        onCardText = onBackgroundText,
                         glassBackdrop = cardBackdrop,
                         glassBlend = glassBlend,
                         blurRadius = effCardBlur * 0.6f,
@@ -523,7 +517,7 @@ fun EventDetailPage(
                     ActionButton(
                         icon = MiuixIcons.ScreenCapture,
                         label = "存为图片",
-                        onCardText = onCardSummary,
+                        onCardText = onBackgroundText,
                         glassBackdrop = cardBackdrop,
                         glassBlend = glassBlend,
                         blurRadius = effCardBlur * 0.6f,
@@ -531,7 +525,7 @@ fun EventDetailPage(
                     ActionButton(
                         icon = MiuixIcons.Background,
                         label = "自定义背景",
-                        onCardText = onCardSummary,
+                        onCardText = onBackgroundText,
                         glassBackdrop = cardBackdrop,
                         glassBlend = glassBlend,
                         blurRadius = effCardBlur * 0.6f,
@@ -673,16 +667,6 @@ fun EventDetailPage(
                         valueText = "${liveCardBlur.toInt()}",
                         onValueChangeFinished = {
                             viewModel.updateEvent(event.copy(cardBlur = liveCardBlur))
-                        },
-                    )
-                    SliderPreference(
-                        title = "卡片底色浓度",
-                        value = liveCardOpacity,
-                        onValueChange = { liveCardOpacity = it },
-                        valueRange = 0f..1f,
-                        valueText = "${(liveCardOpacity * 100).toInt()}%",
-                        onValueChangeFinished = {
-                            viewModel.updateEvent(event.copy(cardOpacity = liveCardOpacity))
                         },
                     )
                 }
