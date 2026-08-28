@@ -1,0 +1,744 @@
+package com.chayewuu.hypermatter.ui
+
+import android.content.ContentValues
+import android.content.Context
+import android.content.Intent
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Paint
+import android.graphics.Typeface
+import android.os.Build
+import android.os.Environment
+import android.provider.MediaStore
+import android.view.HapticFeedbackConstants
+import android.widget.Toast
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.chayewuu.hypermatter.data.DateUtils
+import com.chayewuu.hypermatter.ui.effect.BgEffectBackground
+import com.chayewuu.hypermatter.ui.theme.LocalEventViewModel
+import com.chayewuu.hypermatter.ui.theme.LocalSettingsStore
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import top.yukonga.miuix.kmp.basic.Card
+import top.yukonga.miuix.kmp.basic.CardDefaults
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.IconButton
+import top.yukonga.miuix.kmp.basic.Scaffold
+import top.yukonga.miuix.kmp.basic.SmallTopAppBar
+import top.yukonga.miuix.kmp.basic.Text
+import top.yukonga.miuix.kmp.blur.BlendColorEntry
+import top.yukonga.miuix.kmp.blur.BlurBlendMode
+import top.yukonga.miuix.kmp.blur.BlurDefaults
+import top.yukonga.miuix.kmp.blur.LayerBackdrop
+import top.yukonga.miuix.kmp.blur.layerBackdrop
+import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop
+import top.yukonga.miuix.kmp.blur.textureBlur
+import top.yukonga.miuix.kmp.icon.MiuixIcons
+import top.yukonga.miuix.kmp.icon.extended.Back
+import top.yukonga.miuix.kmp.icon.extended.Background
+import top.yukonga.miuix.kmp.icon.extended.ScreenCapture
+import top.yukonga.miuix.kmp.icon.extended.Share
+import top.yukonga.miuix.kmp.overlay.OverlayDialog
+import top.yukonga.miuix.kmp.shader.isRuntimeShaderSupported
+import top.yukonga.miuix.kmp.theme.MiuixTheme
+import java.io.File
+import java.io.FileOutputStream
+
+/** Preset detail-card background colors; null argb = Miuix default card color. */
+private data class CardColorOption(val label: String, val argb: Long?)
+
+private val cardColorOptions = listOf(
+    CardColorOption("默认", null),
+    CardColorOption("静空蓝", 0xFF4979FF),
+    CardColorOption("湖水青", 0xFF26A69A),
+    CardColorOption("原野绿", 0xFF66BB6A),
+    CardColorOption("落日橙", 0xFFFF9437),
+    CardColorOption("蔷薇粉", 0xFFF06292),
+    CardColorOption("丁香紫", 0xFF9575CD),
+)
+
+// Official Miuix example card-blend presets (ColorBlendToken.kt):
+// frosted glass blends for the advanced-material card and action buttons.
+private val GlassBlendDark = listOf(
+    BlendColorEntry(Color(0x4DA9A9A9), BlurBlendMode.Luminosity),
+    BlendColorEntry(Color(0x1A9C9C9C), BlurBlendMode.PlusDarker),
+)
+
+private val GlassBlendLight = listOf(
+    BlendColorEntry(Color(0x340034F9), BlurBlendMode.Overlay),
+    BlendColorEntry(Color(0xB3FFFFFF), BlurBlendMode.HardLight),
+)
+
+/**
+ * Full-screen detail page for a single countdown event: a central card
+ * (content on top, start date at the bottom) with actions below — share,
+ * save as image, and customize background.
+ */
+@Composable
+fun EventDetailPage(
+    eventId: String,
+    onBack: () -> Unit,
+) {
+    val viewModel = LocalEventViewModel.current
+    val settingsStore = LocalSettingsStore.current
+    val events by viewModel.events.collectAsState()
+    val event = events.firstOrNull { it.id == eventId }
+
+    if (event == null) {
+        // Event no longer exists (e.g. cleared from settings) — leave the page.
+        LaunchedEffect(eventId) { onBack() }
+        return
+    }
+
+    // System back is owned by the NavDisplay navigation-event bridge: it pops
+    // this entry off the back stack (with the official predictive-back
+    // animation), so no BackHandler is needed here.
+
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+
+    var showBackgroundDialog by remember { mutableStateOf(false) }
+
+    val isPast = DateUtils.isPastEvent(event)
+    val dayNum = DateUtils.dayNumber(event)
+    val dateStr = DateUtils.formatDate(event.epochDay)
+    val weekday = DateUtils.weekdayLabel(event.epochDay)
+
+    // Advanced material (settings toggle): the official dynamic color-blending
+    // background plus frosted-glass card and buttons, on API 33+.
+    val advancedMaterial by settingsStore.advancedMaterial.collectAsState()
+    val glass = advancedMaterial && isRuntimeShaderSupported()
+    val colorMode by settingsStore.colorMode.collectAsState()
+    val isDarkTheme = when (colorMode) {
+        2 -> true
+        1 -> false
+        else -> isSystemInDarkTheme()
+    }
+
+    // Card colors: default Miuix card, or a custom tint with contrast-aware text.
+    val customColor = event.cardColor?.let { Color(it) }
+    val cardColors = if (customColor != null) {
+        CardDefaults.defaultColors(color = customColor)
+    } else {
+        CardDefaults.defaultColors()
+    }
+    val onCard = if (customColor != null) {
+        if (customColor.luminance() > 0.5f) Color(0xFF1B1B1F) else Color.White
+    } else {
+        MiuixTheme.colorScheme.onSurface
+    }
+    val onCardSummary = if (customColor != null) {
+        onCard.copy(alpha = 0.78f)
+    } else {
+        MiuixTheme.colorScheme.onSurfaceVariantSummary
+    }
+    val accent = when {
+        customColor != null -> onCard
+        isPast -> MiuixTheme.colorScheme.onSurfaceVariantSummary
+        else -> MiuixTheme.colorScheme.primary
+    }
+
+    // Frosted glass applies to the card and buttons when advanced material is
+    // on and no custom color is chosen (a custom color paints the card solid).
+    val glassEnabled = glass && customColor == null
+    val cardBackdrop: LayerBackdrop? = if (glassEnabled) {
+        val surfaceColor = MiuixTheme.colorScheme.surface
+        rememberLayerBackdrop {
+            drawRect(surfaceColor)
+            drawContent()
+        }
+    } else {
+        null
+    }
+    val glassBlend = if (isDarkTheme) GlassBlendDark else GlassBlendLight
+
+    fun shareEvent() {
+        val text = "「${event.title}」${DateUtils.describe(event)}" +
+            "（${dateStr} $weekday）—— 来自 HyperDay"
+        val intent = Intent(Intent.ACTION_SEND).apply {
+            type = "text/plain"
+            putExtra(Intent.EXTRA_TEXT, text)
+        }
+        runCatching {
+            context.startActivity(Intent.createChooser(intent, "分享倒数日"))
+        }
+    }
+
+    fun saveCardAsImage() {
+        scope.launch {
+            try {
+                val safeTitle = event.title.replace(Regex("[\\\\/:*?\"<>|\\s]"), "_")
+                val fileName = "HyperDay_${safeTitle}_${System.currentTimeMillis()}"
+                // Render the share card programmatically (a graphics-layer
+                // capture would bake the transparent window background to
+                // black in the saved PNG).
+                val bitmap = withContext(Dispatchers.Default) {
+                    renderShareCard(
+                        title = event.title,
+                        note = event.note,
+                        describe = DateUtils.describe(event),
+                        dayNum = dayNum,
+                        dateLine = "$dateStr $weekday",
+                        statusLabel = if (isPast) "已经过去" else "即将到来",
+                        isPast = isPast,
+                        cardArgb = event.cardColor,
+                    )
+                }
+                val saved = withContext(Dispatchers.IO) {
+                    saveBitmapToGallery(context, bitmap, fileName)
+                }
+                if (saved != null) {
+                    Toast.makeText(context, "已保存到 $saved", Toast.LENGTH_LONG).show()
+                } else {
+                    Toast.makeText(context, "保存失败", Toast.LENGTH_SHORT).show()
+                }
+            } catch (e: Exception) {
+                Toast.makeText(context, "保存失败：${e.message}", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    // Page canvas: `surface` (light: #F7F7F7 gray canvas; dark: black), or a
+    // tint of the custom card color when one is chosen. The top bar uses the
+    // official progressive blur; solid surface on API < 33.
+    val pageCanvas = customColor?.let { lerp(MiuixTheme.colorScheme.surface, it, 0.3f) }
+        ?: MiuixTheme.colorScheme.surface
+    val backdrop = rememberBlurBackdrop()
+    Scaffold(
+        containerColor = pageCanvas,
+        topBar = {
+            BlurredBar(backdrop) {
+                SmallTopAppBar(
+                    title = event.title,
+                    color = if (backdrop != null)
+                        Color.Transparent
+                    else
+                        pageCanvas,
+                    navigationIcon = {
+                        IconButton(onClick = onBack) {
+                            Icon(
+                                imageVector = MiuixIcons.Back,
+                                contentDescription = "返回",
+                                tint = MiuixTheme.colorScheme.onSurface,
+                            )
+                        }
+                    },
+                )
+            }
+        },
+    ) { paddingValues ->
+        val content: @Composable () -> Unit = {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+                    .padding(horizontal = 16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center,
+            ) {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .then(
+                            if (cardBackdrop != null) {
+                                Modifier.textureBlur(
+                                    backdrop = cardBackdrop,
+                                    shape = RoundedCornerShape(16.dp),
+                                    blurRadius = 60f,
+                                    noiseCoefficient = BlurDefaults.NoiseCoefficient,
+                                    colors = BlurDefaults.blurColors(blendColors = glassBlend),
+                                )
+                            } else {
+                                Modifier
+                            }
+                        ),
+                    insideMargin = PaddingValues(24.dp),
+                    colors = if (cardBackdrop != null) {
+                        CardDefaults.defaultColors(Color.Transparent, Color.Transparent)
+                    } else {
+                        cardColors
+                    },
+                ) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        // Status pill: upcoming vs past
+                        val pillFg = when {
+                            customColor != null -> onCard
+                            isPast -> MiuixTheme.colorScheme.onSurfaceVariantSummary
+                            else -> MiuixTheme.colorScheme.primary
+                        }
+                        Box(
+                            modifier = Modifier
+                                .clip(CircleShape)
+                                .background(pillFg.copy(alpha = 0.12f))
+                                .padding(horizontal = 14.dp, vertical = 5.dp),
+                        ) {
+                            Text(
+                                text = if (isPast) "已经过去" else "即将到来",
+                                color = pillFg,
+                                style = MiuixTheme.textStyles.footnote1,
+                            )
+                        }
+                        Spacer(Modifier.height(16.dp))
+                        Text(
+                            text = event.title,
+                            color = onCard,
+                            fontSize = 24.sp,
+                            fontWeight = FontWeight.Bold,
+                        )
+                        if (!event.note.isNullOrBlank()) {
+                            Spacer(Modifier.height(6.dp))
+                            Text(
+                                text = event.note,
+                                color = onCardSummary,
+                                style = MiuixTheme.textStyles.body2,
+                            )
+                        }
+                        Spacer(Modifier.height(26.dp))
+                        Text(
+                            text = DateUtils.describe(event),
+                            color = onCardSummary,
+                            style = MiuixTheme.textStyles.subtitle,
+                        )
+                        Spacer(Modifier.height(4.dp))
+                        Row(
+                            verticalAlignment = Alignment.Bottom,
+                        ) {
+                            Text(
+                                text = dayNum.toString(),
+                                color = accent,
+                                fontSize = 88.sp,
+                                fontWeight = FontWeight.Bold,
+                            )
+                            Spacer(Modifier.width(6.dp))
+                            Text(
+                                text = "天",
+                                color = accent,
+                                fontSize = 20.sp,
+                                modifier = Modifier.padding(bottom = 18.dp),
+                            )
+                        }
+                        Spacer(Modifier.height(30.dp))
+                        // Hairline divider above the start date block
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth(0.72f)
+                                .height(1.dp)
+                                .background(onCardSummary.copy(alpha = 0.25f)),
+                        )
+                        Spacer(Modifier.height(16.dp))
+                        Text(
+                            text = "起始日",
+                            color = onCardSummary,
+                            style = MiuixTheme.textStyles.footnote2,
+                        )
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            text = "$dateStr $weekday",
+                            color = onCard,
+                            style = MiuixTheme.textStyles.body1,
+                        )
+                    }
+                }
+
+                Spacer(Modifier.height(44.dp))
+
+                // Three actions: share / save as image / customize background
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceEvenly,
+                ) {
+                    ActionButton(
+                        icon = MiuixIcons.Share,
+                        label = "分享",
+                        glassBackdrop = cardBackdrop,
+                        glassBlend = glassBlend,
+                    ) { shareEvent() }
+                    ActionButton(
+                        icon = MiuixIcons.ScreenCapture,
+                        label = "存为图片",
+                        glassBackdrop = cardBackdrop,
+                        glassBlend = glassBlend,
+                    ) { saveCardAsImage() }
+                    ActionButton(
+                        icon = MiuixIcons.Background,
+                        label = "自定义背景",
+                        glassBackdrop = cardBackdrop,
+                        glassBlend = glassBlend,
+                    ) { showBackgroundDialog = true }
+                }
+            }
+        }
+
+        if (glassEnabled) {
+            // Advanced material: the official dynamic color-blending shader
+            // background; the card and buttons frost over it (the backdrop
+            // records only the background layer, like the official AboutPage).
+            BgEffectBackground(
+                dynamicBackground = true,
+                isFullSize = true,
+                isDarkTheme = isDarkTheme,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .then(if (backdrop != null) Modifier.layerBackdrop(backdrop) else Modifier),
+                bgModifier = if (cardBackdrop != null)
+                    Modifier.layerBackdrop(cardBackdrop)
+                else
+                    Modifier,
+            ) {
+                content()
+            }
+        } else {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .then(if (backdrop != null) Modifier.layerBackdrop(backdrop) else Modifier),
+            ) {
+                content()
+            }
+        }
+    }
+
+    // Customize background: card color (tints the page canvas too)
+    OverlayDialog(
+        title = "自定义背景",
+        summary = "选择详情页卡片与页面背景色",
+        show = showBackgroundDialog,
+        onDismissRequest = { showBackgroundDialog = false },
+    ) {
+        ColorSwatchFlowRow {
+            cardColorOptions.forEach { option ->
+                ColorSwatch(
+                    option = option,
+                    selected = event.cardColor == option.argb,
+                    onClick = {
+                        viewModel.updateEvent(event.copy(cardColor = option.argb))
+                        showBackgroundDialog = false
+                    },
+                )
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun ColorSwatchFlowRow(content: @Composable () -> Unit) {
+    FlowRow(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp),
+        horizontalArrangement = Arrangement.SpaceEvenly,
+    ) {
+        content()
+    }
+}
+
+/**
+ * Circular action button with a label below it. When [glassBackdrop] is set,
+ * the circle becomes frosted glass (official textureBlur) instead of solid
+ * surfaceContainer.
+ */
+@Composable
+private fun ActionButton(
+    icon: ImageVector,
+    label: String,
+    glassBackdrop: LayerBackdrop?,
+    glassBlend: List<BlendColorEntry>,
+    onClick: () -> Unit,
+) {
+    val view = LocalView.current
+    // The clickable sits on the clipped circular icon container, so both the
+    // ripple and the long-press highlight are bounded to the circle shape
+    // instead of the whole column (rectangular box).
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier
+                .size(56.dp)
+                .clip(CircleShape)
+                .then(
+                    if (glassBackdrop != null) {
+                        Modifier.textureBlur(
+                            backdrop = glassBackdrop,
+                            shape = CircleShape,
+                            blurRadius = 40f,
+                            noiseCoefficient = BlurDefaults.NoiseCoefficient,
+                            colors = BlurDefaults.blurColors(blendColors = glassBlend),
+                        )
+                    } else {
+                        Modifier.background(MiuixTheme.colorScheme.surfaceContainer)
+                    }
+                )
+                .clickable(onClick = {
+                    view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                    onClick()
+                }),
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = label,
+                tint = MiuixTheme.colorScheme.onSurface,
+            )
+        }
+        Spacer(Modifier.height(8.dp))
+        Text(
+            text = label,
+            color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+            style = MiuixTheme.textStyles.footnote1,
+        )
+    }
+}
+
+@Composable
+private fun ColorSwatch(
+    option: CardColorOption,
+    selected: Boolean,
+    onClick: () -> Unit,
+) {
+    val swatchColor = option.argb?.let { Color(it) } ?: MiuixTheme.colorScheme.surfaceContainer
+    // Clickable on the swatch circle itself: ripple bounded to the circle.
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier.padding(8.dp),
+    ) {
+        Box(
+            modifier = Modifier
+                .size(44.dp)
+                .clip(CircleShape)
+                .background(swatchColor)
+                .then(
+                    if (selected) {
+                        Modifier.border(2.dp, MiuixTheme.colorScheme.primary, CircleShape)
+                    } else {
+                        Modifier
+                    }
+                )
+                .clickable(onClick = onClick),
+        )
+        Spacer(Modifier.height(4.dp))
+        Text(
+            text = option.label,
+            color = if (selected) MiuixTheme.colorScheme.primary
+            else MiuixTheme.colorScheme.onSurfaceVariantSummary,
+            style = MiuixTheme.textStyles.footnote1,
+        )
+    }
+}
+
+/**
+ * Programmatically render a 1080x1620 share card: a vertical gradient
+ * background (derived from the custom card color, or HyperDay blue), a
+ * rounded card with the event content, and a signature at the bottom.
+ */
+private fun renderShareCard(
+    title: String,
+    note: String?,
+    describe: String,
+    dayNum: Long,
+    dateLine: String,
+    statusLabel: String,
+    isPast: Boolean,
+    cardArgb: Long?,
+): Bitmap {
+    val w = 1080
+    val h = 1620
+    val bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+    val canvas = Canvas(bmp)
+
+    val custom = cardArgb?.let { Color(it) }
+    val cardColor = (custom ?: Color.White).toArgb()
+
+    // Contrast-aware text colors over the card.
+    val onCard = when {
+        custom != null && custom.luminance() > 0.5f -> 0xFF1B1B1F.toInt()
+        custom != null -> 0xFFFFFFFF.toInt()
+        else -> 0xFF1B1B1F.toInt()
+    }
+    val onCardSummary = (onCard ushr 24 shl 24) or
+        (((onCard shr 16 and 0xFF) * 200 / 255) shl 16) or
+        (((onCard shr 8 and 0xFF) * 200 / 255) shl 8) or
+        ((onCard and 0xFF) * 200 / 255)
+    val accent = when {
+        custom != null -> onCard
+        isPast -> 0xFF8A8A8E.toInt()
+        else -> 0xFF3482FF.toInt()
+    }
+    val pillFg = when {
+        custom != null -> onCard
+        isPast -> 0xFF8A8A8E.toInt()
+        else -> 0xFF3482FF.toInt()
+    }
+
+    // Background gradient from the card hue (or HyperDay blue).
+    fun shade(c: Color, f: Float): Int {
+        fun ch(x: Float) = (x * f).coerceIn(0f, 1f)
+        return Color(ch(c.red), ch(c.green), ch(c.blue), 1f).toArgb()
+    }
+
+    val (bgTop, bgBottom) = if (custom != null) {
+        shade(custom, 1.15f) to shade(custom, 0.55f)
+    } else {
+        0xFF4A8DFF.toInt() to 0xFF1E5FD0.toInt()
+    }
+    val bgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        shader = android.graphics.LinearGradient(
+            0f, 0f, 0f, h.toFloat(), bgTop, bgBottom, android.graphics.Shader.TileMode.CLAMP,
+        )
+    }
+    canvas.drawRect(0f, 0f, w.toFloat(), h.toFloat(), bgPaint)
+
+    // Card
+    val cardL = 90f
+    val cardT = 210f
+    val cardR = 990f
+    val cardB = 1410f
+    val cardPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = cardColor }
+    canvas.drawRoundRect(cardL, cardT, cardR, cardB, 56f, 56f, cardPaint)
+
+    fun textPaint(size: Float, bold: Boolean, color: Int) = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        this.color = color
+        textSize = size
+        textAlign = Paint.Align.CENTER
+        typeface = if (bold) Typeface.DEFAULT_BOLD else Typeface.DEFAULT
+    }
+
+    val cx = w / 2f
+
+    // Status pill
+    val pillTextPaint = textPaint(36f, true, pillFg)
+    val pillTextWidth = pillTextPaint.measureText(statusLabel)
+    val pillW = pillTextWidth + 64f
+    val pillH = 72f
+    val pillL = cx - pillW / 2f
+    val pillT = cardT + 90f
+    val pillPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = pillFg and 0x00FFFFFF or 0x1F000000 }
+    canvas.drawRoundRect(pillL, pillT, pillL + pillW, pillT + pillH, pillH / 2f, pillH / 2f, pillPaint)
+    canvas.drawText(statusLabel, cx, pillT + 47f, pillTextPaint)
+
+    // Title
+    canvas.drawText(title, cx, cardT + 260f, textPaint(56f, true, onCard))
+
+    // Note (optional)
+    if (!note.isNullOrBlank()) {
+        canvas.drawText(note, cx, cardT + 330f, textPaint(38f, false, onCardSummary))
+    }
+
+    // Describe line
+    canvas.drawText(describe, cx, cardT + 400f, textPaint(40f, false, onCardSummary))
+
+    // Big day number + unit
+    val dayPaint = textPaint(220f, true, accent)
+    val dayWidth = dayPaint.measureText(dayNum.toString())
+    val dayX = cx - 30f
+    canvas.drawText(dayNum.toString(), dayX, cardT + 670f, dayPaint)
+    val unitPaint = textPaint(60f, true, accent)
+    canvas.drawText("天", dayX + dayWidth / 2f + 70f, cardT + 670f, unitPaint)
+
+    // Hairline divider
+    val dividerPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = onCardSummary and 0x00FFFFFF or 0x40000000
+        strokeWidth = 3f
+    }
+    canvas.drawLine(cx - 300f, cardT + 745f, cx + 300f, cardT + 745f, dividerPaint)
+
+    // Start date block
+    canvas.drawText("起始日", cx, cardT + 815f, textPaint(34f, false, onCardSummary))
+    canvas.drawText(dateLine, cx, cardT + 880f, textPaint(46f, true, onCard))
+
+    // Signature on the gradient, below the card
+    canvas.drawText("HyperDay", cx, 1520f, textPaint(44f, true, 0xB3FFFFFF.toInt()))
+
+    return bmp
+}
+
+/**
+ * Save a bitmap to the system gallery on API 29+ (MediaStore, no permission needed),
+ * or to the app's external pictures directory on older versions.
+ * Returns a human-readable location, or null on failure.
+ */
+private fun saveBitmapToGallery(
+    context: Context,
+    bitmap: Bitmap,
+    fileName: String,
+): String? {
+    return try {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            val values = ContentValues().apply {
+                put(MediaStore.Images.Media.DISPLAY_NAME, "$fileName.png")
+                put(MediaStore.Images.Media.MIME_TYPE, "image/png")
+                put(
+                    MediaStore.Images.Media.RELATIVE_PATH,
+                    Environment.DIRECTORY_PICTURES + "/HyperDay",
+                )
+            }
+            val resolver = context.contentResolver
+            val uri = resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values)
+                ?: return null
+            resolver.openOutputStream(uri)?.use { out ->
+                if (!bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)) return null
+            } ?: return null
+            "相册 Pictures/HyperDay"
+        } else {
+            val dir = File(
+                context.getExternalFilesDir(Environment.DIRECTORY_PICTURES),
+                "HyperDay",
+            )
+            dir.mkdirs()
+            val file = File(dir, "$fileName.png")
+            FileOutputStream(file).use { out ->
+                if (!bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)) return null
+            }
+            file.absolutePath
+        }
+    } catch (e: Exception) {
+        null
+    }
+}
