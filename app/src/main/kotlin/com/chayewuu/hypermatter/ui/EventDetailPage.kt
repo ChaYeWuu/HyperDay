@@ -42,6 +42,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
@@ -93,6 +94,7 @@ import top.yukonga.miuix.kmp.icon.extended.Image
 import top.yukonga.miuix.kmp.icon.extended.ScreenCapture
 import top.yukonga.miuix.kmp.icon.extended.Share
 import top.yukonga.miuix.kmp.overlay.OverlayDialog
+import top.yukonga.miuix.kmp.preference.SliderPreference
 import top.yukonga.miuix.kmp.shader.isRuntimeShaderSupported
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import java.io.File
@@ -123,11 +125,19 @@ private val GlassBlendLight = listOf(
     BlendColorEntry(Color(0xB3FFFFFF), BlurBlendMode.HardLight),
 )
 
+// Default tuning values for the customizable background parameters.
+private const val DEFAULT_WALLPAPER_BLUR = 28f
+private const val DEFAULT_WALLPAPER_DIM = 0.35f
+private const val DEFAULT_CARD_BLUR = 60f
+private const val DEFAULT_CARD_OPACITY = 0.10f
+
 /**
- * Full-screen detail page for a single countdown event: a central card
- * (content on top, start date at the bottom) with actions below — share,
- * save as image, and customize background (solid color or blurred gallery
- * wallpaper with a frosted-glass card).
+ * Full-screen detail page for a single countdown event: a central frosted
+ * card (content on top, start date at the bottom) with actions below —
+ * share, save as image, and customize background. The background can be a
+ * solid color, a blurred gallery wallpaper, or (with the advanced-material
+ * setting) the official dynamic blending shader — all with adjustable blur
+ * and opacity sliders.
  */
 @Composable
 fun EventDetailPage(
@@ -160,10 +170,12 @@ fun EventDetailPage(
     val weekday = DateUtils.weekdayLabel(event.epochDay)
 
     // ---- Background mode resolution ------------------------------------
-    // 1. Wallpaper (gallery image, blurred, frosted-glass card)
-    // 2. Advanced material (official dynamic blending shader + glass card)
+    // 1. Wallpaper (gallery image, blurred, frosted-glass card) — covers
+    //    the top bar too
+    // 2. Advanced material ON (no wallpaper/color): official dynamic
+    //    blending shader + frosted-glass card
     // 3. Custom solid color (tints the page canvas, solid card)
-    // 4. Default: solid surface canvas + default card
+    // 4. Default: solid surface canvas + frosted-glass card
     val advancedMaterial by settingsStore.advancedMaterial.collectAsState()
     val glassSupported = isRuntimeShaderSupported()
     val colorMode by settingsStore.colorMode.collectAsState()
@@ -197,7 +209,16 @@ fun EventDetailPage(
     val hasWallpaper = event.wallpaperUri != null && wallpaperBitmap != null
 
     val customColor = event.cardColor?.let { Color(it) }
-    val glassMode = glassSupported && customColor == null && (hasWallpaper || advancedMaterial)
+    // The frosted-glass card/buttons are always on when runtime shaders are
+    // supported — a custom solid color opts out (it paints the card solid).
+    val glassMode = glassSupported && customColor == null
+
+    // User-tunable parameters (persisted per event, live-adjustable in the
+    // customize-background dialog).
+    val bgBlur = event.wallpaperBlur?.toFloat() ?: DEFAULT_WALLPAPER_BLUR
+    val bgDim = event.wallpaperDim ?: DEFAULT_WALLPAPER_DIM
+    val cardBlur = event.cardBlur ?: DEFAULT_CARD_BLUR
+    val cardOpacity = event.cardOpacity ?: DEFAULT_CARD_OPACITY
 
     // Contrast-aware text colors over the card.
     val onCard = when {
@@ -303,28 +324,68 @@ fun EventDetailPage(
     // or a tint of the custom card color. A wallpaper replaces the canvas.
     val pageCanvas = customColor?.let { lerp(MiuixTheme.colorScheme.surface, it, 0.3f) }
         ?: MiuixTheme.colorScheme.surface
+
+    // Live-adjustable slider values: initialized from the event when the
+    // dialog opens, previewed live while dragging, persisted on release.
+    var liveBgBlur by remember { mutableFloatStateOf(bgBlur) }
+    var liveBgDim by remember { mutableFloatStateOf(bgDim) }
+    var liveCardBlur by remember { mutableFloatStateOf(cardBlur) }
+    var liveCardOpacity by remember { mutableFloatStateOf(cardOpacity) }
+    LaunchedEffect(showBackgroundDialog, event.wallpaperUri) {
+        if (showBackgroundDialog) {
+            liveBgBlur = event.wallpaperBlur?.toFloat() ?: DEFAULT_WALLPAPER_BLUR
+            liveBgDim = event.wallpaperDim ?: DEFAULT_WALLPAPER_DIM
+            liveCardBlur = event.cardBlur ?: DEFAULT_CARD_BLUR
+            liveCardOpacity = event.cardOpacity ?: DEFAULT_CARD_OPACITY
+        }
+    }
+    // The preview follows the live slider values while the dialog is open.
+    val effBgBlur = if (showBackgroundDialog) liveBgBlur else bgBlur
+    val effBgDim = if (showBackgroundDialog) liveBgDim else bgDim
+    val effCardBlur = if (showBackgroundDialog) liveCardBlur else cardBlur
+    val effCardOpacity = if (showBackgroundDialog) liveCardOpacity else cardOpacity
+    val effCardScrim = MiuixTheme.colorScheme.surface.copy(alpha = effCardOpacity)
+
     val backdrop = rememberBlurBackdrop()
     Scaffold(
         containerColor = if (hasWallpaper) Color.Black else pageCanvas,
         topBar = {
-            BlurredBar(backdrop) {
+            if (hasWallpaper) {
+                // Wallpaper mode: the image fills the whole scaffold (under
+                // the bar too), so the bar is plain transparent — no surface
+                // scrim, the background fully covers it.
                 SmallTopAppBar(
                     title = event.title,
-                    color = if (backdrop != null)
-                        Color.Transparent
-                    else
-                        pageCanvas,
+                    color = Color.Transparent,
                     navigationIcon = {
                         IconButton(onClick = onBack) {
                             Icon(
                                 imageVector = MiuixIcons.Back,
                                 contentDescription = "返回",
-                                tint = if (hasWallpaper) Color.White
-                                else MiuixTheme.colorScheme.onSurface,
+                                tint = Color.White,
                             )
                         }
                     },
                 )
+            } else {
+                BlurredBar(backdrop) {
+                    SmallTopAppBar(
+                        title = event.title,
+                        color = if (backdrop != null)
+                            Color.Transparent
+                        else
+                            pageCanvas,
+                        navigationIcon = {
+                            IconButton(onClick = onBack) {
+                                Icon(
+                                    imageVector = MiuixIcons.Back,
+                                    contentDescription = "返回",
+                                    tint = MiuixTheme.colorScheme.onSurface,
+                                )
+                            }
+                        },
+                    )
+                }
             }
         },
     ) { paddingValues ->
@@ -337,7 +398,7 @@ fun EventDetailPage(
                             Modifier.textureBlur(
                                 backdrop = cardBackdrop,
                                 shape = RoundedCornerShape(16.dp),
-                                blurRadius = 60f,
+                                blurRadius = effCardBlur,
                                 noiseCoefficient = BlurDefaults.NoiseCoefficient,
                                 colors = BlurDefaults.blurColors(blendColors = glassBlend),
                             )
@@ -346,90 +407,100 @@ fun EventDetailPage(
                         }
                     ),
                 insideMargin = PaddingValues(24.dp),
-                colors = if (cardBackdrop != null) {
-                    CardDefaults.defaultColors(Color.Transparent, Color.Transparent)
-                } else if (customColor != null) {
-                    CardDefaults.defaultColors(color = customColor)
-                } else {
-                    CardDefaults.defaultColors()
+                colors = when {
+                    cardBackdrop != null ->
+                        CardDefaults.defaultColors(Color.Transparent, Color.Transparent)
+                    customColor != null -> CardDefaults.defaultColors(color = customColor)
+                    else -> CardDefaults.defaultColors()
                 },
             ) {
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                ) {
-                    // Status pill: upcoming vs past
-                    Box(
-                        modifier = Modifier
-                            .clip(CircleShape)
-                            .background(pillFg.copy(alpha = 0.12f))
-                            .padding(horizontal = 14.dp, vertical = 5.dp),
-                    ) {
-                        Text(
-                            text = if (isPast) "已经过去" else "即将到来",
-                            color = pillFg,
-                            style = MiuixTheme.textStyles.footnote1,
+                Box {
+                    // Adjustable surface tint over the glass (opacity slider).
+                    if (cardBackdrop != null && effCardOpacity > 0.01f) {
+                        Box(
+                            modifier = Modifier
+                                .matchParentSize()
+                                .clip(RoundedCornerShape(16.dp))
+                                .background(effCardScrim),
                         )
                     }
-                    Spacer(Modifier.height(16.dp))
-                    Text(
-                        text = event.title,
-                        color = onCard,
-                        fontSize = 24.sp,
-                        fontWeight = FontWeight.Bold,
-                    )
-                    if (!event.note.isNullOrBlank()) {
-                        Spacer(Modifier.height(6.dp))
-                        Text(
-                            text = event.note,
-                            color = onCardSummary,
-                            style = MiuixTheme.textStyles.body2,
-                        )
-                    }
-                    Spacer(Modifier.height(26.dp))
-                    Text(
-                        text = DateUtils.describe(event),
-                        color = onCardSummary,
-                        style = MiuixTheme.textStyles.subtitle,
-                    )
-                    Spacer(Modifier.height(4.dp))
-                    Row(
-                        verticalAlignment = Alignment.Bottom,
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
+                        // Status pill: upcoming vs past
+                        Box(
+                            modifier = Modifier
+                                .clip(CircleShape)
+                                .background(pillFg.copy(alpha = 0.12f))
+                                .padding(horizontal = 14.dp, vertical = 5.dp),
+                        ) {
+                            Text(
+                                text = if (isPast) "已经过去" else "即将到来",
+                                color = pillFg,
+                                style = MiuixTheme.textStyles.footnote1,
+                            )
+                        }
+                        Spacer(Modifier.height(16.dp))
                         Text(
-                            text = dayNum.toString(),
-                            color = accent,
-                            fontSize = 88.sp,
+                            text = event.title,
+                            color = onCard,
+                            fontSize = 24.sp,
                             fontWeight = FontWeight.Bold,
                         )
-                        Spacer(Modifier.width(6.dp))
+                        if (!event.note.isNullOrBlank()) {
+                            Spacer(Modifier.height(6.dp))
+                            Text(
+                                text = event.note,
+                                color = onCardSummary,
+                                style = MiuixTheme.textStyles.body2,
+                            )
+                        }
+                        Spacer(Modifier.height(26.dp))
                         Text(
-                            text = "天",
-                            color = accent,
-                            fontSize = 20.sp,
-                            modifier = Modifier.padding(bottom = 18.dp),
+                            text = DateUtils.describe(event),
+                            color = onCardSummary,
+                            style = MiuixTheme.textStyles.subtitle,
+                        )
+                        Spacer(Modifier.height(4.dp))
+                        Row(
+                            verticalAlignment = Alignment.Bottom,
+                        ) {
+                            Text(
+                                text = dayNum.toString(),
+                                color = accent,
+                                fontSize = 88.sp,
+                                fontWeight = FontWeight.Bold,
+                            )
+                            Spacer(Modifier.width(6.dp))
+                            Text(
+                                text = "天",
+                                color = accent,
+                                fontSize = 20.sp,
+                                modifier = Modifier.padding(bottom = 18.dp),
+                            )
+                        }
+                        Spacer(Modifier.height(30.dp))
+                        // Hairline divider above the start date block
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth(0.72f)
+                                .height(1.dp)
+                                .background(onCardSummary.copy(alpha = 0.25f)),
+                        )
+                        Spacer(Modifier.height(16.dp))
+                        Text(
+                            text = "起始日",
+                            color = onCardSummary,
+                            style = MiuixTheme.textStyles.footnote2,
+                        )
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            text = "$dateStr $weekday",
+                            color = onCard,
+                            style = MiuixTheme.textStyles.body1,
                         )
                     }
-                    Spacer(Modifier.height(30.dp))
-                    // Hairline divider above the start date block
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth(0.72f)
-                            .height(1.dp)
-                            .background(onCardSummary.copy(alpha = 0.25f)),
-                    )
-                    Spacer(Modifier.height(16.dp))
-                    Text(
-                        text = "起始日",
-                        color = onCardSummary,
-                        style = MiuixTheme.textStyles.footnote2,
-                    )
-                    Spacer(Modifier.height(4.dp))
-                    Text(
-                        text = "$dateStr $weekday",
-                        color = onCard,
-                        style = MiuixTheme.textStyles.body1,
-                    )
                 }
             }
         }
@@ -460,6 +531,7 @@ fun EventDetailPage(
                         onCardText = onCard,
                         glassBackdrop = cardBackdrop,
                         glassBlend = glassBlend,
+                        blurRadius = effCardBlur * 0.6f,
                     ) { shareEvent() }
                     ActionButton(
                         icon = MiuixIcons.ScreenCapture,
@@ -467,6 +539,7 @@ fun EventDetailPage(
                         onCardText = onCardSummary,
                         glassBackdrop = cardBackdrop,
                         glassBlend = glassBlend,
+                        blurRadius = effCardBlur * 0.6f,
                     ) { saveCardAsImage() }
                     ActionButton(
                         icon = MiuixIcons.Background,
@@ -474,6 +547,7 @@ fun EventDetailPage(
                         onCardText = onCardSummary,
                         glassBackdrop = cardBackdrop,
                         glassBlend = glassBlend,
+                        blurRadius = effCardBlur * 0.6f,
                     ) { showBackgroundDialog = true }
                 }
             }
@@ -484,10 +558,12 @@ fun EventDetailPage(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .then(if (backdrop != null) Modifier.layerBackdrop(backdrop) else Modifier),
+                .then(if (backdrop != null && !hasWallpaper) Modifier.layerBackdrop(backdrop) else Modifier),
         ) {
             when {
-                // Custom gallery wallpaper, blurred, frosted-glass card on top.
+                // Custom gallery wallpaper: fills the whole scaffold —
+                // including behind the transparent top bar — blurred at the
+                // user-chosen radius with an adjustable dark scrim.
                 hasWallpaper -> {
                     Box(
                         modifier = Modifier
@@ -505,20 +581,22 @@ fun EventDetailPage(
                             contentScale = ContentScale.Crop,
                             modifier = Modifier
                                 .fillMaxSize()
-                                // RenderEffect blur (API 31+); no-op below.
-                                .blur(28.dp),
+                                .blur(effBgBlur.dp),
                         )
                         // Dark scrim for text readability over any photo.
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .background(Color.Black.copy(alpha = 0.35f)),
-                        )
+                        if (effBgDim > 0.01f) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .background(Color.Black.copy(alpha = effBgDim)),
+                            )
+                        }
                     }
                     content()
                 }
-                // Official dynamic color-blending shader + glass card.
-                glassMode -> {
+                // Official dynamic color-blending shader + glass card
+                // (advanced material setting, no wallpaper/color chosen).
+                glassMode && advancedMaterial -> {
                     BgEffectBackground(
                         dynamicBackground = true,
                         isFullSize = true,
@@ -543,7 +621,7 @@ fun EventDetailPage(
         // would be invisible.
         OverlayDialog(
             title = "自定义背景",
-            summary = "选择纯色背景，或从相册选择壁纸（自动模糊）",
+            summary = "选择纯色背景或壁纸，并自由调节模糊度与透明度",
             show = showBackgroundDialog,
             onDismissRequest = { showBackgroundDialog = false },
             renderInRootScaffold = false,
@@ -581,6 +659,52 @@ fun EventDetailPage(
                         viewModel.updateEvent(event.copy(wallpaperUri = null))
                         showBackgroundDialog = false
                     }
+                }
+
+                // ---- Live tuning sliders ----
+                if (event.wallpaperUri != null) {
+                    SliderPreference(
+                        title = "背景模糊度",
+                        value = liveBgBlur,
+                        onValueChange = { liveBgBlur = it },
+                        valueRange = 0f..50f,
+                        valueText = "${liveBgBlur.toInt()} dp",
+                        onValueChangeFinished = {
+                            viewModel.updateEvent(event.copy(wallpaperBlur = liveBgBlur.toInt()))
+                        },
+                    )
+                    SliderPreference(
+                        title = "背景遮罩",
+                        value = liveBgDim,
+                        onValueChange = { liveBgDim = it },
+                        valueRange = 0f..0.8f,
+                        valueText = "${(liveBgDim * 100).toInt()}%",
+                        onValueChangeFinished = {
+                            viewModel.updateEvent(event.copy(wallpaperDim = liveBgDim))
+                        },
+                    )
+                }
+                if (glassSupported && customColor == null) {
+                    SliderPreference(
+                        title = "卡片模糊度",
+                        value = liveCardBlur,
+                        onValueChange = { liveCardBlur = it },
+                        valueRange = 0f..120f,
+                        valueText = "${liveCardBlur.toInt()}",
+                        onValueChangeFinished = {
+                            viewModel.updateEvent(event.copy(cardBlur = liveCardBlur))
+                        },
+                    )
+                    SliderPreference(
+                        title = "卡片底色浓度",
+                        value = liveCardOpacity,
+                        onValueChange = { liveCardOpacity = it },
+                        valueRange = 0f..1f,
+                        valueText = "${(liveCardOpacity * 100).toInt()}%",
+                        onValueChangeFinished = {
+                            viewModel.updateEvent(event.copy(cardOpacity = liveCardOpacity))
+                        },
+                    )
                 }
             }
         }
@@ -645,6 +769,7 @@ private fun ActionButton(
     onCardText: Color,
     glassBackdrop: LayerBackdrop?,
     glassBlend: List<BlendColorEntry>,
+    blurRadius: Float,
     onClick: () -> Unit,
 ) {
     val view = LocalView.current
@@ -664,7 +789,7 @@ private fun ActionButton(
                         Modifier.textureBlur(
                             backdrop = glassBackdrop,
                             shape = CircleShape,
-                            blurRadius = 40f,
+                            blurRadius = blurRadius,
                             noiseCoefficient = BlurDefaults.NoiseCoefficient,
                             colors = BlurDefaults.blurColors(blendColors = glassBlend),
                         )
