@@ -7,8 +7,7 @@ import kotlinx.coroutines.flow.asStateFlow
 
 /**
  * App-level settings stored in SharedPreferences.
- * Tracks the dark-mode preference (System / Light / Dark) and the
- * advanced-material (frosted-glass blur) toggle.
+ * Tracks the dark-mode preference (System / Light / Dark).
  */
 class SettingsStore(context: Context) {
 
@@ -23,17 +22,8 @@ class SettingsStore(context: Context) {
         colorMode.value = mode
     }
 
-    /** Frosted-glass blur on the detail-page card and buttons (API 33+). */
-    val advancedMaterial = MutableStateFlow(prefs.getBoolean(KEY_ADVANCED_MATERIAL, false))
-
-    fun setAdvancedMaterial(enabled: Boolean) {
-        prefs.edit().putBoolean(KEY_ADVANCED_MATERIAL, enabled).apply()
-        advancedMaterial.value = enabled
-    }
-
     companion object {
         private const val KEY_COLOR_MODE = "color_mode"
-        private const val KEY_ADVANCED_MATERIAL = "advanced_material"
         const val MODE_SYSTEM = 0
         const val MODE_LIGHT = 1
         const val MODE_DARK = 2

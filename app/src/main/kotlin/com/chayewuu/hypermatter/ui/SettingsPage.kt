@@ -33,7 +33,6 @@ fun SettingsPage(
     val settingsStore = LocalSettingsStore.current
     val viewModel = LocalEventViewModel.current
     val colorMode by settingsStore.colorMode.collectAsState()
-    val advancedMaterial by settingsStore.advancedMaterial.collectAsState()
 
     var showClearDialog by remember { mutableStateOf(false) }
 
@@ -81,14 +80,6 @@ fun SettingsPage(
                         settingsStore.setColorMode(if (checked) 2 else 1)
                     },
                     enabled = !followSystem,
-                )
-                SwitchPreference(
-                    title = "高级材质",
-                    summary = "详情页卡片与按钮使用玻璃拟态模糊（需 Android 13+）",
-                    checked = advancedMaterial,
-                    onCheckedChange = { checked ->
-                        settingsStore.setAdvancedMaterial(checked)
-                    },
                 )
             }
         }

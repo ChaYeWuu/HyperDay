@@ -52,7 +52,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -71,13 +70,11 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.CardDefaults
-import top.yukonga.miuix.kmp.basic.ColorPalette
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
 import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.basic.SmallTopAppBar
 import top.yukonga.miuix.kmp.basic.Text
-import top.yukonga.miuix.kmp.basic.TextButton
 import top.yukonga.miuix.kmp.blur.BlendColorEntry
 import top.yukonga.miuix.kmp.blur.BlurBlendMode
 import top.yukonga.miuix.kmp.blur.BlurDefaults
@@ -89,14 +86,19 @@ import top.yukonga.miuix.kmp.icon.MiuixIcons
 import top.yukonga.miuix.kmp.icon.extended.Back
 import top.yukonga.miuix.kmp.icon.extended.Background
 import top.yukonga.miuix.kmp.icon.extended.Image
+import top.yukonga.miuix.kmp.icon.extended.Ok
 import top.yukonga.miuix.kmp.icon.extended.ScreenCapture
 import top.yukonga.miuix.kmp.icon.extended.Share
+import top.yukonga.miuix.kmp.icon.extended.Theme
 import top.yukonga.miuix.kmp.overlay.OverlayDialog
 import top.yukonga.miuix.kmp.preference.SliderPreference
 import top.yukonga.miuix.kmp.shader.isRuntimeShaderSupported
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import java.io.File
 import java.io.FileOutputStream
+
+/** Detail-page background modes. */
+private enum class BgMode { SOLID, DYNAMIC, WALLPAPER }
 
 // Official Miuix example card-blend presets (ColorBlendToken.kt):
 // frosted glass blends for the glass card and action buttons.
@@ -116,13 +118,19 @@ private const val DEFAULT_WALLPAPER_DIM = 0.35f
 private const val DEFAULT_CARD_BLUR = 60f
 private const val DEFAULT_CARD_OPACITY = 0.10f
 
+/** Decoded wallpaper plus its average luminance (drives adaptive colors). */
+private data class WallpaperInfo(
+    val bitmap: ImageBitmap,
+    val luminance: Float,
+)
+
 /**
  * Full-screen detail page for a single countdown event: a central frosted
  * card (content on top, start date at the bottom) with actions below —
- * share, save as image, and customize background. The background can be a
- * solid color, a blurred gallery wallpaper, or (with the advanced-material
- * setting) the official dynamic blending shader — all with adjustable blur
- * and opacity sliders.
+ * share, save as image, and customize background. Three background modes:
+ * solid color, the official dynamic color-blending shader, or a custom
+ * gallery wallpaper (blurred, with card/button colors adapted to the
+ * wallpaper's brightness).
  */
 @Composable
 fun EventDetailPage(
@@ -154,14 +162,6 @@ fun EventDetailPage(
     val dateStr = DateUtils.formatDate(event.epochDay)
     val weekday = DateUtils.weekdayLabel(event.epochDay)
 
-    // ---- Background mode resolution ------------------------------------
-    // 1. Wallpaper (gallery image, blurred, frosted-glass card) — covers
-    //    the top bar too
-    // 2. Advanced material ON (no wallpaper/color): official dynamic
-    //    blending shader + frosted-glass card
-    // 3. Custom solid color (tints the page canvas, solid card)
-    // 4. Default: solid surface canvas + frosted-glass card
-    val advancedMaterial by settingsStore.advancedMaterial.collectAsState()
     val glassSupported = isRuntimeShaderSupported()
     val colorMode by settingsStore.colorMode.collectAsState()
     val isDarkTheme = when (colorMode) {
@@ -170,8 +170,9 @@ fun EventDetailPage(
         else -> isSystemInDarkTheme()
     }
 
-    // Decode the chosen wallpaper (downsampled) off the main thread.
-    val wallpaperBitmap by produceState<ImageBitmap?>(null, event.wallpaperUri) {
+    // Decode the chosen wallpaper (downsampled) off the main thread, together
+    // with its average luminance for adaptive text colors.
+    val wallpaper by produceState<WallpaperInfo?>(null, event.wallpaperUri) {
         val uriStr = event.wallpaperUri ?: return@produceState
         value = withContext(Dispatchers.IO) {
             runCatching {
@@ -188,25 +189,24 @@ fun EventDetailPage(
                 context.contentResolver.openInputStream(uri)?.use {
                     BitmapFactory.decodeStream(it, null, opts)
                 }
-            }.getOrNull()?.asImageBitmap()
+            }.getOrNull()?.let { bmp ->
+                WallpaperInfo(bmp.asImageBitmap(), avgLuminance(bmp))
+            }
         }
     }
-    val hasWallpaper = event.wallpaperUri != null && wallpaperBitmap != null
+    val hasWallpaper = event.wallpaperUri != null && wallpaper != null
+    // Bright wallpapers flip the card/button text to dark for readability.
+    val isLightWallpaper = (wallpaper?.luminance ?: 0f) > 0.5f
 
-    // Custom color is chosen with the official Miuix ColorPalette component:
-    // live-preview while the customize dialog is open, persisted on change.
-    // White is the default palette selection (matches the default card).
-    var liveColor by remember { mutableStateOf(Color.White) }
-    var colorPreviewActive by remember { mutableStateOf(false) }
-    val customColor = event.cardColor?.let { Color(it) }
-    val effCustomColor = when {
-        showBackgroundDialog && colorPreviewActive -> liveColor
-        else -> customColor
+    val bgMode = when {
+        hasWallpaper -> BgMode.WALLPAPER
+        event.dynamicBg == true -> BgMode.DYNAMIC
+        else -> BgMode.SOLID
     }
 
-    // The frosted-glass card/buttons are always on when runtime shaders are
-    // supported — a custom solid color opts out (it paints the card solid).
-    val glassMode = glassSupported && effCustomColor == null
+    // The frosted-glass card/buttons are on whenever runtime shaders are
+    // supported (all three modes); solid cards on API < 33.
+    val glassMode = glassSupported
 
     // User-tunable parameters (persisted per event, live-adjustable in the
     // customize-background dialog).
@@ -215,27 +215,22 @@ fun EventDetailPage(
     val cardBlur = event.cardBlur ?: DEFAULT_CARD_BLUR
     val cardOpacity = event.cardOpacity ?: DEFAULT_CARD_OPACITY
 
-    // Contrast-aware text colors over the card.
+    // Adaptive text colors over the card.
     val onCard = when {
-        hasWallpaper -> Color.White
-        effCustomColor != null ->
-            if (effCustomColor.luminance() > 0.5f) Color(0xFF1B1B1F) else Color.White
+        hasWallpaper -> if (isLightWallpaper) Color(0xFF1B1B1F) else Color.White
         else -> MiuixTheme.colorScheme.onSurface
     }
     val onCardSummary = when {
-        hasWallpaper -> Color.White.copy(alpha = 0.78f)
-        effCustomColor != null -> onCard.copy(alpha = 0.78f)
+        hasWallpaper -> onCard.copy(alpha = 0.78f)
         else -> MiuixTheme.colorScheme.onSurfaceVariantSummary
     }
     val accent = when {
-        hasWallpaper -> Color.White
-        effCustomColor != null -> onCard
+        hasWallpaper -> onCard
         isPast -> MiuixTheme.colorScheme.onSurfaceVariantSummary
         else -> MiuixTheme.colorScheme.primary
     }
     val pillFg = when {
-        hasWallpaper -> Color.White
-        effCustomColor != null -> onCard
+        hasWallpaper -> onCard
         isPast -> MiuixTheme.colorScheme.onSurfaceVariantSummary
         else -> MiuixTheme.colorScheme.primary
     }
@@ -310,15 +305,12 @@ fun EventDetailPage(
                     Intent.FLAG_GRANT_READ_URI_PERMISSION,
                 )
             }
-            viewModel.updateEvent(event.copy(wallpaperUri = uri.toString(), cardColor = null))
+            viewModel.updateEvent(
+                event.copy(wallpaperUri = uri.toString(), dynamicBg = null, cardColor = null)
+            )
             showBackgroundDialog = false
         }
     }
-
-    // Page canvas: solid by default — `surface` (light: #F7F7F7; dark: black),
-    // or a tint of the custom color. A wallpaper replaces the canvas.
-    val pageCanvas = effCustomColor?.let { lerp(MiuixTheme.colorScheme.surface, it, 0.3f) }
-        ?: MiuixTheme.colorScheme.surface
 
     // Live-adjustable slider values: initialized from the event when the
     // dialog opens, previewed live while dragging, persisted on release.
@@ -326,14 +318,12 @@ fun EventDetailPage(
     var liveBgDim by remember { mutableFloatStateOf(bgDim) }
     var liveCardBlur by remember { mutableFloatStateOf(cardBlur) }
     var liveCardOpacity by remember { mutableFloatStateOf(cardOpacity) }
-    LaunchedEffect(showBackgroundDialog, event.wallpaperUri) {
+    LaunchedEffect(showBackgroundDialog) {
         if (showBackgroundDialog) {
             liveBgBlur = event.wallpaperBlur?.toFloat() ?: DEFAULT_WALLPAPER_BLUR
             liveBgDim = event.wallpaperDim ?: DEFAULT_WALLPAPER_DIM
             liveCardBlur = event.cardBlur ?: DEFAULT_CARD_BLUR
             liveCardOpacity = event.cardOpacity ?: DEFAULT_CARD_OPACITY
-            liveColor = event.cardColor?.let { Color(it) } ?: Color.White
-            colorPreviewActive = event.cardColor != null
         }
     }
     // The preview follows the live slider values while the dialog is open.
@@ -343,35 +333,36 @@ fun EventDetailPage(
     val effCardOpacity = if (showBackgroundDialog) liveCardOpacity else cardOpacity
     val effCardScrim = MiuixTheme.colorScheme.surface.copy(alpha = effCardOpacity)
 
+    val pageCanvas = MiuixTheme.colorScheme.surface
     val backdrop = rememberBlurBackdrop()
     Scaffold(
         containerColor = if (hasWallpaper) Color.Black else pageCanvas,
         topBar = {
-            when {
-                hasWallpaper -> {
-                    // Wallpaper mode: the image fills the whole scaffold (under
-                    // the bar too), so the bar is plain transparent.
+            if (hasWallpaper) {
+                // Wallpaper mode: the image fills the whole scaffold (under
+                // the bar too), so the bar is plain transparent. The back
+                // icon adapts to the wallpaper brightness.
+                SmallTopAppBar(
+                    title = event.title,
+                    color = Color.Transparent,
+                    navigationIcon = {
+                        IconButton(onClick = onBack) {
+                            Icon(
+                                imageVector = MiuixIcons.Back,
+                                contentDescription = "返回",
+                                tint = onCard,
+                            )
+                        }
+                    },
+                )
+            } else {
+                BlurredBar(backdrop) {
                     SmallTopAppBar(
                         title = event.title,
-                        color = Color.Transparent,
-                        navigationIcon = {
-                            IconButton(onClick = onBack) {
-                                Icon(
-                                    imageVector = MiuixIcons.Back,
-                                    contentDescription = "返回",
-                                    tint = Color.White,
-                                )
-                            }
-                        },
-                    )
-                }
-                // Custom solid color: a solid bar in the SAME tinted canvas
-                // color as the page below (the progressive-blur surface scrim
-                // would wash it back to white).
-                effCustomColor != null -> {
-                    SmallTopAppBar(
-                        title = event.title,
-                        color = pageCanvas,
+                        color = if (backdrop != null)
+                            Color.Transparent
+                        else
+                            pageCanvas,
                         navigationIcon = {
                             IconButton(onClick = onBack) {
                                 Icon(
@@ -382,26 +373,6 @@ fun EventDetailPage(
                             }
                         },
                     )
-                }
-                else -> {
-                    BlurredBar(backdrop) {
-                        SmallTopAppBar(
-                            title = event.title,
-                            color = if (backdrop != null)
-                                Color.Transparent
-                            else
-                                pageCanvas,
-                            navigationIcon = {
-                                IconButton(onClick = onBack) {
-                                    Icon(
-                                        imageVector = MiuixIcons.Back,
-                                        contentDescription = "返回",
-                                        tint = MiuixTheme.colorScheme.onSurface,
-                                    )
-                                }
-                            },
-                        )
-                    }
                 }
             }
         },
@@ -424,11 +395,10 @@ fun EventDetailPage(
                         }
                     ),
                 insideMargin = PaddingValues(24.dp),
-                colors = when {
-                    cardBackdrop != null ->
-                        CardDefaults.defaultColors(Color.Transparent, Color.Transparent)
-                    effCustomColor != null -> CardDefaults.defaultColors(color = effCustomColor)
-                    else -> CardDefaults.defaultColors()
+                colors = if (cardBackdrop != null) {
+                    CardDefaults.defaultColors(Color.Transparent, Color.Transparent)
+                } else {
+                    CardDefaults.defaultColors()
                 },
             ) {
                 Box {
@@ -593,7 +563,7 @@ fun EventDetailPage(
                             ),
                     ) {
                         Image(
-                            bitmap = wallpaperBitmap!!,
+                            bitmap = wallpaper!!.bitmap,
                             contentDescription = null,
                             contentScale = ContentScale.Crop,
                             modifier = Modifier
@@ -611,9 +581,8 @@ fun EventDetailPage(
                     }
                     content()
                 }
-                // Official dynamic color-blending shader + glass card
-                // (advanced material setting, no wallpaper/color chosen).
-                glassMode && advancedMaterial -> {
+                // Official dynamic color-blending shader + glass card.
+                bgMode == BgMode.DYNAMIC -> {
                     BgEffectBackground(
                         dynamicBackground = true,
                         isFullSize = true,
@@ -626,7 +595,7 @@ fun EventDetailPage(
                         content()
                     }
                 }
-                // Solid canvas (default surface or custom color tint).
+                // Solid canvas.
                 else -> content()
             }
         }
@@ -638,61 +607,42 @@ fun EventDetailPage(
         // would be invisible.
         OverlayDialog(
             title = "自定义背景",
-            summary = "选择纯色背景或壁纸，并自由调节模糊度与透明度",
+            summary = "选择背景样式，壁纸模式下卡片会自适应壁纸明暗",
             show = showBackgroundDialog,
             onDismissRequest = { showBackgroundDialog = false },
             renderInRootScaffold = false,
         ) {
             Column {
-                // Official Miuix ColorPalette: a 7x13 HSV grid (+ gray column)
-                // with a live preview strip. White is the default selection;
-                // picking a color previews the whole page live and persists
-                // immediately.
-                ColorPalette(
-                    color = if (colorPreviewActive) liveColor
-                    else customColor ?: Color.White,
-                    onColorChanged = { color ->
-                        liveColor = color
-                        colorPreviewActive = true
-                        viewModel.updateEvent(
-                            event.copy(
-                                cardColor = color.toArgb().toLong() and 0xFFFFFFFFL,
-                                wallpaperUri = null,
-                            )
-                        )
-                    },
-                )
-                if (event.cardColor != null || colorPreviewActive) {
-                    WallpaperOptionRow(
-                        icon = MiuixIcons.Background,
-                        label = "恢复默认背景色",
-                    ) {
-                        viewModel.updateEvent(event.copy(cardColor = null))
-                        colorPreviewActive = false
-                        showBackgroundDialog = false
-                    }
+                BgModeRow(
+                    icon = MiuixIcons.Background,
+                    label = "纯色背景",
+                    selected = bgMode == BgMode.SOLID,
+                ) {
+                    viewModel.updateEvent(
+                        event.copy(wallpaperUri = null, dynamicBg = null, cardColor = null)
+                    )
                 }
-                WallpaperOptionRow(
+                BgModeRow(
+                    icon = MiuixIcons.Theme,
+                    label = "动态取色",
+                    selected = bgMode == BgMode.DYNAMIC,
+                ) {
+                    viewModel.updateEvent(
+                        event.copy(wallpaperUri = null, dynamicBg = true, cardColor = null)
+                    )
+                }
+                BgModeRow(
                     icon = MiuixIcons.Image,
-                    label = if (event.wallpaperUri == null) "从相册选择壁纸"
-                    else "更换壁纸",
+                    label = "自定义壁纸",
+                    selected = bgMode == BgMode.WALLPAPER,
                 ) {
                     wallpaperPicker.launch(
                         PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
                     )
                 }
-                if (event.wallpaperUri != null) {
-                    WallpaperOptionRow(
-                        icon = MiuixIcons.Background,
-                        label = "清除壁纸，恢复纯色",
-                    ) {
-                        viewModel.updateEvent(event.copy(wallpaperUri = null))
-                        showBackgroundDialog = false
-                    }
-                }
 
                 // ---- Live tuning sliders ----
-                if (event.wallpaperUri != null) {
+                if (bgMode == BgMode.WALLPAPER) {
                     SliderPreference(
                         title = "背景模糊度",
                         value = liveBgBlur,
@@ -714,7 +664,7 @@ fun EventDetailPage(
                         },
                     )
                 }
-                if (glassSupported && effCustomColor == null) {
+                if (glassSupported) {
                     SliderPreference(
                         title = "卡片模糊度",
                         value = liveCardBlur,
@@ -741,11 +691,12 @@ fun EventDetailPage(
     }
 }
 
-/** Full-width tappable row used for the wallpaper picker actions. */
+/** Full-width tappable row for background-mode selection (with check mark). */
 @Composable
-private fun WallpaperOptionRow(
+private fun BgModeRow(
     icon: ImageVector,
     label: String,
+    selected: Boolean,
     onClick: () -> Unit,
 ) {
     val view = LocalView.current
@@ -770,7 +721,15 @@ private fun WallpaperOptionRow(
             text = label,
             color = MiuixTheme.colorScheme.onSurface,
             style = MiuixTheme.textStyles.body1,
+            modifier = Modifier.weight(1f),
         )
+        if (selected) {
+            Icon(
+                imageVector = MiuixIcons.Ok,
+                contentDescription = null,
+                tint = MiuixTheme.colorScheme.primary,
+            )
+        }
     }
 }
 
@@ -834,6 +793,29 @@ private fun ActionButton(
             style = MiuixTheme.textStyles.footnote1,
         )
     }
+}
+
+/** Average perceptual luminance (0..1) of a bitmap, stride-sampled. */
+private fun avgLuminance(bitmap: Bitmap): Float {
+    val w = bitmap.width
+    val h = bitmap.height
+    if (w <= 0 || h <= 0) return 0f
+    val pixels = IntArray(w * h)
+    bitmap.getPixels(pixels, 0, w, 0, 0, w, h)
+    val step = maxOf(1, pixels.size / 10000)
+    var sum = 0f
+    var count = 0
+    var index = 0
+    while (index < pixels.size) {
+        val p = pixels[index]
+        val r = (p shr 16 and 0xFF) / 255f
+        val g = (p shr 8 and 0xFF) / 255f
+        val b = (p and 0xFF) / 255f
+        sum += 0.2126f * r + 0.7152f * g + 0.0722f * b
+        count++
+        index += step
+    }
+    return if (count == 0) 0f else sum / count
 }
 
 /**
