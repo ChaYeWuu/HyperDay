@@ -12,6 +12,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
+import android.util.LruCache
 import android.view.HapticFeedbackConstants
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -137,6 +138,13 @@ private data class WallpaperInfo(
 )
 
 /**
+ * In-memory decode cache keyed by the wallpaper Uri string: revisiting a
+ * detail page shows the wallpaper on the very first frame instead of
+ * flashing the solid canvas while the bitmap re-decodes.
+ */
+private val wallpaperCache = LruCache<String, WallpaperInfo>(4)
+
+/**
  * Full-screen detail page for a single countdown event: a central frosted
  * card (content on top, start date at the bottom) with actions below —
  * share, save as image, and customize background. Three background modes:
@@ -183,10 +191,16 @@ fun EventDetailPage(
     }
 
     // Decode the chosen wallpaper (downsampled) off the main thread, together
-    // with its average luminance for adaptive text colors.
-    val wallpaper by produceState<WallpaperInfo?>(null, event.wallpaperUri) {
+    // with its average luminance for adaptive text colors. A cached decode
+    // (previous visit) is the produceState initial value, so the first frame
+    // already renders the wallpaper.
+    val wallpaper by produceState<WallpaperInfo?>(
+        initialValue = event.wallpaperUri?.let { wallpaperCache.get(it) },
+        key1 = event.wallpaperUri,
+    ) {
         val uriStr = event.wallpaperUri ?: return@produceState
-        value = withContext(Dispatchers.IO) {
+        if (wallpaperCache.get(uriStr) != null) return@produceState
+        val decoded = withContext(Dispatchers.IO) {
             runCatching {
                 val uri = Uri.parse(uriStr)
                 val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
@@ -205,13 +219,21 @@ fun EventDetailPage(
                 WallpaperInfo(bmp.asImageBitmap(), avgLuminance(bmp))
             }
         }
+        if (decoded != null) {
+            wallpaperCache.put(uriStr, decoded)
+            value = decoded
+        }
     }
-    val hasWallpaper = event.wallpaperUri != null && wallpaper != null
+    // A configured wallpaper renders the wallpaper-mode shell even while
+    // the bitmap is still decoding — the solid canvas must never flash
+    // through (that was the white/black blink on entering the page).
+    val wallpaperConfigured = event.wallpaperUri != null
+    val hasWallpaper = wallpaperConfigured && wallpaper != null
     // Bright wallpapers flip the card/button text to dark for readability.
     val isLightWallpaper = (wallpaper?.luminance ?: 0f) > 0.5f
 
     val bgMode = when {
-        hasWallpaper -> BgMode.WALLPAPER
+        wallpaperConfigured -> BgMode.WALLPAPER
         else -> BgMode.SOLID
     }
 
@@ -342,31 +364,31 @@ fun EventDetailPage(
     val overlayTextColor =
         if (wallpaperTextDark) Color(0xFF1B1B1F) else Color.White
     val onCard =
-        if (hasWallpaper) overlayTextColor
+        if (wallpaperConfigured) overlayTextColor
         else MiuixTheme.colorScheme.onSurface
     val onCardSummary =
-        if (hasWallpaper) onCard.copy(alpha = 0.78f)
+        if (wallpaperConfigured) onCard.copy(alpha = 0.78f)
         else MiuixTheme.colorScheme.onSurfaceVariantSummary
     val accent =
-        if (hasWallpaper) onCard
+        if (wallpaperConfigured) onCard
         else MiuixTheme.colorScheme.onSurface
     val pillFg = when {
-        hasWallpaper -> onCard
+        wallpaperConfigured -> onCard
         isPast -> MiuixTheme.colorScheme.onSurfaceVariantSummary
         else -> MiuixTheme.colorScheme.onSurface
     }
     // Elements directly on the background (back arrow, button labels) share
     // the same color in wallpaper mode; solid mode keeps the summary tone.
     val bgTextColor =
-        if (hasWallpaper) onCard
+        if (wallpaperConfigured) onCard
         else MiuixTheme.colorScheme.onSurfaceVariantSummary
 
     val pageCanvas = MiuixTheme.colorScheme.surface
     val backdrop = rememberBlurBackdrop()
     Scaffold(
-        containerColor = if (hasWallpaper) Color.Black else pageCanvas,
+        containerColor = if (wallpaperConfigured) Color.Black else pageCanvas,
         topBar = {
-            if (hasWallpaper) {
+            if (wallpaperConfigured) {
                 // Wallpaper mode: the image fills the whole scaffold (under
                 // the bar too), so the bar is plain transparent. The back
                 // icon adapts to the wallpaper brightness. No title — the
@@ -412,6 +434,13 @@ fun EventDetailPage(
             Color.Black.copy(alpha = 0.22f)
         else
             Color.White.copy(alpha = 0.18f)
+        // Freshly decoded wallpaper fades in over the black shell (a cache
+        // hit composes with the bitmap already present, so no fade runs).
+        val wallpaperAlpha by animateFloatAsState(
+            targetValue = if (hasWallpaper) 1f else 0f,
+            animationSpec = tween(250),
+            label = "wallpaperAlpha",
+        )
 
         val cardContent: @Composable () -> Unit = {
             Card(
@@ -436,7 +465,10 @@ fun EventDetailPage(
                         }
                     ),
                 insideMargin = PaddingValues(24.dp),
-                colors = if (cardBackdrop != null || liquidActive) {
+                colors = if (cardBackdrop != null || liquidActive || wallpaperConfigured) {
+                    // Wallpaper mode (including the brief decode-pending
+                    // window) keeps the card transparent so the solid card
+                    // background never flashes before the glass kicks in.
                     CardDefaults.defaultColors(Color.Transparent, Color.Transparent)
                 } else {
                     CardDefaults.defaultColors()
@@ -540,6 +572,17 @@ fun EventDetailPage(
                 // glass circles), so they adapt to the background's
                 // brightness — not to the card text colors.
                 val onBackgroundText = bgTextColor
+                // Non-glass fallback look: wallpaper mode (incl. the brief
+                // decode-pending window) uses a translucent circle so the
+                // solid surfaceContainer never pops on the dark shell.
+                val btnFallbackContainer = if (wallpaperConfigured)
+                    Color.White.copy(alpha = 0.15f)
+                else
+                    MiuixTheme.colorScheme.surfaceContainer
+                val btnFallbackContent = if (wallpaperConfigured)
+                    onBackgroundText
+                else
+                    MiuixTheme.colorScheme.onSurface
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -555,6 +598,8 @@ fun EventDetailPage(
                         blurRadius = effCardBlur * 0.6f,
                         liquidBackdrop = if (liquidActive) liquidBackdrop else null,
                         liquidTint = liquidTint,
+                        fallbackContainer = btnFallbackContainer,
+                        fallbackContent = btnFallbackContent,
                     ) { shareEvent() }
                     ActionButton(
                         icon = MiuixIcons.ScreenCapture,
@@ -565,6 +610,8 @@ fun EventDetailPage(
                         blurRadius = effCardBlur * 0.6f,
                         liquidBackdrop = if (liquidActive) liquidBackdrop else null,
                         liquidTint = liquidTint,
+                        fallbackContainer = btnFallbackContainer,
+                        fallbackContent = btnFallbackContent,
                     ) { saveCardAsImage() }
                     ActionButton(
                         icon = MiuixIcons.Background,
@@ -575,6 +622,8 @@ fun EventDetailPage(
                         blurRadius = effCardBlur * 0.6f,
                         liquidBackdrop = if (liquidActive) liquidBackdrop else null,
                         liquidTint = liquidTint,
+                        fallbackContainer = btnFallbackContainer,
+                        fallbackContent = btnFallbackContent,
                     ) { showBackgroundDialog = true }
                 }
             }
@@ -585,13 +634,15 @@ fun EventDetailPage(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .then(if (backdrop != null && !hasWallpaper) Modifier.layerBackdrop(backdrop) else Modifier),
+                .then(if (backdrop != null && !wallpaperConfigured) Modifier.layerBackdrop(backdrop) else Modifier),
         ) {
             when {
                 // Custom gallery wallpaper: fills the whole scaffold —
                 // including behind the transparent top bar — blurred at the
-                // user-chosen radius with an adjustable dark scrim.
-                hasWallpaper -> {
+                // user-chosen radius with an adjustable dark scrim. While the
+                // bitmap is still decoding this branch renders the black
+                // shell only (no flash of the solid canvas).
+                wallpaperConfigured -> {
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
@@ -608,21 +659,25 @@ fun EventDetailPage(
                                     Modifier
                             ),
                     ) {
-                        Image(
-                            bitmap = wallpaper!!.bitmap,
-                            contentDescription = null,
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .blur(effBgBlur.dp),
-                        )
-                        // Dark scrim for text readability over any photo.
-                        if (effBgDim > 0.01f) {
-                            Box(
+                        if (wallpaper != null) {
+                            Image(
+                                bitmap = wallpaper!!.bitmap,
+                                contentDescription = null,
+                                contentScale = ContentScale.Crop,
                                 modifier = Modifier
                                     .fillMaxSize()
-                                    .background(Color.Black.copy(alpha = effBgDim)),
+                                    .blur(effBgBlur.dp)
+                                    .graphicsLayer { alpha = wallpaperAlpha },
                             )
+                            // Dark scrim for text readability over any photo.
+                            if (effBgDim > 0.01f) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .graphicsLayer { alpha = wallpaperAlpha }
+                                        .background(Color.Black.copy(alpha = effBgDim)),
+                                )
+                            }
                         }
                     }
                     content()
@@ -866,6 +921,8 @@ private fun ActionButton(
     blurRadius: Float,
     liquidBackdrop: LiquidBackdrop?,
     liquidTint: Color,
+    fallbackContainer: Color,
+    fallbackContent: Color,
     onClick: () -> Unit,
 ) {
     val view = LocalView.current
@@ -899,7 +956,7 @@ private fun ActionButton(
                             noiseCoefficient = BlurDefaults.NoiseCoefficient,
                             colors = BlurDefaults.blurColors(blendColors = glassBlend),
                         )
-                        else -> Modifier.background(MiuixTheme.colorScheme.surfaceContainer)
+                        else -> Modifier.background(fallbackContainer)
                     }
                 )
                 .clickable(onClick = {
@@ -911,14 +968,14 @@ private fun ActionButton(
                 imageVector = icon,
                 contentDescription = label,
                 tint = if (glassBackdrop != null || liquidBackdrop != null) onCardText
-                else MiuixTheme.colorScheme.onSurface,
+                else fallbackContent,
             )
         }
         Spacer(Modifier.height(8.dp))
         Text(
             text = label,
             color = if (glassBackdrop != null || liquidBackdrop != null) onCardText
-            else MiuixTheme.colorScheme.onSurfaceVariantSummary,
+            else fallbackContent,
             style = MiuixTheme.textStyles.footnote1,
         )
     }
