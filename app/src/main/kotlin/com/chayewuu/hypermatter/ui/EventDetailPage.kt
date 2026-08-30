@@ -29,9 +29,11 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -104,6 +106,9 @@ import java.io.FileOutputStream
 
 /** Detail-page background modes. */
 private enum class BgMode { SOLID, WALLPAPER }
+
+/** Which tuning slider is currently being dragged (floating pill shown). */
+private enum class ActiveSlider { BG_BLUR, BG_DIM, CARD_BLUR }
 
 // Official Miuix example card-blend presets (ColorBlendToken.kt):
 // frosted glass blends for the glass card and action buttons.
@@ -226,11 +231,25 @@ fun EventDetailPage(
     val bgDim = event.wallpaperDim ?: DEFAULT_WALLPAPER_DIM
     val cardBlur = event.cardBlur ?: DEFAULT_CARD_BLUR
 
-    // Adaptive text colors: on wallpaper, driven by the photo's luminance;
-    // on solid/dynamic, the glass card shows a soft surface tint so the
-    // theme's onSurface stays readable.
+    // Adaptive text colors. On wallpaper the card's EFFECTIVE brightness
+    // decides: the glass layers tint the blurred photo behind the card
+    // (white/black tint in liquid mode, gray blend in frosted mode), which
+    // can flip a mid-bright photo into a light-looking card — so the raw
+    // photo luminance alone is not enough.
+    val wpLum = wallpaper?.luminance ?: 0f
+    val effCardLum = when {
+        !hasWallpaper -> if (isDarkTheme) 0.14f else 1f
+        liquidBackdrop != null ->
+            if (isLightWallpaper)
+                wpLum * (1f - 0.22f) // black 22% tint darkens the sample
+            else
+                wpLum + 0.18f * (1f - wpLum) // white 18% tint lightens it
+        glassSupported -> wpLum + 0.2f * (1f - wpLum) // frosted gray blend
+        else -> if (isDarkTheme) 0.14f else 1f
+    }
+    val cardTextDark = effCardLum > 0.5f
     val onCard = when {
-        hasWallpaper -> if (isLightWallpaper) Color(0xFF1B1B1F) else Color.White
+        hasWallpaper -> if (cardTextDark) Color(0xFF1B1B1F) else Color.White
         else -> MiuixTheme.colorScheme.onSurface
     }
     val onCardSummary = when {
@@ -330,20 +349,32 @@ fun EventDetailPage(
     var liveBgDim by remember { mutableFloatStateOf(bgDim) }
     var liveCardBlur by remember { mutableFloatStateOf(cardBlur) }
     // While any slider thumb is held down, the customize-background dialog
-    // itself sinks and fades away so the wallpaper can be observed live.
-    var sliderActive by remember { mutableStateOf(false) }
+    // itself sinks and fades away so the wallpaper can be observed live;
+    // which slider is active is tracked so a floating progress pill can
+    // keep it visible.
+    var activeSlider by remember { mutableStateOf<ActiveSlider?>(null) }
     LaunchedEffect(showBackgroundDialog) {
         if (showBackgroundDialog) {
             liveBgBlur = event.wallpaperBlur?.toFloat() ?: DEFAULT_WALLPAPER_BLUR
             liveBgDim = event.wallpaperDim ?: DEFAULT_WALLPAPER_DIM
             liveCardBlur = event.cardBlur ?: DEFAULT_CARD_BLUR
-            sliderActive = false
+            activeSlider = null
         }
     }
     // The preview follows the live slider values while the dialog is open.
     val effBgBlur = if (showBackgroundDialog) liveBgBlur else bgBlur
     val effBgDim = if (showBackgroundDialog) liveBgDim else bgDim
     val effCardBlur = if (showBackgroundDialog) liveCardBlur else cardBlur
+
+    // Effective BACKGROUND brightness (photo + dim scrim) — drives the
+    // colors of elements drawn directly on the background: the top-bar
+    // back arrow and the action-button labels. Solid mode keeps the
+    // theme's summary color.
+    val bgTextColor = if (hasWallpaper) {
+        if (wpLum * (1f - effBgDim) > 0.5f) Color(0xFF1B1B1F) else Color.White
+    } else {
+        MiuixTheme.colorScheme.onSurfaceVariantSummary
+    }
 
     val pageCanvas = MiuixTheme.colorScheme.surface
     val backdrop = rememberBlurBackdrop()
@@ -362,7 +393,7 @@ fun EventDetailPage(
                             Icon(
                                 imageVector = MiuixIcons.Back,
                                 contentDescription = "返回",
-                                tint = onCard,
+                                tint = bgTextColor,
                             )
                         }
                     },
@@ -522,10 +553,7 @@ fun EventDetailPage(
                 // Labels sit directly on the page background (outside the
                 // glass circles), so they adapt to the background's
                 // brightness — not to the card text colors.
-                val onBackgroundText = when {
-                    hasWallpaper -> if (isLightWallpaper) Color(0xFF1B1B1F) else Color.White
-                    else -> MiuixTheme.colorScheme.onSurfaceVariantSummary
-                }
+                val onBackgroundText = bgTextColor
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -623,7 +651,7 @@ fun EventDetailPage(
             // slider tuning. This one animates: it fades out together with
             // the sinking dialog and back in when it returns.
             val scrimAlpha by animateFloatAsState(
-                targetValue = if (showBackgroundDialog && !sliderActive) 1f else 0f,
+                targetValue = if (showBackgroundDialog && activeSlider == null) 1f else 0f,
                 animationSpec = tween(200),
                 label = "dialogScrim",
             )
@@ -634,6 +662,64 @@ fun EventDetailPage(
                         .graphicsLayer { alpha = scrimAlpha }
                         .background(MiuixTheme.colorScheme.windowDimming),
                 )
+            }
+
+            // Floating progress pill: while a slider thumb is held (the
+            // dialog has sunk away), keep the active slider's title, value
+            // and progress visible at the bottom of the screen.
+            if (showBackgroundDialog && activeSlider != null) {
+                val pill = when (activeSlider!!) {
+                    ActiveSlider.BG_BLUR ->
+                        Triple("背景模糊度", "${liveBgBlur.toInt()} dp", liveBgBlur / 50f)
+                    ActiveSlider.BG_DIM ->
+                        Triple("背景遮罩", "${(liveBgDim * 100).toInt()}%", liveBgDim / 0.8f)
+                    ActiveSlider.CARD_BLUR ->
+                        Triple("卡片模糊度", "${liveCardBlur.toInt()}", liveCardBlur / 120f)
+                }
+                Column(
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .navigationBarsPadding()
+                        .padding(bottom = 24.dp)
+                        .padding(horizontal = 32.dp)
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(Color.Black.copy(alpha = 0.45f))
+                        .padding(horizontal = 20.dp, vertical = 14.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                    ) {
+                        Text(
+                            text = pill.first,
+                            color = Color.White,
+                            style = MiuixTheme.textStyles.footnote1,
+                        )
+                        Text(
+                            text = pill.second,
+                            color = Color.White,
+                            style = MiuixTheme.textStyles.footnote1,
+                        )
+                    }
+                    Spacer(Modifier.height(10.dp))
+                    // Slim progress track mirroring the slider position.
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(6.dp)
+                            .clip(CircleShape)
+                            .background(Color.White.copy(alpha = 0.25f)),
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth(pill.third.coerceIn(0.02f, 1f))
+                                .fillMaxHeight()
+                                .clip(CircleShape)
+                                .background(Color.White),
+                        )
+                    }
+                }
             }
         }
 
@@ -647,7 +733,7 @@ fun EventDetailPage(
         // being tuned stays fully visible. The in-progress drag keeps working
         // (pointer events follow the pointer id, not the on-screen position).
         val dialogSink by animateFloatAsState(
-            targetValue = if (sliderActive) 1f else 0f,
+            targetValue = if (activeSlider != null) 1f else 0f,
             animationSpec = tween(200),
             label = "dialogSink",
         )
@@ -690,13 +776,13 @@ fun EventDetailPage(
                         title = "背景模糊度",
                         value = liveBgBlur,
                         onValueChange = {
-                            sliderActive = true
+                            activeSlider = ActiveSlider.BG_BLUR
                             liveBgBlur = it
                         },
                         valueRange = 0f..50f,
                         valueText = "${liveBgBlur.toInt()} dp",
                         onValueChangeFinished = {
-                            sliderActive = false
+                            activeSlider = null
                             viewModel.updateEvent(event.copy(wallpaperBlur = liveBgBlur.toInt()))
                         },
                     )
@@ -704,13 +790,13 @@ fun EventDetailPage(
                         title = "背景遮罩",
                         value = liveBgDim,
                         onValueChange = {
-                            sliderActive = true
+                            activeSlider = ActiveSlider.BG_DIM
                             liveBgDim = it
                         },
                         valueRange = 0f..0.8f,
                         valueText = "${(liveBgDim * 100).toInt()}%",
                         onValueChangeFinished = {
-                            sliderActive = false
+                            activeSlider = null
                             viewModel.updateEvent(event.copy(wallpaperDim = liveBgDim))
                         },
                     )
@@ -720,13 +806,13 @@ fun EventDetailPage(
                         title = "卡片模糊度",
                         value = liveCardBlur,
                         onValueChange = {
-                            sliderActive = true
+                            activeSlider = ActiveSlider.CARD_BLUR
                             liveCardBlur = it
                         },
                         valueRange = 0f..120f,
                         valueText = "${liveCardBlur.toInt()}",
                         onValueChangeFinished = {
-                            sliderActive = false
+                            activeSlider = null
                             viewModel.updateEvent(event.copy(cardBlur = liveCardBlur))
                         },
                     )

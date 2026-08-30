@@ -312,6 +312,9 @@ private fun AppearanceCard(
             modifier = Modifier
                 .fillMaxWidth()
                 .aspectRatio(480f / 680f)
+                // Bound the press ripple to the card's rounded shape (a bare
+                // Box would clip the indication to a rectangle).
+                .clip(RoundedCornerShape(24.dp))
                 .drawBehind {
                     if (borderColor != Color.Transparent) {
                         drawSmoothRoundedShape(

@@ -1,6 +1,7 @@
 package com.chayewuu.hypermatter
 
 import android.os.Bundle
+import android.view.HapticFeedbackConstants
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
@@ -15,13 +16,19 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.unit.dp
 import com.chayewuu.hypermatter.data.EventStore
 import com.chayewuu.hypermatter.data.EventViewModel
 import com.chayewuu.hypermatter.data.SettingsStore
 import com.chayewuu.hypermatter.ui.AboutPage
+import com.chayewuu.hypermatter.ui.AddEventBottomSheet
 import com.chayewuu.hypermatter.ui.BlurredBar
 import com.chayewuu.hypermatter.ui.EventDetailPage
 import com.chayewuu.hypermatter.ui.HomePage
@@ -29,6 +36,7 @@ import com.chayewuu.hypermatter.ui.SettingsPage
 import com.chayewuu.hypermatter.ui.ThemePage
 import com.chayewuu.hypermatter.ui.rememberBlurBackdrop
 import com.chayewuu.hypermatter.ui.glass.GlassCanvasRecorder
+import com.chayewuu.hypermatter.ui.glass.GlassNavAction
 import com.chayewuu.hypermatter.ui.glass.LiquidGlassTabBar
 import com.chayewuu.hypermatter.ui.glass.LocalGlassBackdrop
 import com.chayewuu.hypermatter.ui.glass.LocalGlassEnabled
@@ -48,6 +56,7 @@ import top.yukonga.miuix.kmp.basic.NavigationItem
 import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.basic.SmallTopAppBar
 import top.yukonga.miuix.kmp.icon.MiuixIcons
+import top.yukonga.miuix.kmp.icon.extended.Add
 import top.yukonga.miuix.kmp.icon.extended.Home
 import top.yukonga.miuix.kmp.icon.extended.Settings
 import top.yukonga.miuix.kmp.nav.core.NavDisplay
@@ -138,7 +147,12 @@ private fun App() {
             backStack = backStack,
             onBack = { backStack.removeLastOrNull() },
             transition = NavTransitions.MiuixDefault,
-            effects = NavDisplayEffects(dimAmount = 0.5f),
+            effects = NavDisplayEffects(
+                // Official iOS-style corner clip: the entering page gets
+                // rounded corners while it slides in from the edge.
+                cornerClipRadius = 18.dp,
+                dimAmount = 0.5f,
+            ),
         ) {
             entry<Route.Main> {
                 MainTabs(
@@ -171,6 +185,13 @@ private fun MainTabs(
 ) {
     val pagerState = rememberPagerState { 2 }
     val scope = rememberCoroutineScope()
+    val viewModel = LocalEventViewModel.current
+    val view = LocalView.current
+
+    // The add-event sheet is owned here (not inside HomePage) so that BOTH
+    // triggers can open it: the classic in-page FAB and, in liquid-glass
+    // mode, the + action docked next to the bottom tab bar.
+    var showAddSheet by remember { mutableStateOf(false) }
 
     // Dark-theme flag for the liquid glass bar tint.
     val settingsStore = LocalSettingsStore.current
@@ -233,6 +254,8 @@ private fun MainTabs(
             if (glassNavBackdrop != null) {
                 // Official-style liquid glass tab bar: floating capsule +
                 // refracting selection pill sliding under the active tab.
+                // The + add action is docked to the right of the capsule —
+                // same glass recipe — replacing the classic in-page FAB.
                 LiquidGlassTabBar(
                     backdrop = glassNavBackdrop,
                     tabs = navItems,
@@ -243,6 +266,17 @@ private fun MainTabs(
                         }
                     },
                     isDarkTheme = isDarkTheme,
+                    action = {
+                        GlassNavAction(
+                            icon = MiuixIcons.Add,
+                            backdrop = glassNavBackdrop,
+                            isDarkTheme = isDarkTheme,
+                            onClick = {
+                                view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                                showAddSheet = true
+                            },
+                        )
+                    },
                 )
             } else {
                 NavigationBar(content = navBarContent)
@@ -274,6 +308,9 @@ private fun MainTabs(
                         0 -> HomePage(
                             contentPadding = paddingValues,
                             onOpenEvent = onOpenEvent,
+                            onAddClick = { showAddSheet = true },
+                            // In glass mode the + lives in the bottom bar.
+                            showFab = glassNavBackdrop == null,
                         )
                         1 -> SettingsPage(
                             contentPadding = paddingValues,
@@ -284,5 +321,18 @@ private fun MainTabs(
                 }
             }
         }
+    }
+
+    // Add-event sheet: opened from the classic FAB or the glass bottom-bar
+    // + action. Renders into the root (this) scaffold's popup host.
+    if (showAddSheet) {
+        AddEventBottomSheet(
+            show = showAddSheet,
+            onDismiss = { showAddSheet = false },
+            onConfirm = { title, epochDay, note ->
+                viewModel.addEvent(title, epochDay, note)
+                showAddSheet = false
+            },
+        )
     }
 }

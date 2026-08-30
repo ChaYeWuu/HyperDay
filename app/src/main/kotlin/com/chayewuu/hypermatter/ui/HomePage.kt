@@ -1,6 +1,7 @@
 package com.chayewuu.hypermatter.ui
 
 import android.view.HapticFeedbackConstants
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,6 +16,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -23,6 +25,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
@@ -34,7 +37,6 @@ import com.chayewuu.hypermatter.ui.glass.GlassFab
 import com.chayewuu.hypermatter.ui.glass.LiquidGlassCard
 import com.chayewuu.hypermatter.ui.theme.LocalEventViewModel
 import top.yukonga.miuix.kmp.basic.Icon
-import top.yukonga.miuix.kmp.basic.IconButton
 import top.yukonga.miuix.kmp.basic.SmallTitle
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.basic.TextButton
@@ -51,6 +53,8 @@ import top.yukonga.miuix.kmp.utils.scrollEndHaptic
 fun HomePage(
     contentPadding: PaddingValues,
     onOpenEvent: (String) -> Unit = {},
+    onAddClick: () -> Unit = {},
+    showFab: Boolean = true,
 ) {
     val viewModel = LocalEventViewModel.current
     val events by viewModel.events.collectAsState()
@@ -63,7 +67,6 @@ fun HomePage(
         events.filter { DateUtils.isPastEvent(it) }.sortedByDescending { it.epochDay }
     }
 
-    var showAddSheet by remember { mutableStateOf(false) }
     // Pending deletion: set by the card's delete button, consumed by the
     // confirmation dialog below.
     var deleteTarget by remember { mutableStateOf<CountdownEvent?>(null) }
@@ -159,36 +162,28 @@ fun HomePage(
         }
 
         // FAB: lifted above the bottom NavigationBar via outer contentPadding.
-        // In liquid-glass mode this becomes a primary-tinted glass circle.
-        GlassFab(
-            onClick = {
-                view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
-                showAddSheet = true
-            },
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(
-                    end = 16.dp,
-                    bottom = contentPadding.calculateBottomPadding() + 16.dp,
-                ),
-        ) {
-            Icon(
-                imageVector = MiuixIcons.Add,
-                contentDescription = "添加倒数日",
-                tint = Color.White,
-            )
+        // In liquid-glass mode this becomes a primary-tinted glass circle —
+        // or is hidden entirely (the + moves into the glass bottom bar).
+        if (showFab) {
+            GlassFab(
+                onClick = {
+                    view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                    onAddClick()
+                },
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(
+                        end = 16.dp,
+                        bottom = contentPadding.calculateBottomPadding() + 16.dp,
+                    ),
+            ) {
+                Icon(
+                    imageVector = MiuixIcons.Add,
+                    contentDescription = "添加倒数日",
+                    tint = Color.White,
+                )
+            }
         }
-    }
-
-    if (showAddSheet) {
-        AddEventBottomSheet(
-            show = showAddSheet,
-            onDismiss = { showAddSheet = false },
-            onConfirm = { title, epochDay, note ->
-                viewModel.addEvent(title, epochDay, note)
-                showAddSheet = false
-            },
-        )
     }
 
     // Miuix-style delete confirmation (same pattern as the settings
@@ -200,7 +195,10 @@ fun HomePage(
             show = true,
             onDismissRequest = { deleteTarget = null },
         ) {
-            Row(modifier = Modifier.fillMaxWidth()) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
                 TextButton(
                     text = "取消",
                     onClick = { deleteTarget = null },
@@ -240,18 +238,39 @@ private fun EventCard(
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween,
         ) {
-            // Left: title + date + note
+            // Left: title row (with trailing delete) + date + note
             Column(
                 modifier = Modifier.weight(1f),
             ) {
-                Text(
-                    text = event.title,
-                    color = MiuixTheme.colorScheme.onSurface,
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Medium,
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = event.title,
+                        color = MiuixTheme.colorScheme.onSurface,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Medium,
+                        modifier = Modifier.weight(1f, fill = false),
+                    )
+                    Spacer(Modifier.width(4.dp))
+                    // Delete aligned with the title line — compact circular
+                    // touch target with a circle-bounded ripple.
+                    Box(
+                        contentAlignment = Alignment.Center,
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .clickable(onClick = onDelete),
+                    ) {
+                        Icon(
+                            imageVector = MiuixIcons.Delete,
+                            contentDescription = "删除",
+                            tint = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                            modifier = Modifier.size(20.dp),
+                        )
+                    }
+                }
                 Spacer(Modifier.height(4.dp))
                 Text(
                     text = "$dateStr $weekday",
@@ -277,12 +296,12 @@ private fun EventCard(
                 )
             }
 
-            // Right: big day number + delete
+            // Right: big day number, vertically centered
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 Row(
-                    verticalAlignment = Alignment.CenterVertically,
+                    verticalAlignment = Alignment.Bottom,
                 ) {
                     Text(
                         text = dayNum.toString(),
@@ -301,14 +320,6 @@ private fun EventCard(
                         else
                             MiuixTheme.colorScheme.primary,
                         fontSize = 14.sp,
-                    )
-                }
-                Spacer(Modifier.height(4.dp))
-                IconButton(onClick = onDelete) {
-                    Icon(
-                        imageVector = MiuixIcons.Delete,
-                        contentDescription = "删除",
-                        tint = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                     )
                 }
             }

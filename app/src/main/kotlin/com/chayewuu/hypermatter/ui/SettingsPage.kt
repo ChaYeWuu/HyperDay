@@ -1,5 +1,6 @@
 package com.chayewuu.hypermatter.ui
 
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -107,7 +108,10 @@ fun SettingsPage(
         show = showClearDialog,
         onDismissRequest = { showClearDialog = false },
     ) {
-        Row(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
             TextButton(
                 text = "取消",
                 onClick = { showClearDialog = false },

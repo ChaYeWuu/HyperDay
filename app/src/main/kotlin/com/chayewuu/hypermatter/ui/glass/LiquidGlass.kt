@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
@@ -62,6 +63,7 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.util.lerp
 import com.kyant.backdrop.backdrops.LayerBackdrop
 import com.kyant.backdrop.backdrops.layerBackdrop
@@ -292,6 +294,7 @@ fun LiquidGlassTabBar(
     onSelect: (Int) -> Unit,
     modifier: Modifier = Modifier,
     isDarkTheme: Boolean = false,
+    action: (@Composable () -> Unit)? = null,
 ) {
     val contentColor = if (isDarkTheme) Color.White else Color.Black
     val accentColor = MiuixTheme.colorScheme.primary
@@ -305,13 +308,18 @@ fun LiquidGlassTabBar(
 
     val tabsBackdrop = rememberLayerBackdrop()
 
-    Box(
+    // When an action button is docked to the right, the capsule shares the
+    // row with it (weight 1f); otherwise the capsule spans the full width.
+    Row(
         modifier = modifier
             .fillMaxWidth()
             .navigationBarsPadding()
             .padding(horizontal = 24.dp, vertical = 12.dp),
     ) {
-        BoxWithConstraints(contentAlignment = Alignment.CenterStart) {
+        BoxWithConstraints(
+            modifier = Modifier.weight(1f),
+            contentAlignment = Alignment.CenterStart,
+        ) {
             val density = LocalDensity.current
             val tabWidth = with(density) {
                 (constraints.maxWidth.toFloat() - 8.dp.toPx()) / tabs.size
@@ -541,6 +549,63 @@ fun LiquidGlassTabBar(
                     .fillMaxWidth(1f / tabs.size)
             )
         }
+
+        // Docked action (e.g. the + add button) sharing the bar row.
+        if (action != null) {
+            Spacer(Modifier.width(12.dp))
+            action()
+        }
+    }
+}
+
+/**
+ * Circular glass action button docked next to the liquid glass tab bar.
+ * Uses the exact same glass recipe as the capsule (vibrancy + 8dp blur +
+ * 24/24 lens over the shared [backdrop]) so the two read as one bar.
+ */
+@Composable
+fun GlassNavAction(
+    icon: ImageVector,
+    backdrop: LayerBackdrop,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    isDarkTheme: Boolean = false,
+) {
+    val view = LocalView.current
+    val containerColor =
+        if (isDarkTheme) Color(0xFF121212).copy(alpha = 0.4f)
+        else Color(0xFFFAFAFA).copy(alpha = 0.4f)
+    val contentColor = if (isDarkTheme) Color.White else Color.Black
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier = modifier
+            .size(64.dp)
+            .drawBackdrop(
+                backdrop = backdrop,
+                shape = { RoundedCornerShape(50) },
+                effects = {
+                    vibrancy()
+                    blur(8.dp.toPx())
+                    lens(24.dp.toPx(), 24.dp.toPx())
+                },
+                onDrawSurface = { drawRect(containerColor) },
+            )
+            .clip(RoundedCornerShape(50))
+            .clickable(
+                interactionSource = null,
+                indication = null,
+                onClick = {
+                    view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                    onClick()
+                },
+            ),
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = contentColor,
+            modifier = Modifier.size(26.dp),
+        )
     }
 }
 
