@@ -106,7 +106,10 @@ private val GlassBlendDark = listOf(
 )
 
 private val GlassBlendLight = listOf(
-    BlendColorEntry(Color(0x340034F9), BlurBlendMode.Overlay),
+    // Neutral gray tint (same tone family as GlassBlendDark) instead of the
+    // official Pured_Regular_Light blue cast (0x340034F9) — keeps the frosted
+    // look without shifting the card blue.
+    BlendColorEntry(Color(0x339C9C9C), BlurBlendMode.Overlay),
     BlendColorEntry(Color(0xB3FFFFFF), BlurBlendMode.HardLight),
 )
 
