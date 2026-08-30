@@ -64,6 +64,8 @@ import androidx.compose.ui.graphics.BlendMode as ComposeBlendMode
 
 private const val REPO_URL = "https://github.com/ChaYeWuu/HyperDay"
 private const val MIUIX_URL = "https://github.com/miuix-kotlin-ui/miuix"
+private const val BACKDROP_URL = "https://github.com/Kyant0/AndroidLiquidGlass"
+private const val MATERIALKOLOR_URL = "https://github.com/materialkolor/materialkolor"
 
 // Official Miuix example card-blend presets
 // (example component/blend/ColorBlendToken.kt, Apache-2.0): dark theme uses
@@ -290,6 +292,10 @@ fun AboutPage(
                         ) {
                             InfoLine("UI 框架", "Miuix (v0.9.4-rc01)")
                             Spacer(Modifier.height(8.dp))
+                            InfoLine("液态玻璃", "backdrop 2.0.1 (Kyant0)")
+                            Spacer(Modifier.height(8.dp))
+                            InfoLine("动态取色", "MaterialKolor")
+                            Spacer(Modifier.height(8.dp))
                             InfoLine("开发语言", "Kotlin 2.4.0")
                             Spacer(Modifier.height(8.dp))
                             InfoLine("构建工具", "Gradle 9.4.1 + AGP 9.2.1")
@@ -315,13 +321,37 @@ fun AboutPage(
                                 .padding(16.dp),
                         ) {
                             Text(
-                                text = "感谢 Miuix UI 项目提供的 HyperOS 设计语言 Compose 组件库。",
+                                text = "感谢 Miuix UI 项目提供的 HyperOS 设计语言 Compose 组件库，动态混色背景与磨砂玻璃效果移植自其官方 example。",
                                 color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                                 style = MiuixTheme.textStyles.body2,
                             )
-                            Spacer(Modifier.height(8.dp))
+                            Spacer(Modifier.height(4.dp))
                             Text(
                                 text = MIUIX_URL.removePrefix("https://"),
+                                color = MiuixTheme.colorScheme.primary,
+                                fontSize = 13.sp,
+                            )
+                            Spacer(Modifier.height(12.dp))
+                            Text(
+                                text = "感谢 Kyant0 的 AndroidLiquidGlass（backdrop）库，液态玻璃应用风格与可拖拽折射底栏基于其实现。",
+                                color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                                style = MiuixTheme.textStyles.body2,
+                            )
+                            Spacer(Modifier.height(4.dp))
+                            Text(
+                                text = BACKDROP_URL.removePrefix("https://"),
+                                color = MiuixTheme.colorScheme.primary,
+                                fontSize = 13.sp,
+                            )
+                            Spacer(Modifier.height(12.dp))
+                            Text(
+                                text = "感谢 MaterialKolor 项目为莫奈动态取色提供的 HCT 取色算法（经 Miuix 传递依赖）。",
+                                color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                                style = MiuixTheme.textStyles.body2,
+                            )
+                            Spacer(Modifier.height(4.dp))
+                            Text(
+                                text = MATERIALKOLOR_URL.removePrefix("https://"),
                                 color = MiuixTheme.colorScheme.primary,
                                 fontSize = 13.sp,
                             )
@@ -339,6 +369,8 @@ fun AboutPage(
             title = "开源许可",
             summary = "本应用使用了以下开源项目：\n\n" +
                 "· Miuix UI — HyperOS 风格 Compose 组件库\n" +
+                "· AndroidLiquidGlass (backdrop) — Kyant0 液态玻璃效果\n" +
+                "· MaterialKolor — Material You 动态取色\n" +
                 "· Jetpack Compose — Android 声明式 UI 框架\n" +
                 "· Kotlin & kotlinx.serialization — JetBrains\n" +
                 "· desugar_jdk_libs — Google\n\n" +
