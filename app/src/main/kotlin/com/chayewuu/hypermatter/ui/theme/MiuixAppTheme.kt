@@ -56,10 +56,11 @@ fun MiuixAppTheme(
     colorMode: Int = 0,
     monetColor: Boolean = false,
     monetPaletteStyle: Int = -1,
+    monetSeedColor: Long? = null,
     content: @Composable () -> Unit,
 ) {
     val context = LocalContext.current
-    val controller = remember(colorMode, monetColor, monetPaletteStyle) {
+    val controller = remember(colorMode, monetColor, monetPaletteStyle, monetSeedColor) {
         val monetMode = when (colorMode) {
             1 -> ColorSchemeMode.MonetLight
             2 -> ColorSchemeMode.MonetDark
@@ -76,19 +77,27 @@ fun MiuixAppTheme(
             val forcedStyle = monetPaletteStyle
                 .takeIf { it in PALETTE_STYLES.indices }
                 ?.let { PALETTE_STYLES[it] }
-            val seed = forcedStyle?.let { readSystemSeedColor(context) }
-            if (forcedStyle != null && seed != null) {
+            val seedOverride = monetSeedColor?.let { Color(it.toInt()) }
+            // Custom seed color wins; otherwise a forced style reads the
+            // system wallpaper seed.
+            val seed = seedOverride
+                ?: forcedStyle?.let { readSystemSeedColor(context) }
+            if ((forcedStyle != null || seedOverride != null) && seed != null) {
                 // Match the platform's spec choice (Spec2025 on API 36+);
                 // ThemeController downgrades internally for unsupported styles.
                 val spec = if (Build.VERSION.SDK_INT >= 36)
                     ThemeColorSpec.Spec2025
                 else
                     ThemeColorSpec.Spec2021
+                // Style: forced choice > system wallpaper style > TonalSpot
+                val style = forcedStyle
+                    ?: readSystemPaletteStyle(context)
+                    ?: ThemePaletteStyle.TonalSpot
                 ThemeController(
                     colorSchemeMode = monetMode,
                     keyColor = seed,
                     colorSpec = spec,
-                    paletteStyle = forcedStyle,
+                    paletteStyle = style,
                 )
             } else {
                 // No custom style (or seed unavailable) — let Miuix read the
@@ -142,6 +151,37 @@ private fun fallbackSeed(context: Context): Color? {
             null
         }
     } else {
+        null
+    }
+}
+
+/**
+ * Reads the system wallpaper palette style the same way Miuix's
+ * platformDynamicColors does (theme_customization_overlay_packages on
+ * API 33+). Returns null when unavailable.
+ */
+private fun readSystemPaletteStyle(context: Context): ThemePaletteStyle? {
+    if (Build.VERSION.SDK_INT < 33) return null
+    return try {
+        val json = Settings.Secure.getString(
+            context.contentResolver,
+            "theme_customization_overlay_packages",
+        ) ?: return null
+        val styleName = JSONObject(json)
+            .optString("android.theme.customization.theme_style", "TONAL_SPOT")
+        when (styleName.uppercase()) {
+            "TONAL_SPOT" -> ThemePaletteStyle.TonalSpot
+            "VIBRANT" -> ThemePaletteStyle.Vibrant
+            "EXPRESSIVE" -> ThemePaletteStyle.Expressive
+            "SPRITZ", "NEUTRAL" -> ThemePaletteStyle.Neutral
+            "RAINBOW" -> ThemePaletteStyle.Rainbow
+            "FRUIT_SALAD" -> ThemePaletteStyle.FruitSalad
+            "MONOCHROMATIC", "MONOCHROME" -> ThemePaletteStyle.Monochrome
+            "FIDELITY" -> ThemePaletteStyle.Fidelity
+            "CONTENT" -> ThemePaletteStyle.Content
+            else -> ThemePaletteStyle.TonalSpot
+        }
+    } catch (_: Exception) {
         null
     }
 }

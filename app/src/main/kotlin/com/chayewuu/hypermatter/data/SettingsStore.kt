@@ -53,11 +53,25 @@ class SettingsStore(context: Context) {
         monetPaletteStyle.value = style
     }
 
+    /**
+     * Custom Monet seed color (ARGB), null = use the wallpaper-derived
+     * system seed color.
+     */
+    val monetSeedColor = MutableStateFlow(
+        prefs.getLong(KEY_MONET_SEED_COLOR, -1L).takeIf { it >= 0 }
+    )
+
+    fun setMonetSeedColor(argb: Long?) {
+        prefs.edit().putLong(KEY_MONET_SEED_COLOR, argb ?: -1L).apply()
+        monetSeedColor.value = argb
+    }
+
     companion object {
         private const val KEY_COLOR_MODE = "color_mode"
         private const val KEY_APP_STYLE = "app_style"
         private const val KEY_MONET_COLOR = "monet_color"
         private const val KEY_MONET_PALETTE_STYLE = "monet_palette_style"
+        private const val KEY_MONET_SEED_COLOR = "monet_seed_color"
         const val MODE_SYSTEM = 0
         const val MODE_LIGHT = 1
         const val MODE_DARK = 2

@@ -18,6 +18,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
@@ -28,6 +31,7 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipPath
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -37,16 +41,21 @@ import androidx.compose.ui.unit.sp
 import com.chayewuu.hypermatter.R
 import com.chayewuu.hypermatter.ui.theme.LocalSettingsStore
 import com.chayewuu.hypermatter.ui.theme.PALETTE_STYLES
+import top.yukonga.miuix.kmp.basic.ButtonDefaults
 import top.yukonga.miuix.kmp.basic.Card
+import top.yukonga.miuix.kmp.basic.ColorPalette
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
 import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.basic.SmallTitle
 import top.yukonga.miuix.kmp.basic.SmallTopAppBar
 import top.yukonga.miuix.kmp.basic.Text
+import top.yukonga.miuix.kmp.basic.TextButton
 import top.yukonga.miuix.kmp.blur.layerBackdrop
 import top.yukonga.miuix.kmp.icon.MiuixIcons
 import top.yukonga.miuix.kmp.icon.extended.Back
+import top.yukonga.miuix.kmp.overlay.OverlayDialog
+import top.yukonga.miuix.kmp.preference.ArrowPreference
 import top.yukonga.miuix.kmp.preference.OverlayDropdownPreference
 import top.yukonga.miuix.kmp.preference.SwitchPreference
 import top.yukonga.miuix.kmp.theme.MiuixTheme
@@ -87,6 +96,8 @@ fun ThemePage(
     val appStyle by settingsStore.appStyle.collectAsState()
     val monetColor by settingsStore.monetColor.collectAsState()
     val monetPaletteStyle by settingsStore.monetPaletteStyle.collectAsState()
+    val monetSeedColor by settingsStore.monetSeedColor.collectAsState()
+    var showSeedColorDialog by remember { mutableStateOf(false) }
 
     val barBackdrop = rememberBlurBackdrop()
     Scaffold(
@@ -200,17 +211,83 @@ fun ThemePage(
                         )
                         if (monetColor) {
                             OverlayDropdownPreference(
-                                title = "色系",
-                                summary = "选择壁纸取色的调色风格",
+                                title = "调色风格",
+                                summary = "选择从种子色生成配色的算法风格",
                                 items = MonetPaletteStyleItems,
                                 selectedIndex = monetPaletteStyle + 1,
                                 renderInRootScaffold = false,
                                 onSelectedIndexChange = { settingsStore.setMonetPaletteStyle(it - 1) },
                             )
+                            ArrowPreference(
+                                title = "色系",
+                                summary = if (monetSeedColor != null)
+                                    "自定义 #${"%08X".format(monetSeedColor)}"
+                                else
+                                    "跟随壁纸取色",
+                                onClick = { showSeedColorDialog = true },
+                            )
                         }
                     }
                 }
             }
+
+            if (showSeedColorDialog) {
+                SeedColorDialog(
+                    initialColor = monetSeedColor ?: DEFAULT_SEED_COLOR,
+                    onReset = {
+                        settingsStore.setMonetSeedColor(null)
+                        showSeedColorDialog = false
+                    },
+                    onConfirm = { argb ->
+                        settingsStore.setMonetSeedColor(argb)
+                        showSeedColorDialog = false
+                    },
+                    onDismiss = { showSeedColorDialog = false },
+                )
+            }
+        }
+    }
+}
+
+/** Default seed color offered when no custom color has been picked yet. */
+private const val DEFAULT_SEED_COLOR = 0xFF3482FF
+
+@Composable
+private fun SeedColorDialog(
+    initialColor: Long,
+    onReset: () -> Unit,
+    onConfirm: (Long) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var pickedColor by remember { mutableStateOf(initialColor) }
+    OverlayDialog(
+        title = "色系",
+        summary = "选一个喜欢的颜色作为应用主色的种子，配合调色风格生成整套配色",
+        show = true,
+        onDismissRequest = onDismiss,
+        renderInRootScaffold = false,
+    ) {
+        ColorPalette(
+            color = Color(pickedColor.toInt()),
+            onColorChanged = { pickedColor = it.toArgb().toLong() },
+        )
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            TextButton(
+                text = "跟随壁纸",
+                onClick = onReset,
+                modifier = Modifier.weight(1f),
+            )
+            TextButton(
+                text = "确定",
+                onClick = { onConfirm(pickedColor) },
+                modifier = Modifier.weight(1f),
+                colors = ButtonDefaults.textButtonColorsPrimary(),
+            )
         }
     }
 }
