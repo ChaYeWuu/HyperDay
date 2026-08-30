@@ -24,6 +24,8 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -80,6 +82,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.CardDefaults
+import top.yukonga.miuix.kmp.basic.ColorPalette
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
 import top.yukonga.miuix.kmp.basic.Scaffold
@@ -112,11 +115,16 @@ import java.io.FileOutputStream
 private enum class BgMode { SOLID, WALLPAPER }
 
 /** Which tuning slider is currently being dragged (floating pill shown). */
-private enum class ActiveSlider { BG_BLUR, BG_DIM, CARD_BLUR, FONT_SCALE, FONT_STROKE }
+private enum class ActiveSlider {
+    BG_BLUR, BG_DIM, CARD_BLUR,
+    FONT_SCALE, FONT_STROKE, FONT_SHADOW_BLUR, FONT_SHADOW_ALPHA,
+}
 
-/** Labels for the per-event font weight / text color cycle rows. */
+/** Labels for the per-event font weight / color cycle rows. */
 private val FontWeightItems = listOf("默认", "常规", "中等", "粗体")
-private val FontColorItems = listOf("自适应", "白色", "深色")
+private val FontColorItems = listOf("自适应", "白色", "深色", "自定义")
+private val StrokeColorItems = listOf("自动", "白色", "黑色", "自定义")
+private val ShadowColorItems = listOf("自动", "白色", "黑色", "自定义")
 
 // Official Miuix example card-blend presets (ColorBlendToken.kt):
 // frosted glass blends for the glass card and action buttons.
@@ -373,10 +381,14 @@ fun EventDetailPage(
     // Live font-dialog values (same preview-while-dragging pattern).
     var liveFontScale by remember { mutableFloatStateOf(1f) }
     var liveFontStroke by remember { mutableFloatStateOf(2.5f) }
+    var liveShadowBlur by remember { mutableFloatStateOf(8f) }
+    var liveShadowAlpha by remember { mutableFloatStateOf(0.45f) }
     LaunchedEffect(showFontDialog) {
         if (showFontDialog) {
             liveFontScale = event.fontScale ?: 1f
             liveFontStroke = event.fontStrokeWidth ?: 2.5f
+            liveShadowBlur = event.shadowBlur ?: 8f
+            liveShadowAlpha = event.shadowAlpha ?: 0.45f
             activeSlider = null
         }
     }
@@ -387,7 +399,12 @@ fun EventDetailPage(
     // Per-event typography actually rendered on the card.
     val effFontSettings = event.fontSettings().let { base ->
         if (showFontDialog)
-            base.copy(scale = liveFontScale, strokeWidthDp = liveFontStroke)
+            base.copy(
+                scale = liveFontScale,
+                strokeWidthDp = liveFontStroke,
+                shadowBlurDp = liveShadowBlur,
+                shadowAlpha = liveShadowAlpha,
+            )
         else
             base
     }
@@ -421,6 +438,12 @@ fun EventDetailPage(
     val bgTextColor =
         if (wallpaperConfigured) onCard
         else MiuixTheme.colorScheme.onSurfaceVariantSummary
+
+    // Unified chrome color: the per-event font color (auto/white/dark/custom)
+    // recolors the action buttons AND their labels together with the card
+    // texts, so the whole page follows one chosen color.
+    val fontColorCustom = effFontSettings.hasExplicitTextColor
+    val actionColor = effFontSettings.resolvedTextColor(bgTextColor)
 
     fun saveCardAsImage() {
         scope.launch {
@@ -485,7 +508,7 @@ fun EventDetailPage(
                             Icon(
                                 imageVector = MiuixIcons.Back,
                                 contentDescription = "返回",
-                                tint = bgTextColor,
+                                tint = actionColor,
                             )
                         }
                     },
@@ -503,7 +526,10 @@ fun EventDetailPage(
                                 Icon(
                                     imageVector = MiuixIcons.Back,
                                     contentDescription = "返回",
-                                    tint = MiuixTheme.colorScheme.onSurface,
+                                    tint = if (fontColorCustom)
+                                        actionColor
+                                    else
+                                        MiuixTheme.colorScheme.onSurface,
                                 )
                             }
                         },
@@ -514,10 +540,11 @@ fun EventDetailPage(
     ) { paddingValues ->
         // Liquid Glass mode: the big card becomes a refracting glass panel.
         val liquidActive = liquidBackdrop != null && hasWallpaper
-        val liquidTint = if (isLightWallpaper)
-            Color.Black.copy(alpha = 0.22f)
-        else
-            Color.White.copy(alpha = 0.18f)
+        val liquidTint = when {
+            fontColorCustom -> actionColor.copy(alpha = 0.25f)
+            isLightWallpaper -> Color.Black.copy(alpha = 0.22f)
+            else -> Color.White.copy(alpha = 0.18f)
+        }
         // Freshly decoded wallpaper fades in over the black shell (a cache
         // hit composes with the bitmap already present, so no fade runs).
         val wallpaperAlpha by animateFloatAsState(
@@ -648,36 +675,47 @@ fun EventDetailPage(
         }
 
         val content: @Composable () -> Unit = {
-            Column(
+            // The card is centered on its own and the action row is anchored
+            // to the bottom: scaling the card's text grows it symmetrically
+            // around its fixed center, so the card never shifts while the
+            // size slider is being dragged.
+            Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(paddingValues)
-                    .padding(horizontal = 16.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center,
+                    .padding(paddingValues),
             ) {
-                cardContent()
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 16.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    cardContent()
+                }
 
-                Spacer(Modifier.height(44.dp))
-
-                // Three actions: share / save as image / customize background.
-                // Labels sit directly on the page background (outside the
-                // glass circles), so they adapt to the background's
-                // brightness — not to the card text colors.
-                val onBackgroundText = bgTextColor
-                // Non-glass fallback look: wallpaper mode (incl. the brief
-                // decode-pending window) uses a translucent circle so the
-                // solid surfaceContainer never pops on the dark shell.
-                val btnFallbackContainer = if (wallpaperConfigured)
-                    Color.White.copy(alpha = 0.15f)
-                else
-                    MiuixTheme.colorScheme.surfaceContainer
-                val btnFallbackContent = if (wallpaperConfigured)
-                    onBackgroundText
-                else
-                    MiuixTheme.colorScheme.onSurface
+                // Four actions: share / save as image / customize background /
+                // font settings. Labels sit directly on the page background
+                // (outside the glass circles) — they follow the unified
+                // action color (per-event font color / adaptive).
+                val onBackgroundText = actionColor
+                // Non-glass fallback look: an explicit font color tints the
+                // circle; wallpaper mode (incl. the brief decode-pending
+                // window) uses a translucent circle so the solid
+                // surfaceContainer never pops on the dark shell.
+                val btnFallbackContainer = when {
+                    fontColorCustom -> actionColor.copy(alpha = 0.18f)
+                    wallpaperConfigured -> Color.White.copy(alpha = 0.15f)
+                    else -> MiuixTheme.colorScheme.surfaceContainer
+                }
+                val btnFallbackContent = when {
+                    fontColorCustom || wallpaperConfigured -> onBackgroundText
+                    else -> MiuixTheme.colorScheme.onSurface
+                }
                 Row(
                     modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .navigationBarsPadding()
+                        .padding(bottom = 20.dp)
                         .fillMaxWidth()
                         .padding(horizontal = 8.dp),
                     horizontalArrangement = Arrangement.SpaceEvenly,
@@ -825,6 +863,10 @@ fun EventDetailPage(
                         Triple("字体大小", "${(liveFontScale * 100).toInt()}%", (liveFontScale - 0.8f) / 0.8f)
                     ActiveSlider.FONT_STROKE ->
                         Triple("描边宽度", "${liveFontStroke.toInt()} dp", (liveFontStroke - 1f) / 5f)
+                    ActiveSlider.FONT_SHADOW_BLUR ->
+                        Triple("阴影模糊", "${liveShadowBlur.toInt()} dp", liveShadowBlur / 20f)
+                    ActiveSlider.FONT_SHADOW_ALPHA ->
+                        Triple("阴影浓度", "${(liveShadowAlpha * 100).toInt()}%", liveShadowAlpha)
                 }
                 Column(
                     modifier = Modifier
@@ -973,6 +1015,7 @@ fun EventDetailPage(
         // Per-event typography dialog (same shell as the background dialog:
         // inside the Scaffold, no root rendering, custom scrim, sinks away
         // while a slider thumb is held so the card text stays visible).
+        // The content scrolls — the full option set exceeds one screen.
         val fs = event.fontSettings()
         OverlayDialog(
             title = "字体设置",
@@ -986,7 +1029,9 @@ fun EventDetailPage(
             },
             enableWindowDim = false,
         ) {
-            Column {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+            ) {
                 SliderPreference(
                     title = "字体大小",
                     value = liveFontScale,
@@ -1013,6 +1058,16 @@ fun EventDetailPage(
                 ) {
                     viewModel.updateEvent(event.copy(textColor = (fs.colorIdx + 1) % FontColorItems.size))
                 }
+                if (fs.colorIdx == 3) {
+                    ColorPalette(
+                        color = fs.colorCustom,
+                        onColorChanged = {
+                            viewModel.updateEvent(
+                                event.copy(textColorCustom = it.toArgb().toLong())
+                            )
+                        },
+                    )
+                }
                 SwitchPreference(
                     title = "文字描边",
                     summary = "为文字添加对比色描边",
@@ -1036,6 +1091,24 @@ fun EventDetailPage(
                             viewModel.updateEvent(event.copy(fontStrokeWidth = liveFontStroke))
                         },
                     )
+                    FontCycleRow(
+                        label = "描边颜色",
+                        valueLabel = StrokeColorItems[fs.strokeColorIdx],
+                    ) {
+                        viewModel.updateEvent(
+                            event.copy(strokeColor = (fs.strokeColorIdx + 1) % StrokeColorItems.size)
+                        )
+                    }
+                    if (fs.strokeColorIdx == 3) {
+                        ColorPalette(
+                            color = fs.strokeColorCustom,
+                            onColorChanged = {
+                                viewModel.updateEvent(
+                                    event.copy(strokeColorCustom = it.toArgb().toLong())
+                                )
+                            },
+                        )
+                    }
                 }
                 SwitchPreference(
                     title = "文字阴影",
@@ -1045,6 +1118,54 @@ fun EventDetailPage(
                         viewModel.updateEvent(event.copy(fontShadow = it))
                     },
                 )
+                if (fs.shadowOn) {
+                    FontCycleRow(
+                        label = "阴影颜色",
+                        valueLabel = ShadowColorItems[fs.shadowColorIdx],
+                    ) {
+                        viewModel.updateEvent(
+                            event.copy(shadowColor = (fs.shadowColorIdx + 1) % ShadowColorItems.size)
+                        )
+                    }
+                    if (fs.shadowColorIdx == 3) {
+                        ColorPalette(
+                            color = fs.shadowColorCustom,
+                            onColorChanged = {
+                                viewModel.updateEvent(
+                                    event.copy(shadowColorCustom = it.toArgb().toLong())
+                                )
+                            },
+                        )
+                    }
+                    SliderPreference(
+                        title = "阴影模糊",
+                        value = liveShadowBlur,
+                        onValueChange = {
+                            activeSlider = ActiveSlider.FONT_SHADOW_BLUR
+                            liveShadowBlur = it
+                        },
+                        valueRange = 0f..20f,
+                        valueText = "${liveShadowBlur.toInt()} dp",
+                        onValueChangeFinished = {
+                            activeSlider = null
+                            viewModel.updateEvent(event.copy(shadowBlur = liveShadowBlur))
+                        },
+                    )
+                    SliderPreference(
+                        title = "阴影浓度",
+                        value = liveShadowAlpha,
+                        onValueChange = {
+                            activeSlider = ActiveSlider.FONT_SHADOW_ALPHA
+                            liveShadowAlpha = it
+                        },
+                        valueRange = 0f..1f,
+                        valueText = "${(liveShadowAlpha * 100).toInt()}%",
+                        onValueChangeFinished = {
+                            activeSlider = null
+                            viewModel.updateEvent(event.copy(shadowAlpha = liveShadowAlpha))
+                        },
+                    )
+                }
             }
         }
     }

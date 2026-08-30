@@ -21,10 +21,18 @@ import kotlinx.serialization.Serializable
  * @param fontScale    detail-page text size multiplier (null = default 1f).
  * @param fontWeight   0 = per-element default, 1 = 常规, 2 = 中等, 3 = 粗体
  *                     (null = default).
- * @param textColor    0 = auto-adaptive, 1 = white, 2 = dark (null = default).
+ * @param textColor    0 = auto-adaptive, 1 = white, 2 = dark, 3 = custom
+ *                     (null = default). Also drives the action buttons.
+ * @param textColorCustom  ARGB used when textColor == 3 (null = white).
  * @param fontStroke   contrast outline on the card texts (null = off).
  * @param fontStrokeWidth outline width in dp (null = 2.5).
+ * @param strokeColor  0 = auto (contrast), 1 = white, 2 = black, 3 = custom.
+ * @param strokeColorCustom ARGB used when strokeColor == 3.
  * @param fontShadow   drop shadow on the card texts (null = off).
+ * @param shadowColor  0 = auto (contrast), 1 = white, 2 = black, 3 = custom.
+ * @param shadowColorCustom ARGB used when shadowColor == 3.
+ * @param shadowBlur   shadow blur radius in dp (null = 8).
+ * @param shadowAlpha  shadow opacity 0..1 (null = 0.45).
  */
 @Serializable
 data class CountdownEvent(
@@ -43,7 +51,14 @@ data class CountdownEvent(
     val fontScale: Float? = null,
     val fontWeight: Int? = null,
     val textColor: Int? = null,
+    val textColorCustom: Long? = null,
     val fontStroke: Boolean? = null,
     val fontStrokeWidth: Float? = null,
+    val strokeColor: Int? = null,
+    val strokeColorCustom: Long? = null,
     val fontShadow: Boolean? = null,
+    val shadowColor: Int? = null,
+    val shadowColorCustom: Long? = null,
+    val shadowBlur: Float? = null,
+    val shadowAlpha: Float? = null,
 )
