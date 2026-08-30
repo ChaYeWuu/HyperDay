@@ -1,6 +1,7 @@
 package com.chayewuu.hypermatter.ui
 
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -13,7 +14,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -21,6 +24,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
@@ -31,7 +35,6 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipPath
-import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -43,7 +46,6 @@ import com.chayewuu.hypermatter.ui.theme.LocalSettingsStore
 import com.chayewuu.hypermatter.ui.theme.PALETTE_STYLES
 import top.yukonga.miuix.kmp.basic.ButtonDefaults
 import top.yukonga.miuix.kmp.basic.Card
-import top.yukonga.miuix.kmp.basic.ColorPalette
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
 import top.yukonga.miuix.kmp.basic.Scaffold
@@ -54,6 +56,7 @@ import top.yukonga.miuix.kmp.basic.TextButton
 import top.yukonga.miuix.kmp.blur.layerBackdrop
 import top.yukonga.miuix.kmp.icon.MiuixIcons
 import top.yukonga.miuix.kmp.icon.extended.Back
+import top.yukonga.miuix.kmp.icon.extended.Ok
 import top.yukonga.miuix.kmp.overlay.OverlayDialog
 import top.yukonga.miuix.kmp.preference.ArrowPreference
 import top.yukonga.miuix.kmp.preference.OverlayDropdownPreference
@@ -210,14 +213,6 @@ fun ThemePage(
                             onCheckedChange = { settingsStore.setMonetColor(it) },
                         )
                         if (monetColor) {
-                            OverlayDropdownPreference(
-                                title = "调色风格",
-                                summary = "选择从种子色生成配色的算法风格",
-                                items = MonetPaletteStyleItems,
-                                selectedIndex = monetPaletteStyle + 1,
-                                renderInRootScaffold = false,
-                                onSelectedIndexChange = { settingsStore.setMonetPaletteStyle(it - 1) },
-                            )
                             ArrowPreference(
                                 title = "色系",
                                 summary = if (monetSeedColor != null)
@@ -225,6 +220,14 @@ fun ThemePage(
                                 else
                                     "跟随壁纸取色",
                                 onClick = { showSeedColorDialog = true },
+                            )
+                            OverlayDropdownPreference(
+                                title = "调色风格",
+                                summary = "选择从种子色生成配色的算法风格",
+                                items = MonetPaletteStyleItems,
+                                selectedIndex = monetPaletteStyle + 1,
+                                renderInRootScaffold = false,
+                                onSelectedIndexChange = { settingsStore.setMonetPaletteStyle(it - 1) },
                             )
                         }
                     }
@@ -249,6 +252,22 @@ fun ThemePage(
     }
 }
 
+/** Preset seed colors offered in the color-family picker (4 per row). */
+private val PresetSeedColors = listOf(
+    0xFFF44336L, // 红
+    0xFFFF7043L, // 橙
+    0xFFFFCA28L, // 黄
+    0xFF66BB6AL, // 绿
+    0xFF26C6DAL, // 青
+    0xFF3482FFL, // 蓝（Miuix 默认）
+    0xFF5C6BC0L, // 靛
+    0xFF9C27B0L, // 紫
+    0xFFEC407AL, // 粉
+    0xFF8D6E63L, // 棕
+    0xFF78909CL, // 蓝灰
+    0xFF546E7AL, // 石板
+)
+
 /** Default seed color offered when no custom color has been picked yet. */
 private const val DEFAULT_SEED_COLOR = 0xFF3482FF
 
@@ -262,19 +281,31 @@ private fun SeedColorDialog(
     var pickedColor by remember { mutableStateOf(initialColor) }
     OverlayDialog(
         title = "色系",
-        summary = "选一个喜欢的颜色作为应用主色的种子，配合调色风格生成整套配色",
+        summary = "选一个喜欢的色系作为应用主色的种子，配合下方调色风格生成整套配色",
         show = true,
         onDismissRequest = onDismiss,
         renderInRootScaffold = false,
     ) {
-        ColorPalette(
-            color = Color(pickedColor.toInt()),
-            onColorChanged = { pickedColor = it.toArgb().toLong() },
-        )
+        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            PresetSeedColors.chunked(4).forEach { rowColors ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceEvenly,
+                ) {
+                    rowColors.forEach { argb ->
+                        SeedColorSwatch(
+                            color = argb,
+                            selected = pickedColor == argb,
+                            onClick = { pickedColor = argb },
+                        )
+                    }
+                }
+            }
+        }
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(top = 12.dp),
+                .padding(top = 16.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             TextButton(
@@ -290,6 +321,39 @@ private fun SeedColorDialog(
             )
         }
     }
+}
+
+@Composable
+private fun SeedColorSwatch(
+    color: Long,
+    selected: Boolean,
+    onClick: () -> Unit,
+) {
+    Box(
+        modifier = Modifier
+            .size(46.dp)
+            .clip(CircleShape)
+            .background(Color(color.toInt()))
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        if (selected) {
+            Icon(
+                imageVector = MiuixIcons.Ok,
+                contentDescription = "已选择",
+                tint = swatchCheckColor(color),
+            )
+        }
+    }
+}
+
+/** Black or white check-mark color depending on the swatch luminance. */
+private fun swatchCheckColor(argb: Long): Color {
+    val r = (argb shr 16 and 0xFF) / 255.0
+    val g = (argb shr 8 and 0xFF) / 255.0
+    val b = (argb and 0xFF) / 255.0
+    val luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b
+    return if (luminance > 0.6) Color(0xFF1B1B1F) else Color.White
 }
 
 /**
