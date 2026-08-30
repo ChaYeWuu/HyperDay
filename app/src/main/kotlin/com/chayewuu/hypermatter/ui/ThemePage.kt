@@ -100,7 +100,6 @@ fun ThemePage(
     val monetColor by settingsStore.monetColor.collectAsState()
     val monetPaletteStyle by settingsStore.monetPaletteStyle.collectAsState()
     val monetSeedColor by settingsStore.monetSeedColor.collectAsState()
-    var showSeedColorDialog by remember { mutableStateOf(false) }
 
     val barBackdrop = rememberBlurBackdrop()
     Scaffold(
@@ -213,13 +212,18 @@ fun ThemePage(
                             onCheckedChange = { settingsStore.setMonetColor(it) },
                         )
                         if (monetColor) {
-                            ArrowPreference(
+                            val seedIndex = monetSeedColor
+                                ?.let { c -> PresetSeedColors.indexOf(c) }
+                                ?.takeIf { it >= 0 }
+                            OverlayDropdownPreference(
                                 title = "色系",
-                                summary = if (monetSeedColor != null)
-                                    "自定义 #${"%08X".format(monetSeedColor)}"
-                                else
-                                    "跟随壁纸取色",
-                                onClick = { showSeedColorDialog = true },
+                                summary = "选择应用主色的种子颜色",
+                                items = SeedColorItems,
+                                selectedIndex = seedIndex ?: 0,
+                                renderInRootScaffold = false,
+                                onSelectedIndexChange = { index ->
+                                    settingsStore.setMonetSeedColor(PresetSeedColors[index])
+                                },
                             )
                             OverlayDropdownPreference(
                                 title = "调色风格",
@@ -233,26 +237,32 @@ fun ThemePage(
                     }
                 }
             }
-
-            if (showSeedColorDialog) {
-                SeedColorDialog(
-                    initialColor = monetSeedColor ?: DEFAULT_SEED_COLOR,
-                    onReset = {
-                        settingsStore.setMonetSeedColor(null)
-                        showSeedColorDialog = false
-                    },
-                    onConfirm = { argb ->
-                        settingsStore.setMonetSeedColor(argb)
-                        showSeedColorDialog = false
-                    },
-                    onDismiss = { showSeedColorDialog = false },
-                )
-            }
         }
     }
 }
 
-/** Preset seed colors offered in the color-family picker (4 per row). */
+/**
+ * Preset seed colors for the color-family dropdown. Index 0 = follow
+ * wallpaper; the rest match [PresetSeedColors] order.
+ * @see PresetSeedColors
+ */
+private val SeedColorItems = listOf(
+    "跟随壁纸",
+    "红色",
+    "橙色",
+    "黄色",
+    "绿色",
+    "青色",
+    "蓝色",
+    "靛蓝色",
+    "紫色",
+    "粉色",
+    "棕色",
+    "蓝灰色",
+    "石板色",
+)
+
+/** Preset seed colors (ARGB), order matches [SeedColorItems] tail. */
 private val PresetSeedColors = listOf(
     0xFFF44336L, // 红
     0xFFFF7043L, // 橙
@@ -267,94 +277,6 @@ private val PresetSeedColors = listOf(
     0xFF78909CL, // 蓝灰
     0xFF546E7AL, // 石板
 )
-
-/** Default seed color offered when no custom color has been picked yet. */
-private const val DEFAULT_SEED_COLOR = 0xFF3482FF
-
-@Composable
-private fun SeedColorDialog(
-    initialColor: Long,
-    onReset: () -> Unit,
-    onConfirm: (Long) -> Unit,
-    onDismiss: () -> Unit,
-) {
-    var pickedColor by remember { mutableStateOf(initialColor) }
-    OverlayDialog(
-        title = "色系",
-        summary = "选一个喜欢的色系作为应用主色的种子，配合下方调色风格生成整套配色",
-        show = true,
-        onDismissRequest = onDismiss,
-        renderInRootScaffold = false,
-    ) {
-        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            PresetSeedColors.chunked(4).forEach { rowColors ->
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceEvenly,
-                ) {
-                    rowColors.forEach { argb ->
-                        SeedColorSwatch(
-                            color = argb,
-                            selected = pickedColor == argb,
-                            onClick = { pickedColor = argb },
-                        )
-                    }
-                }
-            }
-        }
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            TextButton(
-                text = "跟随壁纸",
-                onClick = onReset,
-                modifier = Modifier.weight(1f),
-            )
-            TextButton(
-                text = "确定",
-                onClick = { onConfirm(pickedColor) },
-                modifier = Modifier.weight(1f),
-                colors = ButtonDefaults.textButtonColorsPrimary(),
-            )
-        }
-    }
-}
-
-@Composable
-private fun SeedColorSwatch(
-    color: Long,
-    selected: Boolean,
-    onClick: () -> Unit,
-) {
-    Box(
-        modifier = Modifier
-            .size(46.dp)
-            .clip(CircleShape)
-            .background(Color(color.toInt()))
-            .clickable(onClick = onClick),
-        contentAlignment = Alignment.Center,
-    ) {
-        if (selected) {
-            Icon(
-                imageVector = MiuixIcons.Ok,
-                contentDescription = "已选择",
-                tint = swatchCheckColor(color),
-            )
-        }
-    }
-}
-
-/** Black or white check-mark color depending on the swatch luminance. */
-private fun swatchCheckColor(argb: Long): Color {
-    val r = (argb shr 16 and 0xFF) / 255.0
-    val g = (argb shr 8 and 0xFF) / 255.0
-    val b = (argb and 0xFF) / 255.0
-    val luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b
-    return if (luminance > 0.6) Color(0xFF1B1B1F) else Color.White
-}
 
 /**
  * One appearance-mode preview card: screenshot image with a rounded border,
