@@ -3,5 +3,9 @@
         <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:windowLightStatusBar">true</item>
         <item name="android:navigationBarColor">@android:color/transparent</item>
+        <!-- Match the launch window to the Miuix canvas color (light: surface
+             #F7F7F7) so there is no gray flash before the first Compose frame. -->
+        <item name="android:windowBackground">#FFF7F7F7</item>
+        <item name="android:windowSplashScreenBackground">#FFF7F7F7</item>
     </style>
 </resources>
