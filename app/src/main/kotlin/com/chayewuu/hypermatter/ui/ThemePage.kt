@@ -1,20 +1,34 @@
 package com.chayewuu.hypermatter.ui
 
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.chayewuu.hypermatter.R
 import com.chayewuu.hypermatter.ui.theme.LocalSettingsStore
 import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.Icon
@@ -22,9 +36,11 @@ import top.yukonga.miuix.kmp.basic.IconButton
 import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.basic.SmallTitle
 import top.yukonga.miuix.kmp.basic.SmallTopAppBar
+import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.blur.layerBackdrop
 import top.yukonga.miuix.kmp.icon.MiuixIcons
 import top.yukonga.miuix.kmp.icon.extended.Back
+import top.yukonga.miuix.kmp.icon.extended.Ok
 import top.yukonga.miuix.kmp.preference.OverlayDropdownPreference
 import top.yukonga.miuix.kmp.preference.SwitchPreference
 import top.yukonga.miuix.kmp.theme.MiuixTheme
@@ -33,7 +49,7 @@ import top.yukonga.miuix.kmp.utils.scrollEndHaptic
 
 /**
  * Theme style page: Miuix-style grouped preferences.
- *  - 显示: light-mode dropdown submenu (跟随系统 / 浅色 / 深色).
+ *  - 显示: three appearance preview cards side by side (自动 / 浅色 / 深色).
  *  - 应用风格: Classic vs Liquid Glass (placeholder — value persisted, no
  *    visual effect yet).
  *  - 莫奈取色: switch (placeholder — value persisted, not wired yet).
@@ -94,21 +110,32 @@ fun ThemePage(
             ) {
                 item {
                     SmallTitle(text = "显示")
-                    Card(
+                    Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
                     ) {
-                        OverlayDropdownPreference(
-                            title = "外观模式",
-                            items = listOf("跟随系统", "浅色", "深色"),
-                            selectedIndex = colorMode,
-                            // Render inside this page's Scaffold: the root
-                            // Scaffold popup host sits under the NavDisplay
-                            // page layer, so a root-rendered popup would be
-                            // invisible (same lesson as OverlayDialog).
-                            renderInRootScaffold = false,
-                            onSelectedIndexChange = { settingsStore.setColorMode(it) },
+                        AppearanceCard(
+                            label = "自动",
+                            drawableRes = R.drawable.theme_preview_auto,
+                            selected = colorMode == 0,
+                            onClick = { settingsStore.setColorMode(0) },
+                            modifier = Modifier.weight(1f),
+                        )
+                        AppearanceCard(
+                            label = "浅色",
+                            drawableRes = R.drawable.theme_preview_light,
+                            selected = colorMode == 1,
+                            onClick = { settingsStore.setColorMode(1) },
+                            modifier = Modifier.weight(1f),
+                        )
+                        AppearanceCard(
+                            label = "深色",
+                            drawableRes = R.drawable.theme_preview_night,
+                            selected = colorMode == 2,
+                            onClick = { settingsStore.setColorMode(2) },
+                            modifier = Modifier.weight(1f),
                         )
                     }
                 }
@@ -148,6 +175,68 @@ fun ThemePage(
                         )
                     }
                 }
+            }
+        }
+    }
+}
+
+/**
+ * One appearance-mode preview card: full-width screenshot image on top,
+ * label below, primary-color border + Ok check when selected.
+ */
+@Composable
+private fun AppearanceCard(
+    label: String,
+    drawableRes: Int,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Card(
+        modifier = modifier
+            .clip(RoundedCornerShape(16.dp))
+            .border(
+                width = if (selected) 2.dp else 1.dp,
+                color = if (selected)
+                    MiuixTheme.colorScheme.primary
+                else
+                    Color.Transparent,
+                shape = RoundedCornerShape(16.dp),
+            ),
+        insideMargin = PaddingValues(8.dp),
+        onClick = onClick,
+    ) {
+        Image(
+            painter = painterResource(drawableRes),
+            contentDescription = label,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier
+                .fillMaxWidth()
+                .aspectRatio(480f / 680f)
+                .clip(RoundedCornerShape(10.dp)),
+        )
+        Spacer(Modifier.height(6.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = label,
+                fontSize = 13.sp,
+                color = if (selected)
+                    MiuixTheme.colorScheme.primary
+                else
+                    MiuixTheme.colorScheme.onSurfaceVariantSummary,
+            )
+            if (selected) {
+                Spacer(Modifier.width(4.dp))
+                Icon(
+                    imageVector = MiuixIcons.Ok,
+                    contentDescription = null,
+                    tint = MiuixTheme.colorScheme.primary,
+                    modifier = Modifier.size(14.dp),
+                )
             }
         }
     }
