@@ -27,9 +27,11 @@ import com.chayewuu.hypermatter.ui.HomePage
 import com.chayewuu.hypermatter.ui.SettingsPage
 import com.chayewuu.hypermatter.ui.ThemePage
 import com.chayewuu.hypermatter.ui.rememberBlurBackdrop
+import com.chayewuu.hypermatter.ui.glass.GlassCanvasRecorder
 import com.chayewuu.hypermatter.ui.glass.GlassNavigationBar
 import com.chayewuu.hypermatter.ui.glass.LocalGlassBackdrop
 import com.chayewuu.hypermatter.ui.glass.LocalGlassEnabled
+import com.chayewuu.hypermatter.ui.glass.rememberContentGlassBackdrop
 import com.chayewuu.hypermatter.ui.glass.rememberGlassBackdrop
 import com.chayewuu.hypermatter.ui.theme.LocalEventViewModel
 import com.chayewuu.hypermatter.ui.theme.LocalSettingsStore
@@ -181,8 +183,13 @@ private fun MainTabs(
     // progressive (gradient) blur: content scrolls under it and gets
     // frosted. On API < 33 it falls back to a solid surface-colored bar.
     val backdrop = rememberBlurBackdrop()
-    // Liquid-glass sampling layer for the nav bar and the page cards.
-    val glassBackdrop = rememberGlassBackdrop()
+    // Liquid-glass: the cards/FAB sample the flat canvas (recorded by a
+    // sibling recorder — glass surfaces must never sit inside the subtree
+    // recording their own sample, or the render tree nests infinitely);
+    // the bottom bar samples the live content (it lives outside the
+    // recorded subtree, in the bottomBar slot).
+    val glassCanvasBackdrop = rememberGlassBackdrop()
+    val glassNavBackdrop = rememberContentGlassBackdrop()
 
     val navBarContent: @Composable RowScope.() -> Unit = {
         navItems.forEachIndexed { index, item ->
@@ -213,28 +220,31 @@ private fun MainTabs(
             }
         },
         bottomBar = {
-            if (glassBackdrop != null) {
+            if (glassNavBackdrop != null) {
                 // Liquid glass bottom bar: frosts the list scrolling under it.
-                GlassNavigationBar(backdrop = glassBackdrop, content = navBarContent)
+                GlassNavigationBar(backdrop = glassNavBackdrop, content = navBarContent)
             } else {
                 NavigationBar(content = navBarContent)
             }
         },
     ) { paddingValues ->
         // Record the pager content into the backdrops so the blurred top bar
-        // and the glass surfaces can sample whatever scrolls beneath them.
+        // and the glass nav bar can sample whatever scrolls beneath them.
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .then(if (backdrop != null) Modifier.layerBackdrop(backdrop) else Modifier)
                 .then(
-                    if (glassBackdrop != null)
-                        Modifier.liquidLayerBackdrop(glassBackdrop)
+                    if (glassNavBackdrop != null)
+                        Modifier.liquidLayerBackdrop(glassNavBackdrop)
                     else
                         Modifier
                 ),
         ) {
-            CompositionLocalProvider(LocalGlassBackdrop provides glassBackdrop) {
+            // Flat-canvas recorder for the glass cards/FAB: a sibling with no
+            // glass inside, keeping the render tree acyclic.
+            GlassCanvasRecorder(glassCanvasBackdrop)
+            CompositionLocalProvider(LocalGlassBackdrop provides glassCanvasBackdrop) {
                 HorizontalPager(
                     state = pagerState,
                     modifier = Modifier.fillMaxSize(),

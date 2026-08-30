@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.defaultMinSize
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
@@ -29,6 +30,7 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.kyant.backdrop.backdrops.LayerBackdrop
+import com.kyant.backdrop.backdrops.layerBackdrop
 import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 import com.kyant.backdrop.drawBackdrop
 import com.kyant.backdrop.effects.blur
@@ -46,16 +48,24 @@ val LocalGlassEnabled = staticCompositionLocalOf { false }
 
 /**
  * The backdrop recording page content for glass surfaces, null in classic
- * mode. Provided by the page's Scaffold content Box, which attaches
- * `Modifier.layerBackdrop(backdrop)` on itself.
+ * mode. Provided by the page, typically recorded from a flat-canvas sibling
+ * (see [GlassCanvasRecorder]).
+ *
+ * IMPORTANT wiring rule (from the official catalog usage): a glass surface
+ * must NEVER live inside the subtree that records its own sample — the
+ * recorded layer would contain a draw of the glass surface, which draws the
+ * recorded layer, nesting the render tree one level deeper every frame
+ * until the renderer overflows its native stack (prepareTree recursion).
+ * Always record the background/content and keep glass surfaces as siblings
+ * (or in a different Scaffold slot, e.g. the bottom bar).
  */
 val LocalGlassBackdrop = staticCompositionLocalOf<LayerBackdrop?> { null }
 
 /**
  * Creates the liquid-glass sampling backdrop, or null when the style is
- * off / unsupported. Mirrors the Miuix blur helper: the recorded layer is
- * pre-filled with the canvas color so glass surfaces over empty canvas blur
- * the page color instead of transparency.
+ * off / unsupported. The recorded layer is pre-filled with the canvas color
+ * so glass surfaces over empty canvas blur the page color instead of
+ * transparency.
  */
 @Composable
 fun rememberGlassBackdrop(): LayerBackdrop? {
@@ -65,6 +75,38 @@ fun rememberGlassBackdrop(): LayerBackdrop? {
         drawRect(surfaceColor)
         drawContent()
     }
+}
+
+/**
+ * Backdrop recording the live page content — for glass surfaces that
+ * overlay scrolling content (e.g. the bottom navigation bar, which lives in
+ * its own Scaffold slot outside the recorded subtree). Do NOT attach the
+ * resulting recorder to a subtree that itself contains glass sampling it.
+ */
+@Composable
+fun rememberContentGlassBackdrop(): LayerBackdrop? {
+    if (!LocalGlassEnabled.current || !isRenderEffectSupported()) return null
+    val surfaceColor = MiuixTheme.colorScheme.surface
+    return rememberLayerBackdrop {
+        drawRect(surfaceColor)
+        drawContent()
+    }
+}
+
+/**
+ * Flat-canvas recorder node: records only the page color (draws nothing
+ * visible), giving glass surfaces a clean page sample. Pages place this as
+ * a sibling BEHIND their content so glass cards/FABs can sample the canvas
+ * without being part of the recording themselves.
+ */
+@Composable
+fun GlassCanvasRecorder(backdrop: LayerBackdrop?) {
+    if (backdrop == null) return
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .layerBackdrop(backdrop),
+    )
 }
 
 /**

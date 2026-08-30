@@ -43,12 +43,12 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.chayewuu.hypermatter.R
+import com.chayewuu.hypermatter.ui.glass.GlassCanvasRecorder
 import com.chayewuu.hypermatter.ui.glass.LiquidGlassCard
 import com.chayewuu.hypermatter.ui.glass.LocalGlassBackdrop
 import com.chayewuu.hypermatter.ui.glass.rememberGlassBackdrop
 import com.chayewuu.hypermatter.ui.theme.LocalSettingsStore
 import com.chayewuu.hypermatter.ui.theme.PALETTE_STYLES
-import com.kyant.backdrop.backdrops.layerBackdrop as liquidLayerBackdrop
 import top.yukonga.miuix.kmp.basic.ButtonDefaults
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
@@ -138,14 +138,12 @@ fun ThemePage(
                         Modifier.layerBackdrop(barBackdrop)
                     else
                         Modifier
-                )
-                .then(
-                    if (glassBackdrop != null)
-                        Modifier.liquidLayerBackdrop(glassBackdrop)
-                    else
-                        Modifier
                 ),
         ) {
+            // Flat-canvas recorder for the glass cards: a sibling with no
+            // glass inside it (glass surfaces must never be part of the
+            // subtree recording their own sample — infinite render nesting).
+            GlassCanvasRecorder(glassBackdrop)
             CompositionLocalProvider(LocalGlassBackdrop provides glassBackdrop) {
             LazyColumn(
                 modifier = Modifier
