@@ -1,6 +1,7 @@
 package com.chayewuu.hypermatter.ui
 
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -34,7 +35,6 @@ import androidx.compose.ui.unit.sp
 import com.chayewuu.hypermatter.R
 import com.chayewuu.hypermatter.ui.theme.LocalSettingsStore
 import top.yukonga.miuix.kmp.basic.Card
-import top.yukonga.miuix.kmp.basic.CardDefaults
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
 import top.yukonga.miuix.kmp.basic.Scaffold
@@ -196,40 +196,45 @@ private fun AppearanceCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Card(
-        modifier = modifier,
-        // No white card background — fully transparent
-        colors = CardDefaults.defaultColors(color = Color.Transparent),
-        insideMargin = PaddingValues(0.dp),
-        onClick = onClick,
-    ) {
-        // Border drawn fully inside bounds via drawBehind — no corner clipping
-        val borderColor = if (selected)
-            MiuixTheme.colorScheme.primary
-        else
-            Color.Transparent
-        Image(
-            painter = painterResource(drawableRes),
-            contentDescription = label,
-            contentScale = ContentScale.Crop,
+    // Concentric-corner geometry (all radii share one corner-circle center
+    // at 16dp from each corner, so the 2dp gap is constant everywhere):
+    //   clip 16dp > border outer radius 15dp (stroke fully visible)
+    //   border: topLeft 2dp, centerline radius 14dp, width 2dp
+    //   image: inset 5dp, corner radius 11dp
+    val borderColor = if (selected)
+        MiuixTheme.colorScheme.primary
+    else
+        Color.Transparent
+    Column(modifier = modifier) {
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .aspectRatio(480f / 680f)
+                .clip(RoundedCornerShape(16.dp))
                 .drawBehind {
                     if (borderColor != Color.Transparent) {
                         val stroke = 2.dp.toPx()
                         drawRoundRect(
                             color = borderColor,
-                            topLeft = Offset(stroke / 2f, stroke / 2f),
-                            size = Size(size.width - stroke, size.height - stroke),
+                            topLeft = Offset(stroke, stroke),
+                            size = Size(size.width - stroke * 2f, size.height - stroke * 2f),
                             cornerRadius = CornerRadius(14.dp.toPx()),
                             style = Stroke(width = stroke),
                         )
                     }
                 }
-                .padding(4.dp)
-                .clip(RoundedCornerShape(10.dp)),
-        )
+                .clickable(onClick = onClick)
+                .padding(5.dp),
+        ) {
+            Image(
+                painter = painterResource(drawableRes),
+                contentDescription = label,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clip(RoundedCornerShape(11.dp)),
+            )
+        }
         Text(
             text = label,
             fontSize = 15.sp,
