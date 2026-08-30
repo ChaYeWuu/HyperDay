@@ -239,38 +239,16 @@ private fun EventCard(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            // Left: title row (with trailing delete) + date + note
+            // Left: title + date + note + countdown description
             Column(
                 modifier = Modifier.weight(1f),
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(
-                        text = event.title,
-                        color = MiuixTheme.colorScheme.onSurface,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Medium,
-                        modifier = Modifier.weight(1f, fill = false),
-                    )
-                    Spacer(Modifier.width(4.dp))
-                    // Delete aligned with the title line — compact circular
-                    // touch target with a circle-bounded ripple.
-                    Box(
-                        contentAlignment = Alignment.Center,
-                        modifier = Modifier
-                            .size(36.dp)
-                            .clip(CircleShape)
-                            .clickable(onClick = onDelete),
-                    ) {
-                        Icon(
-                            imageVector = MiuixIcons.Delete,
-                            contentDescription = "删除",
-                            tint = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                            modifier = Modifier.size(20.dp),
-                        )
-                    }
-                }
+                Text(
+                    text = event.title,
+                    color = MiuixTheme.colorScheme.onSurface,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Medium,
+                )
                 Spacer(Modifier.height(4.dp))
                 Text(
                     text = "$dateStr $weekday",
@@ -296,9 +274,12 @@ private fun EventCard(
                 )
             }
 
-            // Right: big day number, vertically centered
+            // Right: big day number with the delete button below it. The
+            // column is end-aligned so the delete icon hugs the card's right
+            // edge — identical x-position on every card regardless of the
+            // day-number's width (so stacked cards line up).
             Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
+                horizontalAlignment = Alignment.End,
             ) {
                 Row(
                     verticalAlignment = Alignment.Bottom,
@@ -320,6 +301,22 @@ private fun EventCard(
                         else
                             MiuixTheme.colorScheme.primary,
                         fontSize = 14.sp,
+                    )
+                }
+                Spacer(Modifier.height(2.dp))
+                // Compact circular touch target, circle-bounded ripple.
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier
+                        .size(32.dp)
+                        .clip(CircleShape)
+                        .clickable(onClick = onDelete),
+                ) {
+                    Icon(
+                        imageVector = MiuixIcons.Delete,
+                        contentDescription = "删除",
+                        tint = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                        modifier = Modifier.size(18.dp),
                     )
                 }
             }
