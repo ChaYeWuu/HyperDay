@@ -551,13 +551,14 @@ fun EventDetailPage(
         },
     ) { paddingValues ->
         // Liquid Glass mode: the big card becomes a refracting glass panel.
-        // The glass tint follows ONLY the wallpaper brightness — the chosen
-        // font color recolors texts/icons but must never switch the glass to
-        // the opposite theme's look (a dark font on a light wallpaper used
-        // to pull the tint dark and read as "dark-mode glass").
+        // The glass tint follows the APP THEME (aligned with glassBlend
+        // above: light theme = milky glass, dark theme = smoked glass).
+        // Neither the wallpaper brightness nor the chosen font color may
+        // switch the glass to the opposite theme's look — a light-wallpaper
+        // or dark-font scenario must keep light-mode glass light.
         val liquidActive = liquidBackdrop != null && hasWallpaper
         val liquidTint = when {
-            isLightWallpaper -> Color.Black.copy(alpha = 0.22f)
+            isDarkTheme -> Color.Black.copy(alpha = 0.22f)
             else -> Color.White.copy(alpha = 0.18f)
         }
         // Freshly decoded wallpaper fades in over the black shell (a cache
