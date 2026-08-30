@@ -1,7 +1,6 @@
 package com.chayewuu.hypermatter.ui
 
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -20,7 +19,12 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -199,8 +203,11 @@ private fun AppearanceCard(
         insideMargin = PaddingValues(0.dp),
         onClick = onClick,
     ) {
-        // Border sits at the outer edge, image inset 4dp inside it —
-        // the border never touches the image pixels
+        // Border drawn fully inside bounds via drawBehind — no corner clipping
+        val borderColor = if (selected)
+            MiuixTheme.colorScheme.primary
+        else
+            Color.Transparent
         Image(
             painter = painterResource(drawableRes),
             contentDescription = label,
@@ -208,14 +215,18 @@ private fun AppearanceCard(
             modifier = Modifier
                 .fillMaxWidth()
                 .aspectRatio(480f / 680f)
-                .border(
-                    width = 2.dp,
-                    color = if (selected)
-                        MiuixTheme.colorScheme.primary
-                    else
-                        Color.Transparent,
-                    shape = RoundedCornerShape(14.dp),
-                )
+                .drawBehind {
+                    if (borderColor != Color.Transparent) {
+                        val stroke = 2.dp.toPx()
+                        drawRoundRect(
+                            color = borderColor,
+                            topLeft = Offset(stroke / 2f, stroke / 2f),
+                            size = Size(size.width - stroke, size.height - stroke),
+                            cornerRadius = CornerRadius(14.dp.toPx()),
+                            style = Stroke(width = stroke),
+                        )
+                    }
+                }
                 .padding(4.dp)
                 .clip(RoundedCornerShape(10.dp)),
         )
