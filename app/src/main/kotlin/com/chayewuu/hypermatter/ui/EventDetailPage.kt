@@ -321,8 +321,8 @@ fun EventDetailPage(
     var liveBgBlur by remember { mutableFloatStateOf(bgBlur) }
     var liveBgDim by remember { mutableFloatStateOf(bgDim) }
     var liveCardBlur by remember { mutableFloatStateOf(cardBlur) }
-    // While any slider thumb is held down, the card/action row sink and fade
-    // out of the way so the wallpaper can be observed live behind them.
+    // While any slider thumb is held down, the customize-background dialog
+    // itself sinks and fades away so the wallpaper can be observed live.
     var sliderActive by remember { mutableStateOf(false) }
     LaunchedEffect(showBackgroundDialog) {
         if (showBackgroundDialog) {
@@ -486,22 +486,11 @@ fun EventDetailPage(
         }
 
         val content: @Composable () -> Unit = {
-            // Slider held: card + buttons sink and fade away so the wallpaper
-            // being tuned stays fully visible.
-            val contentAlpha by animateFloatAsState(
-                targetValue = if (sliderActive) 0f else 1f,
-                animationSpec = tween(200),
-                label = "contentAlpha",
-            )
             Column(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(paddingValues)
-                    .padding(horizontal = 16.dp)
-                    .graphicsLayer {
-                        alpha = contentAlpha
-                        translationY = (1f - contentAlpha) * 60.dp.toPx()
-                    },
+                    .padding(horizontal = 16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center,
             ) {
@@ -602,12 +591,25 @@ fun EventDetailPage(
         // an OverlayDialog renders into the ROOT (outermost, i.e. the main
         // tabs) Scaffold, which is covered by this page, so the dialog
         // would be invisible.
+        // While any slider thumb is held down, THIS dialog (not the event
+        // card behind it) sinks and fades out of the way so the wallpaper
+        // being tuned stays fully visible. The in-progress drag keeps working
+        // (pointer events follow the pointer id, not the on-screen position).
+        val dialogSink by animateFloatAsState(
+            targetValue = if (sliderActive) 1f else 0f,
+            animationSpec = tween(200),
+            label = "dialogSink",
+        )
         OverlayDialog(
             title = "自定义背景",
             summary = "选择背景样式，壁纸模式下卡片会自适应壁纸明暗",
             show = showBackgroundDialog,
             onDismissRequest = { showBackgroundDialog = false },
             renderInRootScaffold = false,
+            modifier = Modifier.graphicsLayer {
+                translationY = dialogSink * 240.dp.toPx()
+                alpha = 1f - dialogSink
+            },
         ) {
             Column {
                 BgModeRow(
