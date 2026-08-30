@@ -212,17 +212,22 @@ fun ThemePage(
                             onCheckedChange = { settingsStore.setMonetColor(it) },
                         )
                         if (monetColor) {
+                            // -1 = follow wallpaper (null seed); 0..6 = preset index
                             val seedIndex = monetSeedColor
                                 ?.let { c -> PresetSeedColors.indexOf(c) }
                                 ?.takeIf { it >= 0 }
+                                ?: -1
                             OverlayDropdownPreference(
                                 title = "色系",
                                 summary = "选择应用主色的种子颜色",
                                 items = SeedColorItems,
-                                selectedIndex = seedIndex ?: 0,
+                                selectedIndex = seedIndex + 1,
                                 renderInRootScaffold = false,
                                 onSelectedIndexChange = { index ->
-                                    settingsStore.setMonetSeedColor(PresetSeedColors[index])
+                                    // items[0] = 跟随壁纸 (null seed); items[1..] = presets
+                                    settingsStore.setMonetSeedColor(
+                                        PresetSeedColors.getOrNull(index - 1)
+                                    )
                                 },
                             )
                             OverlayDropdownPreference(

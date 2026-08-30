@@ -55,10 +55,19 @@ class SettingsStore(context: Context) {
 
     /**
      * Custom Monet seed color (ARGB), null = use the wallpaper-derived
-     * system seed color.
+     * system seed color. Values are constrained to the official Miuix
+     * example KeyColors presets; any legacy value outside that list is
+     * cleared so the UI ("跟随壁纸") and behavior stay consistent.
      */
     val monetSeedColor = MutableStateFlow(
-        prefs.getLong(KEY_MONET_SEED_COLOR, -1L).takeIf { it >= 0 }
+        prefs.getLong(KEY_MONET_SEED_COLOR, -1L)
+            .takeIf { it >= 0 }
+            ?.takeIf { MonetPresetSeeds.contains(it) }
+            .also { seed ->
+                if (seed == null) {
+                    prefs.edit().putLong(KEY_MONET_SEED_COLOR, -1L).apply()
+                }
+            }
     )
 
     fun setMonetSeedColor(argb: Long?) {
@@ -78,5 +87,16 @@ class SettingsStore(context: Context) {
         const val STYLE_CLASSIC = 0
         const val STYLE_LIQUID_GLASS = 1
         const val PALETTE_FOLLOW_SYSTEM = -1
+
+        /** Official Miuix example KeyColors, in dropdown order. */
+        val MonetPresetSeeds = longArrayOf(
+            0xFF3482FFL, // Blue
+            0xFF36D167L, // Green
+            0xFF7C4DFFL, // Purple
+            0xFFFFB21DL, // Yellow
+            0xFFFF5722L, // Orange
+            0xFFE91E63L, // Pink
+            0xFF00BCD4L, // Teal
+        )
     }
 }
