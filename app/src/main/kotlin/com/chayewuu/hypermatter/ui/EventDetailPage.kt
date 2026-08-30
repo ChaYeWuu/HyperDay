@@ -57,6 +57,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.toArgb
@@ -326,40 +327,6 @@ fun EventDetailPage(
         }
     }
 
-    fun saveCardAsImage() {
-        scope.launch {
-            try {
-                val safeTitle = event.title.replace(Regex("[\\\\/:*?\"<>|\\s]"), "_")
-                val fileName = "HyperDay_${safeTitle}_${System.currentTimeMillis()}"
-                // Render the share card programmatically (a graphics-layer
-                // capture would bake the transparent window background to
-                // black in the saved PNG).
-                val bitmap = withContext(Dispatchers.Default) {
-                    renderShareCard(
-                        title = event.title,
-                        note = event.note,
-                        describe = DateUtils.describe(event),
-                        dayNum = dayNum,
-                        dateLine = "$dateStr $weekday",
-                        statusLabel = if (isPast) "已经过去" else "即将到来",
-                        isPast = isPast,
-                        cardArgb = event.cardColor,
-                    )
-                }
-                val saved = withContext(Dispatchers.IO) {
-                    saveBitmapToGallery(context, bitmap, fileName)
-                }
-                if (saved != null) {
-                    Toast.makeText(context, "已保存到 $saved", Toast.LENGTH_LONG).show()
-                } else {
-                    Toast.makeText(context, "保存失败", Toast.LENGTH_SHORT).show()
-                }
-            } catch (e: Exception) {
-                Toast.makeText(context, "保存失败：${e.message}", Toast.LENGTH_SHORT).show()
-            }
-        }
-    }
-
     // Photo picker for the custom wallpaper.
     val wallpaperPicker = rememberLauncherForActivityResult(
         ActivityResultContracts.PickVisualMedia(),
@@ -430,6 +397,45 @@ fun EventDetailPage(
     val bgTextColor =
         if (wallpaperConfigured) onCard
         else MiuixTheme.colorScheme.onSurfaceVariantSummary
+
+    fun saveCardAsImage() {
+        scope.launch {
+            try {
+                val safeTitle = event.title.replace(Regex("[\\\\/:*?\"<>|\\s]"), "_")
+                val fileName = "HyperDay_${safeTitle}_${System.currentTimeMillis()}"
+                // Render the share card programmatically (a graphics-layer
+                // capture would bake the transparent window background to
+                // black in the saved PNG). The saved card mirrors the page's
+                // customized background: wallpaper + dim (or card-color
+                // gradient) and matching adaptive text colors.
+                val bitmap = withContext(Dispatchers.Default) {
+                    renderShareCard(
+                        title = event.title,
+                        note = event.note,
+                        describe = DateUtils.describe(event),
+                        dayNum = dayNum,
+                        dateLine = "$dateStr $weekday",
+                        statusLabel = if (isPast) "已经过去" else "即将到来",
+                        isPast = isPast,
+                        cardArgb = event.cardColor,
+                        wallpaper = wallpaper?.bitmap?.asAndroidBitmap(),
+                        bgDim = effBgDim,
+                        wallpaperLuminance = wpLum,
+                    )
+                }
+                val saved = withContext(Dispatchers.IO) {
+                    saveBitmapToGallery(context, bitmap, fileName)
+                }
+                if (saved != null) {
+                    Toast.makeText(context, "已保存到 $saved", Toast.LENGTH_LONG).show()
+                } else {
+                    Toast.makeText(context, "保存失败", Toast.LENGTH_SHORT).show()
+                }
+            } catch (e: Exception) {
+                Toast.makeText(context, "保存失败：${e.message}", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
 
     val pageCanvas = MiuixTheme.colorScheme.surface
     val backdrop = rememberBlurBackdrop()
@@ -1053,9 +1059,14 @@ private fun avgLuminance(bitmap: Bitmap): Float {
 }
 
 /**
- * Programmatically render a 1080x1620 share card: a vertical gradient
- * background (derived from the custom card color, or HyperDay blue), a
- * rounded card with the event content, and a signature at the bottom.
+ * Programmatically render a 1080x1620 share card that mirrors the detail
+ * page's customized background:
+ *  - Wallpaper mode: the actual photo, center-cropped, blurred (downscale +
+ *    bilinear upscale — the detail page's blur look) with the user's dim
+ *    scrim; a translucent frosted card over it; text colors flipped by the
+ *    wallpaper luminance exactly like the live page.
+ *  - Solid mode: a vertical gradient derived from the custom card color (or
+ *    HyperDay blue) with a solid card.
  */
 private fun renderShareCard(
     title: String,
@@ -1066,6 +1077,9 @@ private fun renderShareCard(
     statusLabel: String,
     isPast: Boolean,
     cardArgb: Long?,
+    wallpaper: Bitmap?,
+    bgDim: Float,
+    wallpaperLuminance: Float,
 ): Bitmap {
     val w = 1080
     val h = 1620
@@ -1073,10 +1087,14 @@ private fun renderShareCard(
     val canvas = Canvas(bmp)
 
     val custom = cardArgb?.let { Color(it) }
-    val cardColor = (custom ?: Color.White).toArgb()
 
-    // Contrast-aware text colors over the card.
+    // ONE shared brightness decision, same rule as the live detail page:
+    // the wallpaper's luminance after the dim scrim.
+    val wallpaperTextDark =
+        wallpaper != null && wallpaperLuminance * (1f - bgDim) > 0.5f
     val onCard = when {
+        wallpaper != null ->
+            if (wallpaperTextDark) 0xFF1B1B1F.toInt() else 0xFFFFFFFF.toInt()
         custom != null && custom.luminance() > 0.5f -> 0xFF1B1B1F.toInt()
         custom != null -> 0xFFFFFFFF.toInt()
         else -> 0xFF1B1B1F.toInt()
@@ -1086,33 +1104,73 @@ private fun renderShareCard(
         (((onCard shr 8 and 0xFF) * 200 / 255) shl 8) or
         ((onCard and 0xFF) * 200 / 255)
     val accent = when {
+        wallpaper != null -> onCard
         custom != null -> onCard
         isPast -> 0xFF8A8A8E.toInt()
         else -> 0xFF3482FF.toInt()
     }
     val pillFg = when {
+        wallpaper != null -> onCard
         custom != null -> onCard
         isPast -> 0xFF8A8A8E.toInt()
         else -> 0xFF3482FF.toInt()
     }
-
-    // Background gradient from the card hue (or HyperDay blue).
-    fun shade(c: Color, f: Float): Int {
-        fun ch(x: Float) = (x * f).coerceIn(0f, 1f)
-        return Color(ch(c.red), ch(c.green), ch(c.blue), 1f).toArgb()
+    // Frosted card fill over a wallpaper mirrors the live glass tint:
+    // dark glass over bright photos, light glass over dark ones.
+    val cardColor = when {
+        wallpaper != null ->
+            if (wallpaperTextDark) 0x38000000 else 0x2EFFFFFF
+        else -> (custom ?: Color.White).toArgb()
     }
 
-    val (bgTop, bgBottom) = if (custom != null) {
-        shade(custom, 1.15f) to shade(custom, 0.55f)
-    } else {
-        0xFF4A8DFF.toInt() to 0xFF1E5FD0.toInt()
-    }
-    val bgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        shader = android.graphics.LinearGradient(
-            0f, 0f, 0f, h.toFloat(), bgTop, bgBottom, android.graphics.Shader.TileMode.CLAMP,
+    if (wallpaper != null) {
+        // Center-crop the wallpaper to the card canvas, blurring it by
+        // downscaling then bilinearly upscaling (a soft blur that matches
+        // the detail page's frosted background look).
+        val scale = maxOf(w / wallpaper.width.toFloat(), h / wallpaper.height.toFloat())
+        val blurScale = scale / 8f
+        val smallW = (wallpaper.width * blurScale).toInt().coerceAtLeast(8)
+        val smallH = (wallpaper.height * blurScale).toInt().coerceAtLeast(8)
+        val small = Bitmap.createScaledBitmap(wallpaper, smallW, smallH, true)
+        val drawW = smallW * 8f
+        val drawH = smallH * 8f
+        val dx = (w - drawW) / 2f
+        val dy = (h - drawH) / 2f
+        val wallPaint = Paint(Paint.FILTER_BITMAP_FLAG or Paint.ANTI_ALIAS_FLAG)
+        val matrix = android.graphics.Matrix().apply { setTranslate(dx, dy) }
+        wallPaint.shader = android.graphics.BitmapShader(
+            small, android.graphics.Shader.TileMode.CLAMP, android.graphics.Shader.TileMode.CLAMP,
         )
+        canvas.save()
+        canvas.concat(matrix)
+        canvas.drawRect(0f, 0f, drawW, drawH, wallPaint)
+        canvas.restore()
+        // User's dim scrim.
+        if (bgDim > 0.01f) {
+            canvas.drawRect(
+                0f, 0f, w.toFloat(), h.toFloat(),
+                Paint().apply { color = (bgDim * 255).toInt().shl(24) },
+            )
+        }
+    } else {
+        // Background gradient from the card hue (or HyperDay blue).
+        fun shade(c: Color, f: Float): Int {
+            fun ch(x: Float) = (x * f).coerceIn(0f, 1f)
+            return Color(ch(c.red), ch(c.green), ch(c.blue), 1f).toArgb()
+        }
+
+        val (bgTop, bgBottom) = if (custom != null) {
+            shade(custom, 1.15f) to shade(custom, 0.55f)
+        } else {
+            0xFF4A8DFF.toInt() to 0xFF1E5FD0.toInt()
+        }
+        val bgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            shader = android.graphics.LinearGradient(
+                0f, 0f, 0f, h.toFloat(), bgTop, bgBottom, android.graphics.Shader.TileMode.CLAMP,
+            )
+        }
+        canvas.drawRect(0f, 0f, w.toFloat(), h.toFloat(), bgPaint)
     }
-    canvas.drawRect(0f, 0f, w.toFloat(), h.toFloat(), bgPaint)
 
     // Card
     val cardL = 90f
@@ -1172,8 +1230,9 @@ private fun renderShareCard(
     canvas.drawText("起始日", cx, cardT + 815f, textPaint(34f, false, onCardSummary))
     canvas.drawText(dateLine, cx, cardT + 880f, textPaint(46f, true, onCard))
 
-    // Signature on the gradient, below the card
-    canvas.drawText("HyperDay", cx, 1520f, textPaint(44f, true, 0xB3FFFFFF.toInt()))
+    // Signature below the card, tinted for contrast with the background.
+    val signatureColor = if (wallpaperTextDark) 0xB31B1B1F.toInt() else 0xB3FFFFFF.toInt()
+    canvas.drawText("HyperDay", cx, 1520f, textPaint(44f, true, signatureColor))
 
     return bmp
 }
