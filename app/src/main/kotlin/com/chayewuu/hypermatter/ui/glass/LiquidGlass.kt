@@ -605,6 +605,10 @@ fun GlassNavAction(
                     blur(8.dp.toPx())
                     lens(24.dp.toPx(), 24.dp.toPx())
                 },
+                // Explicit small shadow — the library default is a large
+                // Shadow.Default (24dp) which the expand/collapse animation
+                // can clip into a rectangular artifact.
+                shadow = { Shadow(radius = 10.dp, color = Color.Black.copy(alpha = 0.08f)) },
                 onDrawSurface = { drawRect(tint) },
             )
             .clip(RoundedCornerShape(50))
