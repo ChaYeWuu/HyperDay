@@ -70,6 +70,7 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.chayewuu.hypermatter.data.CountdownEvent
 import com.chayewuu.hypermatter.data.DateUtils
 import com.chayewuu.hypermatter.ui.glass.liquidGlass
 import com.chayewuu.hypermatter.ui.glass.rememberGlassBackdrop
@@ -227,6 +228,16 @@ fun EventDetailPage(
         return
     }
 
+    // Dialog controls write through this helper: it re-reads the event from
+    // the store's CURRENT value at click time instead of the copy captured
+    // when the dialog was composed. Rapid taps between recomposition frames
+    // otherwise compute the next value from a stale snapshot and write the
+    // same value twice — the "tap did nothing until I re-entered" bug.
+    fun updateEventFresh(transform: (CountdownEvent) -> CountdownEvent) {
+        val fresh = viewModel.events.value.firstOrNull { it.id == eventId } ?: return
+        viewModel.updateEvent(transform(fresh))
+    }
+
     // System back is owned by the NavDisplay navigation-event bridge: it pops
     // this entry off the back stack (with the official predictive-back
     // animation), so no BackHandler is needed here.
@@ -353,9 +364,9 @@ fun EventDetailPage(
                     Intent.FLAG_GRANT_READ_URI_PERMISSION,
                 )
             }
-            viewModel.updateEvent(
-                event.copy(wallpaperUri = uri.toString(), dynamicBg = null, cardColor = null)
-            )
+            updateEventFresh {
+                it.copy(wallpaperUri = uri.toString(), dynamicBg = null, cardColor = null)
+            }
             showBackgroundDialog = false
         }
     }
@@ -687,7 +698,13 @@ fun EventDetailPage(
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(horizontal = 16.dp),
+                        .padding(horizontal = 16.dp)
+                        // Bias the card's center upward so it sits in the
+                        // middle of the actually-free area between the top
+                        // bar and the bottom-anchored action row (centering
+                        // on the full screen made the whole composition feel
+                        // bottom-heavy).
+                        .padding(bottom = 96.dp),
                     contentAlignment = Alignment.Center,
                 ) {
                     cardContent()
@@ -715,7 +732,7 @@ fun EventDetailPage(
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
                         .navigationBarsPadding()
-                        .padding(bottom = 20.dp)
+                        .padding(bottom = 14.dp)
                         .fillMaxWidth()
                         .padding(horizontal = 8.dp),
                     horizontalArrangement = Arrangement.SpaceEvenly,
@@ -948,9 +965,9 @@ fun EventDetailPage(
                     label = "纯色背景",
                     selected = bgMode == BgMode.SOLID,
                 ) {
-                    viewModel.updateEvent(
-                        event.copy(wallpaperUri = null, dynamicBg = null, cardColor = null)
-                    )
+                    updateEventFresh {
+                        it.copy(wallpaperUri = null, dynamicBg = null, cardColor = null)
+                    }
                 }
                 BgModeRow(
                     icon = MiuixIcons.Image,
@@ -975,7 +992,7 @@ fun EventDetailPage(
                         valueText = "${liveBgBlur.toInt()} dp",
                         onValueChangeFinished = {
                             activeSlider = null
-                            viewModel.updateEvent(event.copy(wallpaperBlur = liveBgBlur.toInt()))
+                            updateEventFresh { it.copy(wallpaperBlur = liveBgBlur.toInt()) }
                         },
                     )
                     SliderPreference(
@@ -989,7 +1006,7 @@ fun EventDetailPage(
                         valueText = "${(liveBgDim * 100).toInt()}%",
                         onValueChangeFinished = {
                             activeSlider = null
-                            viewModel.updateEvent(event.copy(wallpaperDim = liveBgDim))
+                            updateEventFresh { it.copy(wallpaperDim = liveBgDim) }
                         },
                     )
                 }
@@ -1005,7 +1022,7 @@ fun EventDetailPage(
                         valueText = "${liveCardBlur.toInt()}",
                         onValueChangeFinished = {
                             activeSlider = null
-                            viewModel.updateEvent(event.copy(cardBlur = liveCardBlur))
+                            updateEventFresh { it.copy(cardBlur = liveCardBlur) }
                         },
                     )
                 }
@@ -1043,28 +1060,32 @@ fun EventDetailPage(
                     valueText = "${(liveFontScale * 100).toInt()}%",
                     onValueChangeFinished = {
                         activeSlider = null
-                        viewModel.updateEvent(event.copy(fontScale = liveFontScale))
+                        updateEventFresh { it.copy(fontScale = liveFontScale) }
                     },
                 )
                 FontCycleRow(
                     label = "字体粗细",
                     valueLabel = FontWeightItems[fs.weightIdx],
                 ) {
-                    viewModel.updateEvent(event.copy(fontWeight = (fs.weightIdx + 1) % FontWeightItems.size))
+                    updateEventFresh {
+                        it.copy(fontWeight = ((it.fontWeight ?: 0) + 1) % FontWeightItems.size)
+                    }
                 }
                 FontCycleRow(
                     label = "文字颜色",
                     valueLabel = FontColorItems[fs.colorIdx],
                 ) {
-                    viewModel.updateEvent(event.copy(textColor = (fs.colorIdx + 1) % FontColorItems.size))
+                    updateEventFresh {
+                        it.copy(textColor = ((it.textColor ?: 0) + 1) % FontColorItems.size)
+                    }
                 }
                 if (fs.colorIdx == 3) {
                     ColorPalette(
                         color = fs.colorCustom,
-                        onColorChanged = {
-                            viewModel.updateEvent(
-                                event.copy(textColorCustom = it.toArgb().toLong())
-                            )
+                        onColorChanged = { c ->
+                            updateEventFresh {
+                                it.copy(textColorCustom = c.toArgb().toLong())
+                            }
                         },
                     )
                 }
@@ -1072,8 +1093,8 @@ fun EventDetailPage(
                     title = "文字描边",
                     summary = "为文字添加对比色描边",
                     checked = fs.strokeOn,
-                    onCheckedChange = {
-                        viewModel.updateEvent(event.copy(fontStroke = it))
+                    onCheckedChange = { checked ->
+                        updateEventFresh { it.copy(fontStroke = checked) }
                     },
                 )
                 if (fs.strokeOn) {
@@ -1088,24 +1109,24 @@ fun EventDetailPage(
                         valueText = "${liveFontStroke.toInt()} dp",
                         onValueChangeFinished = {
                             activeSlider = null
-                            viewModel.updateEvent(event.copy(fontStrokeWidth = liveFontStroke))
+                            updateEventFresh { it.copy(fontStrokeWidth = liveFontStroke) }
                         },
                     )
                     FontCycleRow(
                         label = "描边颜色",
                         valueLabel = StrokeColorItems[fs.strokeColorIdx],
                     ) {
-                        viewModel.updateEvent(
-                            event.copy(strokeColor = (fs.strokeColorIdx + 1) % StrokeColorItems.size)
-                        )
+                        updateEventFresh {
+                            it.copy(strokeColor = ((it.strokeColor ?: 0) + 1) % StrokeColorItems.size)
+                        }
                     }
                     if (fs.strokeColorIdx == 3) {
                         ColorPalette(
                             color = fs.strokeColorCustom,
-                            onColorChanged = {
-                                viewModel.updateEvent(
-                                    event.copy(strokeColorCustom = it.toArgb().toLong())
-                                )
+                            onColorChanged = { c ->
+                                updateEventFresh {
+                                    it.copy(strokeColorCustom = c.toArgb().toLong())
+                                }
                             },
                         )
                     }
@@ -1114,8 +1135,8 @@ fun EventDetailPage(
                     title = "文字阴影",
                     summary = "为文字添加柔和投影",
                     checked = fs.shadowOn,
-                    onCheckedChange = {
-                        viewModel.updateEvent(event.copy(fontShadow = it))
+                    onCheckedChange = { checked ->
+                        updateEventFresh { it.copy(fontShadow = checked) }
                     },
                 )
                 if (fs.shadowOn) {
@@ -1123,17 +1144,17 @@ fun EventDetailPage(
                         label = "阴影颜色",
                         valueLabel = ShadowColorItems[fs.shadowColorIdx],
                     ) {
-                        viewModel.updateEvent(
-                            event.copy(shadowColor = (fs.shadowColorIdx + 1) % ShadowColorItems.size)
-                        )
+                        updateEventFresh {
+                            it.copy(shadowColor = ((it.shadowColor ?: 0) + 1) % ShadowColorItems.size)
+                        }
                     }
                     if (fs.shadowColorIdx == 3) {
                         ColorPalette(
                             color = fs.shadowColorCustom,
-                            onColorChanged = {
-                                viewModel.updateEvent(
-                                    event.copy(shadowColorCustom = it.toArgb().toLong())
-                                )
+                            onColorChanged = { c ->
+                                updateEventFresh {
+                                    it.copy(shadowColorCustom = c.toArgb().toLong())
+                                }
                             },
                         )
                     }
@@ -1148,7 +1169,7 @@ fun EventDetailPage(
                         valueText = "${liveShadowBlur.toInt()} dp",
                         onValueChangeFinished = {
                             activeSlider = null
-                            viewModel.updateEvent(event.copy(shadowBlur = liveShadowBlur))
+                            updateEventFresh { it.copy(shadowBlur = liveShadowBlur) }
                         },
                     )
                     SliderPreference(
@@ -1162,7 +1183,7 @@ fun EventDetailPage(
                         valueText = "${(liveShadowAlpha * 100).toInt()}%",
                         onValueChangeFinished = {
                             activeSlider = null
-                            viewModel.updateEvent(event.copy(shadowAlpha = liveShadowAlpha))
+                            updateEventFresh { it.copy(shadowAlpha = liveShadowAlpha) }
                         },
                     )
                 }
