@@ -29,6 +29,7 @@ import androidx.compose.ui.unit.sp
 import com.chayewuu.hypermatter.R
 import com.chayewuu.hypermatter.ui.theme.LocalSettingsStore
 import top.yukonga.miuix.kmp.basic.Card
+import top.yukonga.miuix.kmp.basic.CardDefaults
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
 import top.yukonga.miuix.kmp.basic.Scaffold
@@ -192,10 +193,12 @@ private fun AppearanceCard(
 ) {
     Card(
         modifier = modifier,
+        // No white card background — fully transparent
+        colors = CardDefaults.defaultColors(color = Color.Transparent),
         insideMargin = PaddingValues(0.dp),
         onClick = onClick,
     ) {
-        // 2dp gap between image and border, border hugs the outer edge
+        // Border at the outer edge, image inset 2dp inside it
         Image(
             painter = painterResource(drawableRes),
             contentDescription = label,
@@ -203,8 +206,6 @@ private fun AppearanceCard(
             modifier = Modifier
                 .fillMaxWidth()
                 .aspectRatio(480f / 680f)
-                .padding(2.dp)
-                .clip(RoundedCornerShape(12.dp))
                 .border(
                     width = 2.dp,
                     color = if (selected)
@@ -212,7 +213,9 @@ private fun AppearanceCard(
                     else
                         Color.Transparent,
                     shape = RoundedCornerShape(12.dp),
-                ),
+                )
+                .padding(2.dp)
+                .clip(RoundedCornerShape(10.dp)),
         )
         Text(
             text = label,
