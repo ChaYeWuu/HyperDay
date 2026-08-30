@@ -14,9 +14,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.chayewuu.hypermatter.ui.glass.LiquidGlassCard
 import com.chayewuu.hypermatter.ui.theme.LocalEventViewModel
 import com.chayewuu.hypermatter.ui.theme.LocalSettingsStore
-import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.SmallTitle
 import top.yukonga.miuix.kmp.basic.TextButton
 import top.yukonga.miuix.kmp.overlay.OverlayDialog
@@ -57,7 +57,7 @@ fun SettingsPage(
     ) {
         item {
             SmallTitle(text = "外观")
-            Card(
+            LiquidGlassCard(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 12.dp),
@@ -72,7 +72,7 @@ fun SettingsPage(
 
         item {
             SmallTitle(text = "数据")
-            Card(
+            LiquidGlassCard(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 12.dp),
@@ -87,7 +87,7 @@ fun SettingsPage(
 
         item {
             SmallTitle(text = "其他")
-            Card(
+            LiquidGlassCard(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 12.dp),

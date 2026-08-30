@@ -30,9 +30,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.chayewuu.hypermatter.data.CountdownEvent
 import com.chayewuu.hypermatter.data.DateUtils
+import com.chayewuu.hypermatter.ui.glass.GlassFab
+import com.chayewuu.hypermatter.ui.glass.LiquidGlassCard
 import com.chayewuu.hypermatter.ui.theme.LocalEventViewModel
-import top.yukonga.miuix.kmp.basic.Card
-import top.yukonga.miuix.kmp.basic.FloatingActionButton
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
 import top.yukonga.miuix.kmp.basic.SmallTitle
@@ -158,8 +158,9 @@ fun HomePage(
             }
         }
 
-        // FAB: lifted above the bottom NavigationBar via outer contentPadding
-        FloatingActionButton(
+        // FAB: lifted above the bottom NavigationBar via outer contentPadding.
+        // In liquid-glass mode this becomes a primary-tinted glass circle.
+        GlassFab(
             onClick = {
                 view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
                 showAddSheet = true
@@ -230,8 +231,9 @@ private fun EventCard(
     val dateStr = DateUtils.formatDate(event.epochDay)
     val weekday = DateUtils.weekdayLabel(event.epochDay)
 
-    Card(
+    LiquidGlassCard(
         modifier = modifier.fillMaxWidth(),
+        cornerRadius = 16.dp,
         insideMargin = PaddingValues(16.dp),
         onClick = onOpen,
     ) {

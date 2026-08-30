@@ -55,6 +55,7 @@ dependencies {
     implementation(libs.miuix.shader)
     implementation(libs.miuix.blur)
     implementation(libs.miuix.nav)
+    implementation(libs.kyant.backdrop)
 
     coreLibraryDesugaring(libs.desugar.jdk.libs)
 }

@@ -19,6 +19,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -42,10 +43,13 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.chayewuu.hypermatter.R
+import com.chayewuu.hypermatter.ui.glass.LiquidGlassCard
+import com.chayewuu.hypermatter.ui.glass.LocalGlassBackdrop
+import com.chayewuu.hypermatter.ui.glass.rememberGlassBackdrop
 import com.chayewuu.hypermatter.ui.theme.LocalSettingsStore
 import com.chayewuu.hypermatter.ui.theme.PALETTE_STYLES
+import com.kyant.backdrop.backdrops.layerBackdrop as liquidLayerBackdrop
 import top.yukonga.miuix.kmp.basic.ButtonDefaults
-import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
 import top.yukonga.miuix.kmp.basic.Scaffold
@@ -102,6 +106,7 @@ fun ThemePage(
     val monetSeedColor by settingsStore.monetSeedColor.collectAsState()
 
     val barBackdrop = rememberBlurBackdrop()
+    val glassBackdrop = rememberGlassBackdrop()
     Scaffold(
         containerColor = MiuixTheme.colorScheme.surface,
         topBar = {
@@ -133,8 +138,15 @@ fun ThemePage(
                         Modifier.layerBackdrop(barBackdrop)
                     else
                         Modifier
+                )
+                .then(
+                    if (glassBackdrop != null)
+                        Modifier.liquidLayerBackdrop(glassBackdrop)
+                    else
+                        Modifier
                 ),
         ) {
+            CompositionLocalProvider(LocalGlassBackdrop provides glassBackdrop) {
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
@@ -181,7 +193,7 @@ fun ThemePage(
                 item {
                     Spacer(Modifier.height(12.dp))
                     SmallTitle(text = "应用风格")
-                    Card(
+                    LiquidGlassCard(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 12.dp),
@@ -200,7 +212,7 @@ fun ThemePage(
                 item {
                     Spacer(Modifier.height(12.dp))
                     SmallTitle(text = "莫奈取色")
-                    Card(
+                    LiquidGlassCard(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 12.dp),
@@ -241,6 +253,7 @@ fun ThemePage(
                         }
                     }
                 }
+            }
             }
         }
     }

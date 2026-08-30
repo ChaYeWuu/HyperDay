@@ -65,8 +65,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.chayewuu.hypermatter.data.DateUtils
+import com.chayewuu.hypermatter.ui.glass.liquidGlass
+import com.chayewuu.hypermatter.ui.glass.rememberGlassBackdrop
 import com.chayewuu.hypermatter.ui.theme.LocalEventViewModel
 import com.chayewuu.hypermatter.ui.theme.LocalSettingsStore
+import com.kyant.backdrop.backdrops.LayerBackdrop as LiquidBackdrop
+import com.kyant.backdrop.backdrops.layerBackdrop as liquidLayerBackdrop
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -210,7 +214,11 @@ fun EventDetailPage(
     // sample what's behind them). On the solid canvas they would blur a flat
     // color and blend into the background, so the solid mode uses the
     // standard Miuix card (white / #242424) instead.
-    val glassMode = glassSupported && hasWallpaper
+    // In the Liquid Glass app style the sampling/rendering is upgraded from
+    // Miuix textureBlur to the Kyant backdrop stack (vibrancy + blur + lens
+    // refraction).
+    val liquidBackdrop = rememberGlassBackdrop()
+    val glassMode = glassSupported && hasWallpaper && liquidBackdrop == null
 
     // User-tunable parameters (persisted per event, live-adjustable in the
     // customize-background dialog).
@@ -381,25 +389,37 @@ fun EventDetailPage(
             }
         },
     ) { paddingValues ->
+        // Liquid Glass mode: the big card becomes a refracting glass panel.
+        val liquidActive = liquidBackdrop != null && hasWallpaper
+        val liquidTint = if (isLightWallpaper)
+            Color.Black.copy(alpha = 0.22f)
+        else
+            Color.White.copy(alpha = 0.18f)
+
         val cardContent: @Composable () -> Unit = {
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
                     .then(
-                        if (cardBackdrop != null) {
-                            Modifier.textureBlur(
+                        when {
+                            liquidActive -> Modifier.liquidGlass(
+                                backdrop = liquidBackdrop!!,
+                                shape = RoundedCornerShape(16.dp),
+                                blurRadius = (effCardBlur * 0.35f).dp,
+                                tint = liquidTint,
+                            )
+                            cardBackdrop != null -> Modifier.textureBlur(
                                 backdrop = cardBackdrop,
                                 shape = RoundedCornerShape(16.dp),
                                 blurRadius = effCardBlur,
                                 noiseCoefficient = BlurDefaults.NoiseCoefficient,
                                 colors = BlurDefaults.blurColors(blendColors = glassBlend),
                             )
-                        } else {
-                            Modifier
+                            else -> Modifier
                         }
                     ),
                 insideMargin = PaddingValues(24.dp),
-                colors = if (cardBackdrop != null) {
+                colors = if (cardBackdrop != null || liquidActive) {
                     CardDefaults.defaultColors(Color.Transparent, Color.Transparent)
                 } else {
                     CardDefaults.defaultColors()
@@ -519,6 +539,8 @@ fun EventDetailPage(
                         glassBackdrop = cardBackdrop,
                         glassBlend = glassBlend,
                         blurRadius = effCardBlur * 0.6f,
+                        liquidBackdrop = if (liquidActive) liquidBackdrop else null,
+                        liquidTint = liquidTint,
                     ) { shareEvent() }
                     ActionButton(
                         icon = MiuixIcons.ScreenCapture,
@@ -527,6 +549,8 @@ fun EventDetailPage(
                         glassBackdrop = cardBackdrop,
                         glassBlend = glassBlend,
                         blurRadius = effCardBlur * 0.6f,
+                        liquidBackdrop = if (liquidActive) liquidBackdrop else null,
+                        liquidTint = liquidTint,
                     ) { saveCardAsImage() }
                     ActionButton(
                         icon = MiuixIcons.Background,
@@ -535,6 +559,8 @@ fun EventDetailPage(
                         glassBackdrop = cardBackdrop,
                         glassBlend = glassBlend,
                         blurRadius = effCardBlur * 0.6f,
+                        liquidBackdrop = if (liquidActive) liquidBackdrop else null,
+                        liquidTint = liquidTint,
                     ) { showBackgroundDialog = true }
                 }
             }
@@ -558,6 +584,12 @@ fun EventDetailPage(
                             .then(
                                 if (cardBackdrop != null)
                                     Modifier.layerBackdrop(cardBackdrop)
+                                else
+                                    Modifier
+                            )
+                            .then(
+                                if (liquidBackdrop != null)
+                                    Modifier.liquidLayerBackdrop(liquidBackdrop)
                                 else
                                     Modifier
                             ),
@@ -747,9 +779,10 @@ private fun BgModeRow(
 }
 
 /**
- * Circular action button with a label below it. When [glassBackdrop] is set,
- * the circle becomes frosted glass (official textureBlur) instead of solid
- * surfaceContainer.
+ * Circular action button with a label below it. When [liquidBackdrop] is set
+ * (Liquid Glass app style), the circle becomes a refracting glass lens;
+ * otherwise when [glassBackdrop] is set it becomes frosted glass (official
+ * textureBlur) instead of solid surfaceContainer.
  */
 @Composable
 private fun ActionButton(
@@ -759,6 +792,8 @@ private fun ActionButton(
     glassBackdrop: LayerBackdrop?,
     glassBlend: List<BlendColorEntry>,
     blurRadius: Float,
+    liquidBackdrop: LiquidBackdrop?,
+    liquidTint: Color,
     onClick: () -> Unit,
 ) {
     val view = LocalView.current
@@ -774,16 +809,25 @@ private fun ActionButton(
                 .size(56.dp)
                 .clip(CircleShape)
                 .then(
-                    if (glassBackdrop != null) {
-                        Modifier.textureBlur(
+                    when {
+                        liquidBackdrop != null -> Modifier.liquidGlass(
+                            backdrop = liquidBackdrop,
+                            // Percent-rounded CornerBasedShape — supported by
+                            // the lens effect (plain CircleShape is an oval).
+                            shape = RoundedCornerShape(50),
+                            blurRadius = (blurRadius * 0.25f).dp,
+                            tint = liquidTint,
+                            lensHeight = 10.dp,
+                            lensAmount = 14.dp,
+                        )
+                        glassBackdrop != null -> Modifier.textureBlur(
                             backdrop = glassBackdrop,
                             shape = CircleShape,
                             blurRadius = blurRadius,
                             noiseCoefficient = BlurDefaults.NoiseCoefficient,
                             colors = BlurDefaults.blurColors(blendColors = glassBlend),
                         )
-                    } else {
-                        Modifier.background(MiuixTheme.colorScheme.surfaceContainer)
+                        else -> Modifier.background(MiuixTheme.colorScheme.surfaceContainer)
                     }
                 )
                 .clickable(onClick = {
@@ -794,14 +838,14 @@ private fun ActionButton(
             Icon(
                 imageVector = icon,
                 contentDescription = label,
-                tint = if (glassBackdrop != null) onCardText
+                tint = if (glassBackdrop != null || liquidBackdrop != null) onCardText
                 else MiuixTheme.colorScheme.onSurface,
             )
         }
         Spacer(Modifier.height(8.dp))
         Text(
             text = label,
-            color = if (glassBackdrop != null) onCardText
+            color = if (glassBackdrop != null || liquidBackdrop != null) onCardText
             else MiuixTheme.colorScheme.onSurfaceVariantSummary,
             style = MiuixTheme.textStyles.footnote1,
         )
