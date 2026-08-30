@@ -605,10 +605,12 @@ fun GlassNavAction(
                     blur(8.dp.toPx())
                     lens(24.dp.toPx(), 24.dp.toPx())
                 },
-                // Explicit small shadow — the library default is a large
-                // Shadow.Default (24dp) which the expand/collapse animation
-                // can clip into a rectangular artifact.
-                shadow = { Shadow(radius = 10.dp, color = Color.Black.copy(alpha = 0.08f)) },
+                // No shadow on this button: during the expand/collapse
+                // animation AnimatedVisibility clips it to a shrinking
+                // rectangle, and ANY shadow would get cut into a visible
+                // rectangular edge. The glass sits flush on the capsule
+                // row, so it reads fine without one.
+                shadow = { null },
                 onDrawSurface = { drawRect(tint) },
             )
             .clip(RoundedCornerShape(50))
