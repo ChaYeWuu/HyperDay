@@ -21,11 +21,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -211,7 +213,7 @@ private fun AppearanceCard(
                 .aspectRatio(480f / 680f)
                 .drawBehind {
                     if (borderColor != Color.Transparent) {
-                        drawSmoothRoundedBorder(
+                        drawSmoothRoundedShape(
                             color = borderColor,
                             strokeWidth = 3.dp.toPx(),
                             radius = 24.dp.toPx(),
@@ -227,7 +229,33 @@ private fun AppearanceCard(
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
                     .fillMaxSize()
-                    .clip(RoundedCornerShape(20.dp)),
+                    // Same smooth-corner shape as the border — the image
+                    // clip matches the border's continuous curve exactly
+                    .drawWithContent {
+                        clipPath(
+                            path = Path().apply {
+                                val inset = 0f
+                                val left = inset
+                                val top = inset
+                                val right = size.width - inset
+                                val bottom = size.height - inset
+                                val r = 18.dp.toPx()
+                                    .coerceAtMost(minOf(right - left, bottom - top) / 2f)
+                                moveTo(left + r, top)
+                                lineTo(right - r, top)
+                                quadraticTo(right, top, right, top + r)
+                                lineTo(right, bottom - r)
+                                quadraticTo(right, bottom, right - r, bottom)
+                                lineTo(left + r, bottom)
+                                quadraticTo(left, bottom, left, bottom - r)
+                                lineTo(left, top + r)
+                                quadraticTo(left, top, left + r, top)
+                                close()
+                            }
+                        ) {
+                            this@drawWithContent.drawContent()
+                        }
+                    },
             )
         }
         Text(
@@ -249,27 +277,23 @@ private fun AppearanceCard(
 /**
  * Draws a border whose straight segments flow continuously into corner arcs
  * (quadratic smoothing at the junctions), stroked fully inside [radius].
+ * [inset] shrinks the shape so the whole stroke stays inside bounds.
  */
-private fun DrawScope.drawSmoothRoundedBorder(
+private fun DrawScope.drawSmoothRoundedShape(
     color: Color,
     strokeWidth: Float,
     radius: Float,
+    inset: Float = 0f,
 ) {
-    val half = strokeWidth / 2f
-    // Inner inset keeps the whole stroke inside the draw area
+    val half = strokeWidth / 2f + inset
     val left = half
     val top = half
     val right = size.width - half
     val bottom = size.height - half
-    // Shrink the arc radius so arcs stay inside bounds too
     val r = radius.coerceAtMost(minOf(right - left, bottom - top) / 2f)
     val path = Path().apply {
-        // Start at the mid-top, go clockwise: top edge → smooth into
-        // top-right arc → right edge → bottom-right arc → bottom edge →
-        // bottom-left arc → left edge → top-left arc → back to start.
         moveTo(left + r, top)
         lineTo(right - r, top)
-        // quadratic smoothing from end of straight edge into the arc
         quadraticTo(right, top, right, top + r)
         lineTo(right, bottom - r)
         quadraticTo(right, bottom, right - r, bottom)
@@ -279,9 +303,9 @@ private fun DrawScope.drawSmoothRoundedBorder(
         quadraticTo(left, top, left + r, top)
         close()
     }
-    drawPath(
-        path = path,
-        color = color,
-        style = Stroke(width = strokeWidth),
-    )
+    if (strokeWidth <= 0f) {
+        drawPath(path, color = color)
+    } else {
+        drawPath(path, color = color, style = Stroke(width = strokeWidth))
+    }
 }
