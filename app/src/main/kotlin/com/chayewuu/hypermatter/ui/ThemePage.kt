@@ -24,6 +24,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.chayewuu.hypermatter.R
 import com.chayewuu.hypermatter.ui.theme.LocalSettingsStore
 import top.yukonga.miuix.kmp.basic.Card
@@ -32,6 +33,7 @@ import top.yukonga.miuix.kmp.basic.IconButton
 import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.basic.SmallTitle
 import top.yukonga.miuix.kmp.basic.SmallTopAppBar
+import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.blur.layerBackdrop
 import top.yukonga.miuix.kmp.icon.MiuixIcons
 import top.yukonga.miuix.kmp.icon.extended.Back
@@ -111,18 +113,21 @@ fun ThemePage(
                         horizontalArrangement = Arrangement.spacedBy(10.dp),
                     ) {
                         AppearanceCard(
+                            label = "自动",
                             drawableRes = R.drawable.theme_preview_auto,
                             selected = colorMode == 0,
                             onClick = { settingsStore.setColorMode(0) },
                             modifier = Modifier.weight(1f),
                         )
                         AppearanceCard(
+                            label = "浅色",
                             drawableRes = R.drawable.theme_preview_light,
                             selected = colorMode == 1,
                             onClick = { settingsStore.setColorMode(1) },
                             modifier = Modifier.weight(1f),
                         )
                         AppearanceCard(
+                            label = "深色",
                             drawableRes = R.drawable.theme_preview_night,
                             selected = colorMode == 2,
                             onClick = { settingsStore.setColorMode(2) },
@@ -172,11 +177,13 @@ fun ThemePage(
 }
 
 /**
- * One appearance-mode preview card: full-width screenshot image only.
- * Selection is indicated by the primary-color border, no text or checkmark.
+ * One appearance-mode preview card: screenshot image with a border that hugs
+ * the image edge, label text below. Selected = blue border + blue label,
+ * no checkmark.
  */
 @Composable
 private fun AppearanceCard(
+    label: String,
     drawableRes: Int,
     selected: Boolean,
     onClick: () -> Unit,
@@ -184,12 +191,12 @@ private fun AppearanceCard(
 ) {
     Card(
         modifier = modifier,
-        insideMargin = PaddingValues(6.dp),
+        insideMargin = PaddingValues(0.dp),
         onClick = onClick,
     ) {
         Image(
             painter = painterResource(drawableRes),
-            contentDescription = null,
+            contentDescription = label,
             contentScale = ContentScale.Crop,
             modifier = Modifier
                 .fillMaxWidth()
@@ -204,5 +211,20 @@ private fun AppearanceCard(
                     shape = RoundedCornerShape(12.dp),
                 ),
         )
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 8.dp, top = 7.dp),
+            horizontalArrangement = Arrangement.Center,
+        ) {
+            Text(
+                text = label,
+                fontSize = 13.sp,
+                color = if (selected)
+                    MiuixTheme.colorScheme.primary
+                else
+                    MiuixTheme.colorScheme.onSurfaceVariantSummary,
+            )
+        }
     }
 }
