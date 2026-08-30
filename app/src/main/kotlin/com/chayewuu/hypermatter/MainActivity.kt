@@ -66,8 +66,14 @@ class MainActivity : ComponentActivity() {
             val colorModeValue = colorMode
             val monetColor by settingsStore.monetColor.collectAsState()
             val monetColorValue = monetColor
+            val monetPaletteStyle by settingsStore.monetPaletteStyle.collectAsState()
+            val monetPaletteStyleValue = monetPaletteStyle
 
-            MiuixAppTheme(colorMode = colorModeValue, monetColor = monetColorValue) {
+            MiuixAppTheme(
+                colorMode = colorModeValue,
+                monetColor = monetColorValue,
+                monetPaletteStyle = monetPaletteStyleValue,
+            ) {
                 CompositionLocalProvider(
                     LocalEventViewModel provides eventViewModel,
                     LocalSettingsStore provides settingsStore,

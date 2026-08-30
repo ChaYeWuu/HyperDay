@@ -36,6 +36,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.chayewuu.hypermatter.R
 import com.chayewuu.hypermatter.ui.theme.LocalSettingsStore
+import com.chayewuu.hypermatter.ui.theme.PALETTE_STYLES
 import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
@@ -53,6 +54,24 @@ import top.yukonga.miuix.kmp.utils.overScrollVertical
 import top.yukonga.miuix.kmp.utils.scrollEndHaptic
 
 /**
+ * Palette-style dropdown labels. Index 0 = follow system; the rest match
+ * [PALETTE_STYLES] order (TonalSpot, Neutral, Vibrant, Expressive, Rainbow,
+ * FruitSalad, Monochrome, Fidelity, Content).
+ */
+private val MonetPaletteStyleItems = listOf(
+    "跟随系统",
+    "柔和色调",
+    "中性",
+    "鲜艳",
+    "表现力",
+    "彩虹",
+    "水果沙拉",
+    "单色",
+    "高保真",
+    "内容色",
+)
+
+/**
  * Theme style page: Miuix-style grouped preferences.
  *  - 显示: three appearance preview cards side by side (自动 / 浅色 / 深色).
  *  - 应用风格: Classic vs Liquid Glass (placeholder — value persisted, no
@@ -67,6 +86,7 @@ fun ThemePage(
     val colorMode by settingsStore.colorMode.collectAsState()
     val appStyle by settingsStore.appStyle.collectAsState()
     val monetColor by settingsStore.monetColor.collectAsState()
+    val monetPaletteStyle by settingsStore.monetPaletteStyle.collectAsState()
 
     val barBackdrop = rememberBlurBackdrop()
     Scaffold(
@@ -178,6 +198,16 @@ fun ThemePage(
                             checked = monetColor,
                             onCheckedChange = { settingsStore.setMonetColor(it) },
                         )
+                        if (monetColor) {
+                            OverlayDropdownPreference(
+                                title = "色系",
+                                summary = "选择壁纸取色的调色风格",
+                                items = MonetPaletteStyleItems,
+                                selectedIndex = monetPaletteStyle + 1,
+                                renderInRootScaffold = false,
+                                onSelectedIndexChange = { settingsStore.setMonetPaletteStyle(it - 1) },
+                            )
+                        }
                     }
                 }
             }

@@ -40,14 +40,29 @@ class SettingsStore(context: Context) {
         monetColor.value = enabled
     }
 
+    /**
+     * Monet palette style override.
+     * PALETTE_FOLLOW_SYSTEM = -1: use the system wallpaper color style.
+     * 0..8: force one of the Miuix ThemePaletteStyle values (see
+     * MiuixAppTheme.PALETTE_STYLES for the ordering).
+     */
+    val monetPaletteStyle = MutableStateFlow(prefs.getInt(KEY_MONET_PALETTE_STYLE, PALETTE_FOLLOW_SYSTEM))
+
+    fun setMonetPaletteStyle(style: Int) {
+        prefs.edit().putInt(KEY_MONET_PALETTE_STYLE, style).apply()
+        monetPaletteStyle.value = style
+    }
+
     companion object {
         private const val KEY_COLOR_MODE = "color_mode"
         private const val KEY_APP_STYLE = "app_style"
         private const val KEY_MONET_COLOR = "monet_color"
+        private const val KEY_MONET_PALETTE_STYLE = "monet_palette_style"
         const val MODE_SYSTEM = 0
         const val MODE_LIGHT = 1
         const val MODE_DARK = 2
         const val STYLE_CLASSIC = 0
         const val STYLE_LIQUID_GLASS = 1
+        const val PALETTE_FOLLOW_SYSTEM = -1
     }
 }
