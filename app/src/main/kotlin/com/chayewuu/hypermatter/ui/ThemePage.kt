@@ -196,11 +196,11 @@ private fun AppearanceCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    // Concentric-corner geometry (all radii share one corner-circle center
-    // at 16dp from each corner, so the 2dp gap is constant everywhere):
-    //   clip 16dp > border outer radius 15dp (stroke fully visible)
-    //   border: topLeft 2dp, centerline radius 14dp, width 2dp
-    //   image: inset 5dp, corner radius 11dp
+    // Concentric-corner geometry — corner-circle centers at 28dp from each
+    // corner (rounder look), gap constant 3dp everywhere:
+    //   clip 28dp > border outer radius 26.5dp (stroke fully visible)
+    //   border: topLeft 2dp, centerline radius 25.5dp, width 3dp
+    //   image: inset 6dp, corner radius 22dp
     val borderColor = if (selected)
         MiuixTheme.colorScheme.primary
     else
@@ -210,21 +210,21 @@ private fun AppearanceCard(
             modifier = Modifier
                 .fillMaxWidth()
                 .aspectRatio(480f / 680f)
-                .clip(RoundedCornerShape(16.dp))
+                .clip(RoundedCornerShape(28.dp))
                 .drawBehind {
                     if (borderColor != Color.Transparent) {
-                        val stroke = 2.dp.toPx()
+                        val stroke = 3.dp.toPx()
                         drawRoundRect(
                             color = borderColor,
                             topLeft = Offset(stroke, stroke),
                             size = Size(size.width - stroke * 2f, size.height - stroke * 2f),
-                            cornerRadius = CornerRadius(14.dp.toPx()),
+                            cornerRadius = CornerRadius(25.5.dp.toPx()),
                             style = Stroke(width = stroke),
                         )
                     }
                 }
                 .clickable(onClick = onClick)
-                .padding(5.dp),
+                .padding(6.dp),
         ) {
             Image(
                 painter = painterResource(drawableRes),
@@ -232,7 +232,7 @@ private fun AppearanceCard(
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
                     .fillMaxSize()
-                    .clip(RoundedCornerShape(11.dp)),
+                    .clip(RoundedCornerShape(22.dp)),
             )
         }
         Text(
