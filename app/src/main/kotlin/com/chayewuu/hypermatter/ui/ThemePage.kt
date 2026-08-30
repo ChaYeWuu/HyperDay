@@ -244,38 +244,30 @@ fun ThemePage(
 /**
  * Preset seed colors for the color-family dropdown. Index 0 = follow
  * wallpaper; the rest match [PresetSeedColors] order.
+ * Colors come from the official Miuix example app's KeyColors list
+ * (example/shared/src/commonMain/kotlin/ui/Theme.kt).
  * @see PresetSeedColors
  */
 private val SeedColorItems = listOf(
     "跟随壁纸",
-    "红色",
-    "橙色",
-    "黄色",
-    "绿色",
-    "青色",
     "蓝色",
-    "靛蓝色",
+    "绿色",
     "紫色",
+    "黄色",
+    "橙色",
     "粉色",
-    "棕色",
-    "蓝灰色",
-    "石板色",
+    "青色",
 )
 
-/** Preset seed colors (ARGB), order matches [SeedColorItems] tail. */
+/** Official Miuix example KeyColors (ARGB), order matches [SeedColorItems] tail. */
 private val PresetSeedColors = listOf(
-    0xFFF44336L, // 红
-    0xFFFF7043L, // 橙
-    0xFFFFCA28L, // 黄
-    0xFF66BB6AL, // 绿
-    0xFF26C6DAL, // 青
-    0xFF3482FFL, // 蓝（Miuix 默认）
-    0xFF5C6BC0L, // 靛
-    0xFF9C27B0L, // 紫
-    0xFFEC407AL, // 粉
-    0xFF8D6E63L, // 棕
-    0xFF78909CL, // 蓝灰
-    0xFF546E7AL, // 石板
+    0xFF3482FFL, // Blue
+    0xFF36D167L, // Green
+    0xFF7C4DFFL, // Purple
+    0xFFFFB21DL, // Yellow
+    0xFFFF5722L, // Orange
+    0xFFE91E63L, // Pink
+    0xFF00BCD4L, // Teal
 )
 
 /**
