@@ -1,3 +1,6 @@
+import java.util.Properties
+import java.io.FileInputStream
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
@@ -18,10 +21,31 @@ android {
         versionName = "1.0"
     }
 
+    // Release signing: reads credentials from keystore.properties (gitignored).
+    // The keystore is generated with keytool; see README for details.
+    val keystoreProperties = Properties().apply {
+        val f = rootProject.file("keystore.properties")
+        if (f.exists()) load(FileInputStream(f))
+    }
+
+    signingConfigs {
+        create("release") {
+            if (keystoreProperties.isNotEmpty()) {
+                storeFile = rootProject.file(keystoreProperties.getProperty("storeFile"))
+                storePassword = keystoreProperties.getProperty("storePassword")
+                keyAlias = keystoreProperties.getProperty("keyAlias")
+                keyPassword = keystoreProperties.getProperty("keyPassword")
+            }
+        }
+    }
+
     buildTypes {
         release {
             optimization {
                 enable = false
+            }
+            if (keystoreProperties.isNotEmpty()) {
+                signingConfig = signingConfigs.getByName("release")
             }
         }
     }

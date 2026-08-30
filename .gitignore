@@ -16,6 +16,7 @@ local.properties
 # Signing
 *.jks
 *.keystore
+keystore.properties
 
 # Logs / OS
 *.log
