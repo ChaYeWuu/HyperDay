@@ -97,10 +97,12 @@ import top.yukonga.miuix.kmp.icon.extended.Back
 import top.yukonga.miuix.kmp.icon.extended.Background
 import top.yukonga.miuix.kmp.icon.extended.Image
 import top.yukonga.miuix.kmp.icon.extended.Ok
+import top.yukonga.miuix.kmp.icon.extended.Rename
 import top.yukonga.miuix.kmp.icon.extended.ScreenCapture
 import top.yukonga.miuix.kmp.icon.extended.Share
 import top.yukonga.miuix.kmp.overlay.OverlayDialog
 import top.yukonga.miuix.kmp.preference.SliderPreference
+import top.yukonga.miuix.kmp.preference.SwitchPreference
 import top.yukonga.miuix.kmp.shader.isRuntimeShaderSupported
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import java.io.File
@@ -110,7 +112,11 @@ import java.io.FileOutputStream
 private enum class BgMode { SOLID, WALLPAPER }
 
 /** Which tuning slider is currently being dragged (floating pill shown). */
-private enum class ActiveSlider { BG_BLUR, BG_DIM, CARD_BLUR }
+private enum class ActiveSlider { BG_BLUR, BG_DIM, CARD_BLUR, FONT_SCALE, FONT_STROKE }
+
+/** Labels for the per-event font weight / text color cycle rows. */
+private val FontWeightItems = listOf("默认", "常规", "中等", "粗体")
+private val FontColorItems = listOf("自适应", "白色", "深色")
 
 // Official Miuix example card-blend presets (ColorBlendToken.kt):
 // frosted glass blends for the glass card and action buttons.
@@ -221,6 +227,7 @@ fun EventDetailPage(
     val scope = rememberCoroutineScope()
 
     var showBackgroundDialog by remember { mutableStateOf(false) }
+    var showFontDialog by remember { mutableStateOf(false) }
 
     val isPast = DateUtils.isPastEvent(event)
     val dayNum = DateUtils.dayNumber(event)
@@ -363,10 +370,27 @@ fun EventDetailPage(
             activeSlider = null
         }
     }
+    // Live font-dialog values (same preview-while-dragging pattern).
+    var liveFontScale by remember { mutableFloatStateOf(1f) }
+    var liveFontStroke by remember { mutableFloatStateOf(2.5f) }
+    LaunchedEffect(showFontDialog) {
+        if (showFontDialog) {
+            liveFontScale = event.fontScale ?: 1f
+            liveFontStroke = event.fontStrokeWidth ?: 2.5f
+            activeSlider = null
+        }
+    }
     // The preview follows the live slider values while the dialog is open.
     val effBgBlur = if (showBackgroundDialog) liveBgBlur else bgBlur
     val effBgDim = if (showBackgroundDialog) liveBgDim else bgDim
     val effCardBlur = if (showBackgroundDialog) liveCardBlur else cardBlur
+    // Per-event typography actually rendered on the card.
+    val effFontSettings = event.fontSettings().let { base ->
+        if (showFontDialog)
+            base.copy(scale = liveFontScale, strokeWidthDp = liveFontStroke)
+        else
+            base
+    }
 
     // ONE shared brightness decision for EVERY element drawn over the
     // wallpaper — the card content, the action-button icons/labels and the
@@ -545,47 +569,54 @@ fun EventDetailPage(
                                 .background(pillFg.copy(alpha = 0.12f))
                                 .padding(horizontal = 14.dp, vertical = 5.dp),
                         ) {
-                            Text(
+                            FancyText(
                                 text = if (isPast) "已经过去" else "即将到来",
-                                color = pillFg,
+                                autoColor = pillFg,
+                                settings = effFontSettings,
                                 style = MiuixTheme.textStyles.footnote1,
                             )
                         }
                         Spacer(Modifier.height(16.dp))
-                        Text(
+                        FancyText(
                             text = event.title,
-                            color = onCard,
+                            autoColor = onCard,
+                            settings = effFontSettings,
+                            style = MiuixTheme.textStyles.main,
                             fontSize = 24.sp,
-                            fontWeight = FontWeight.Bold,
+                            defaultWeight = FontWeight.Bold,
                         )
                         if (!event.note.isNullOrBlank()) {
                             Spacer(Modifier.height(6.dp))
-                            Text(
+                            FancyText(
                                 text = event.note,
-                                color = onCardSummary,
+                                autoColor = onCardSummary,
+                                settings = effFontSettings,
                                 style = MiuixTheme.textStyles.body2,
                             )
                         }
                         Spacer(Modifier.height(26.dp))
-                        Text(
+                        FancyText(
                             text = DateUtils.describe(event),
-                            color = onCardSummary,
+                            autoColor = onCardSummary,
+                            settings = effFontSettings,
                             style = MiuixTheme.textStyles.subtitle,
                         )
                         Spacer(Modifier.height(4.dp))
                         Row(
                             verticalAlignment = Alignment.Bottom,
                         ) {
-                            Text(
+                            FancyText(
                                 text = dayNum.toString(),
-                                color = accent,
+                                autoColor = accent,
+                                settings = effFontSettings,
                                 fontSize = 88.sp,
-                                fontWeight = FontWeight.Bold,
+                                defaultWeight = FontWeight.Bold,
                             )
                             Spacer(Modifier.width(6.dp))
-                            Text(
+                            FancyText(
                                 text = "天",
-                                color = accent,
+                                autoColor = accent,
+                                settings = effFontSettings,
                                 fontSize = 20.sp,
                                 modifier = Modifier.padding(bottom = 18.dp),
                             )
@@ -599,15 +630,17 @@ fun EventDetailPage(
                                 .background(onCardSummary.copy(alpha = 0.25f)),
                         )
                         Spacer(Modifier.height(16.dp))
-                        Text(
+                        FancyText(
                             text = "起始日",
-                            color = onCardSummary,
+                            autoColor = onCardSummary,
+                            settings = effFontSettings,
                             style = MiuixTheme.textStyles.footnote2,
                         )
                         Spacer(Modifier.height(4.dp))
-                        Text(
+                        FancyText(
                             text = "$dateStr $weekday",
-                            color = onCard,
+                            autoColor = onCard,
+                            settings = effFontSettings,
                             style = MiuixTheme.textStyles.body1,
                         )
                     }
@@ -685,6 +718,18 @@ fun EventDetailPage(
                         fallbackContainer = btnFallbackContainer,
                         fallbackContent = btnFallbackContent,
                     ) { showBackgroundDialog = true }
+                    ActionButton(
+                        icon = MiuixIcons.Rename,
+                        label = "字体",
+                        onCardText = onBackgroundText,
+                        glassBackdrop = cardBackdrop,
+                        glassBlend = glassBlend,
+                        blurRadius = effCardBlur * 0.6f,
+                        liquidBackdrop = if (liquidActive) liquidBackdrop else null,
+                        liquidTint = liquidTint,
+                        fallbackContainer = btnFallbackContainer,
+                        fallbackContent = btnFallbackContent,
+                    ) { showFontDialog = true }
                 }
             }
         }
@@ -752,7 +797,7 @@ fun EventDetailPage(
             // slider tuning. This one animates: it fades out together with
             // the sinking dialog and back in when it returns.
             val scrimAlpha by animateFloatAsState(
-                targetValue = if (showBackgroundDialog && activeSlider == null) 1f else 0f,
+                targetValue = if ((showBackgroundDialog || showFontDialog) && activeSlider == null) 1f else 0f,
                 animationSpec = tween(200),
                 label = "dialogScrim",
             )
@@ -768,7 +813,7 @@ fun EventDetailPage(
             // Floating progress pill: while a slider thumb is held (the
             // dialog has sunk away), keep the active slider's title, value
             // and progress visible at the bottom of the screen.
-            if (showBackgroundDialog && activeSlider != null) {
+            if ((showBackgroundDialog || showFontDialog) && activeSlider != null) {
                 val pill = when (activeSlider!!) {
                     ActiveSlider.BG_BLUR ->
                         Triple("背景模糊度", "${liveBgBlur.toInt()} dp", liveBgBlur / 50f)
@@ -776,6 +821,10 @@ fun EventDetailPage(
                         Triple("背景遮罩", "${(liveBgDim * 100).toInt()}%", liveBgDim / 0.8f)
                     ActiveSlider.CARD_BLUR ->
                         Triple("卡片模糊度", "${liveCardBlur.toInt()}", liveCardBlur / 120f)
+                    ActiveSlider.FONT_SCALE ->
+                        Triple("字体大小", "${(liveFontScale * 100).toInt()}%", (liveFontScale - 0.8f) / 0.8f)
+                    ActiveSlider.FONT_STROKE ->
+                        Triple("描边宽度", "${liveFontStroke.toInt()} dp", (liveFontStroke - 1f) / 5f)
                 }
                 Column(
                     modifier = Modifier
@@ -920,6 +969,84 @@ fun EventDetailPage(
                 }
             }
         }
+
+        // Per-event typography dialog (same shell as the background dialog:
+        // inside the Scaffold, no root rendering, custom scrim, sinks away
+        // while a slider thumb is held so the card text stays visible).
+        val fs = event.fontSettings()
+        OverlayDialog(
+            title = "字体设置",
+            summary = "自定义这张卡片的文字样式；点击选项值循环切换",
+            show = showFontDialog,
+            onDismissRequest = { showFontDialog = false },
+            renderInRootScaffold = false,
+            modifier = Modifier.graphicsLayer {
+                translationY = dialogSink * 240.dp.toPx()
+                alpha = 1f - dialogSink
+            },
+            enableWindowDim = false,
+        ) {
+            Column {
+                SliderPreference(
+                    title = "字体大小",
+                    value = liveFontScale,
+                    onValueChange = {
+                        activeSlider = ActiveSlider.FONT_SCALE
+                        liveFontScale = it
+                    },
+                    valueRange = 0.8f..1.6f,
+                    valueText = "${(liveFontScale * 100).toInt()}%",
+                    onValueChangeFinished = {
+                        activeSlider = null
+                        viewModel.updateEvent(event.copy(fontScale = liveFontScale))
+                    },
+                )
+                FontCycleRow(
+                    label = "字体粗细",
+                    valueLabel = FontWeightItems[fs.weightIdx],
+                ) {
+                    viewModel.updateEvent(event.copy(fontWeight = (fs.weightIdx + 1) % FontWeightItems.size))
+                }
+                FontCycleRow(
+                    label = "文字颜色",
+                    valueLabel = FontColorItems[fs.colorIdx],
+                ) {
+                    viewModel.updateEvent(event.copy(textColor = (fs.colorIdx + 1) % FontColorItems.size))
+                }
+                SwitchPreference(
+                    title = "文字描边",
+                    summary = "为文字添加对比色描边",
+                    checked = fs.strokeOn,
+                    onCheckedChange = {
+                        viewModel.updateEvent(event.copy(fontStroke = it))
+                    },
+                )
+                if (fs.strokeOn) {
+                    SliderPreference(
+                        title = "描边宽度",
+                        value = liveFontStroke,
+                        onValueChange = {
+                            activeSlider = ActiveSlider.FONT_STROKE
+                            liveFontStroke = it
+                        },
+                        valueRange = 1f..6f,
+                        valueText = "${liveFontStroke.toInt()} dp",
+                        onValueChangeFinished = {
+                            activeSlider = null
+                            viewModel.updateEvent(event.copy(fontStrokeWidth = liveFontStroke))
+                        },
+                    )
+                }
+                SwitchPreference(
+                    title = "文字阴影",
+                    summary = "为文字添加柔和投影",
+                    checked = fs.shadowOn,
+                    onCheckedChange = {
+                        viewModel.updateEvent(event.copy(fontShadow = it))
+                    },
+                )
+            }
+        }
     }
 }
 
@@ -962,6 +1089,43 @@ private fun BgModeRow(
                 tint = MiuixTheme.colorScheme.primary,
             )
         }
+    }
+}
+
+/**
+ * A compact settings row whose value cycles through a fixed set of options
+ * on each tap (used by the font dialog for weight / text color — avoids
+ * nested popups inside an OverlayDialog).
+ */
+@Composable
+private fun FontCycleRow(
+    label: String,
+    valueLabel: String,
+    onClick: () -> Unit,
+) {
+    val view = LocalView.current
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .clickable(onClick = {
+                view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                onClick()
+            })
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+    ) {
+        Text(
+            text = label,
+            color = MiuixTheme.colorScheme.onSurface,
+            style = MiuixTheme.textStyles.body1,
+            modifier = Modifier.weight(1f),
+        )
+        Text(
+            text = "$valueLabel ›",
+            color = MiuixTheme.colorScheme.primary,
+            style = MiuixTheme.textStyles.body1,
+        )
     }
 }
 

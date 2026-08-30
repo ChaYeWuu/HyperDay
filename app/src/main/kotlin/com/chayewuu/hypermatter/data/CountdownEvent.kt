@@ -18,6 +18,13 @@ import kotlinx.serialization.Serializable
  *                     detail-page background (blurred, adaptive glass card).
  * @param dynamicBg    when true (and no wallpaper), the detail page uses the
  *                     official dynamic color-blending background.
+ * @param fontScale    detail-page text size multiplier (null = default 1f).
+ * @param fontWeight   0 = per-element default, 1 = 常规, 2 = 中等, 3 = 粗体
+ *                     (null = default).
+ * @param textColor    0 = auto-adaptive, 1 = white, 2 = dark (null = default).
+ * @param fontStroke   contrast outline on the card texts (null = off).
+ * @param fontStrokeWidth outline width in dp (null = 2.5).
+ * @param fontShadow   drop shadow on the card texts (null = off).
  */
 @Serializable
 data class CountdownEvent(
@@ -33,4 +40,10 @@ data class CountdownEvent(
     val wallpaperDim: Float? = null,
     val cardBlur: Float? = null,
     val cardOpacity: Float? = null,
+    val fontScale: Float? = null,
+    val fontWeight: Int? = null,
+    val textColor: Int? = null,
+    val fontStroke: Boolean? = null,
+    val fontStrokeWidth: Float? = null,
+    val fontShadow: Boolean? = null,
 )
