@@ -17,6 +17,8 @@ import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -49,6 +51,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
@@ -318,11 +321,15 @@ fun EventDetailPage(
     var liveBgBlur by remember { mutableFloatStateOf(bgBlur) }
     var liveBgDim by remember { mutableFloatStateOf(bgDim) }
     var liveCardBlur by remember { mutableFloatStateOf(cardBlur) }
+    // While any slider thumb is held down, the card/action row sink and fade
+    // out of the way so the wallpaper can be observed live behind them.
+    var sliderActive by remember { mutableStateOf(false) }
     LaunchedEffect(showBackgroundDialog) {
         if (showBackgroundDialog) {
             liveBgBlur = event.wallpaperBlur?.toFloat() ?: DEFAULT_WALLPAPER_BLUR
             liveBgDim = event.wallpaperDim ?: DEFAULT_WALLPAPER_DIM
             liveCardBlur = event.cardBlur ?: DEFAULT_CARD_BLUR
+            sliderActive = false
         }
     }
     // The preview follows the live slider values while the dialog is open.
@@ -479,11 +486,22 @@ fun EventDetailPage(
         }
 
         val content: @Composable () -> Unit = {
+            // Slider held: card + buttons sink and fade away so the wallpaper
+            // being tuned stays fully visible.
+            val contentAlpha by animateFloatAsState(
+                targetValue = if (sliderActive) 0f else 1f,
+                animationSpec = tween(200),
+                label = "contentAlpha",
+            )
             Column(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(paddingValues)
-                    .padding(horizontal = 16.dp),
+                    .padding(horizontal = 16.dp)
+                    .graphicsLayer {
+                        alpha = contentAlpha
+                        translationY = (1f - contentAlpha) * 60.dp.toPx()
+                    },
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center,
             ) {
@@ -616,20 +634,28 @@ fun EventDetailPage(
                     SliderPreference(
                         title = "背景模糊度",
                         value = liveBgBlur,
-                        onValueChange = { liveBgBlur = it },
+                        onValueChange = {
+                            sliderActive = true
+                            liveBgBlur = it
+                        },
                         valueRange = 0f..50f,
                         valueText = "${liveBgBlur.toInt()} dp",
                         onValueChangeFinished = {
+                            sliderActive = false
                             viewModel.updateEvent(event.copy(wallpaperBlur = liveBgBlur.toInt()))
                         },
                     )
                     SliderPreference(
                         title = "背景遮罩",
                         value = liveBgDim,
-                        onValueChange = { liveBgDim = it },
+                        onValueChange = {
+                            sliderActive = true
+                            liveBgDim = it
+                        },
                         valueRange = 0f..0.8f,
                         valueText = "${(liveBgDim * 100).toInt()}%",
                         onValueChangeFinished = {
+                            sliderActive = false
                             viewModel.updateEvent(event.copy(wallpaperDim = liveBgDim))
                         },
                     )
@@ -638,10 +664,14 @@ fun EventDetailPage(
                     SliderPreference(
                         title = "卡片模糊度",
                         value = liveCardBlur,
-                        onValueChange = { liveCardBlur = it },
+                        onValueChange = {
+                            sliderActive = true
+                            liveCardBlur = it
+                        },
                         valueRange = 0f..120f,
                         valueText = "${liveCardBlur.toInt()}",
                         onValueChangeFinished = {
+                            sliderActive = false
                             viewModel.updateEvent(event.copy(cardBlur = liveCardBlur))
                         },
                     )
