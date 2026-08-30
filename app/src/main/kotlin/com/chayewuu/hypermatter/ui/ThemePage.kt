@@ -23,6 +23,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.chayewuu.hypermatter.R
@@ -194,6 +195,7 @@ private fun AppearanceCard(
         insideMargin = PaddingValues(0.dp),
         onClick = onClick,
     ) {
+        // 2dp gap between image and border, border hugs the outer edge
         Image(
             painter = painterResource(drawableRes),
             contentDescription = label,
@@ -201,9 +203,10 @@ private fun AppearanceCard(
             modifier = Modifier
                 .fillMaxWidth()
                 .aspectRatio(480f / 680f)
+                .padding(2.dp)
                 .clip(RoundedCornerShape(12.dp))
                 .border(
-                    width = if (selected) 3.dp else 0.dp,
+                    width = 2.dp,
                     color = if (selected)
                         MiuixTheme.colorScheme.primary
                     else
@@ -211,20 +214,17 @@ private fun AppearanceCard(
                     shape = RoundedCornerShape(12.dp),
                 ),
         )
-        Row(
+        Text(
+            text = label,
+            fontSize = 13.sp,
+            color = if (selected)
+                MiuixTheme.colorScheme.primary
+            else
+                MiuixTheme.colorScheme.onSurfaceVariantSummary,
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(bottom = 8.dp, top = 7.dp),
-            horizontalArrangement = Arrangement.Center,
-        ) {
-            Text(
-                text = label,
-                fontSize = 13.sp,
-                color = if (selected)
-                    MiuixTheme.colorScheme.primary
-                else
-                    MiuixTheme.colorScheme.onSurfaceVariantSummary,
-            )
-        }
+                .padding(top = 7.dp, bottom = 8.dp),
+            textAlign = TextAlign.Center,
+        )
     }
 }
