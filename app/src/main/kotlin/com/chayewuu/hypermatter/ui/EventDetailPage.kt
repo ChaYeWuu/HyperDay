@@ -145,6 +145,50 @@ private data class WallpaperInfo(
 private val wallpaperCache = LruCache<String, WallpaperInfo>(4)
 
 /**
+ * Tiny (~180px) thumbnail cache, prewarmed at app start for every event
+ * with a wallpaper. Since the wallpaper is rendered heavily blurred, an
+ * upscaled micro thumbnail is visually indistinguishable from the full
+ * bitmap — it composes the very first frame while the full decode runs.
+ */
+private val wallpaperThumbCache = LruCache<String, WallpaperInfo>(16)
+
+/**
+ * Prewarm [wallpaperThumbCache] for the given wallpaper Uris (called from
+ * the app root once the event list is available). Tiny decodes only —
+ * fast even for several photos.
+ */
+internal suspend fun prewarmWallpaperThumbs(context: Context, uris: List<String>) {
+    withContext(Dispatchers.IO) {
+        uris.forEach { uriStr ->
+            if (wallpaperCache.get(uriStr) != null ||
+                wallpaperThumbCache.get(uriStr) != null
+            ) {
+                return@forEach
+            }
+            runCatching {
+                val uri = Uri.parse(uriStr)
+                val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+                context.contentResolver.openInputStream(uri)?.use {
+                    BitmapFactory.decodeStream(it, null, bounds)
+                }
+                val sample = maxOf(
+                    1,
+                    minOf(bounds.outWidth, bounds.outHeight).coerceAtLeast(1) / 180,
+                )
+                val opts = BitmapFactory.Options().apply { inSampleSize = sample }
+                val bmp = context.contentResolver.openInputStream(uri)?.use {
+                    BitmapFactory.decodeStream(it, null, opts)
+                } ?: return@runCatching
+                wallpaperThumbCache.put(
+                    uriStr,
+                    WallpaperInfo(bmp.asImageBitmap(), avgLuminance(bmp)),
+                )
+            }
+        }
+    }
+}
+
+/**
  * Full-screen detail page for a single countdown event: a central frosted
  * card (content on top, start date at the bottom) with actions below —
  * share, save as image, and customize background. Three background modes:
@@ -191,11 +235,15 @@ fun EventDetailPage(
     }
 
     // Decode the chosen wallpaper (downsampled) off the main thread, together
-    // with its average luminance for adaptive text colors. A cached decode
-    // (previous visit) is the produceState initial value, so the first frame
-    // already renders the wallpaper.
+    // with its average luminance for adaptive text colors. The initial value
+    // prefers the full-res cache (previous visit) and falls back to the
+    // prewarmed micro thumbnail — since the wallpaper renders blurred, the
+    // upscaled thumb looks identical, so the very first frame is already the
+    // wallpaper and no placeholder color ever flashes.
     val wallpaper by produceState<WallpaperInfo?>(
-        initialValue = event.wallpaperUri?.let { wallpaperCache.get(it) },
+        initialValue = event.wallpaperUri?.let {
+            wallpaperCache.get(it) ?: wallpaperThumbCache.get(it)
+        },
         key1 = event.wallpaperUri,
     ) {
         val uriStr = event.wallpaperUri ?: return@produceState

@@ -14,6 +14,7 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -22,6 +23,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.dp
 import com.chayewuu.hypermatter.data.EventStore
@@ -34,6 +36,7 @@ import com.chayewuu.hypermatter.ui.EventDetailPage
 import com.chayewuu.hypermatter.ui.HomePage
 import com.chayewuu.hypermatter.ui.SettingsPage
 import com.chayewuu.hypermatter.ui.ThemePage
+import com.chayewuu.hypermatter.ui.prewarmWallpaperThumbs
 import com.chayewuu.hypermatter.ui.rememberBlurBackdrop
 import com.chayewuu.hypermatter.ui.glass.GlassCanvasRecorder
 import com.chayewuu.hypermatter.ui.glass.GlassNavAction
@@ -132,6 +135,15 @@ private fun App() {
     val appStyle by settingsStore.appStyle.collectAsState()
     val glassEnabled =
         appStyle == SettingsStore.STYLE_LIQUID_GLASS && isRenderEffectSupported()
+
+    // Prewarm tiny wallpaper thumbnails on the IO dispatcher so entering a
+    // detail page composes the (blurred) wallpaper on its very first frame.
+    val eventViewModel = LocalEventViewModel.current
+    val events by eventViewModel.events.collectAsState()
+    val context = LocalContext.current
+    LaunchedEffect(events) {
+        prewarmWallpaperThumbs(context, events.mapNotNull { it.wallpaperUri })
+    }
 
     val backStack = rememberNavBackStack<Route>(Route.Main)
 
