@@ -584,6 +584,25 @@ fun EventDetailPage(
                 // Solid Miuix canvas.
                 else -> content()
             }
+
+            // Custom window-dim scrim for the customize-background dialog.
+            // The dialog's built-in enableWindowDim scrim can only snap on
+            // and off, so it would stay grayed while the dialog is sunk for
+            // slider tuning. This one animates: it fades out together with
+            // the sinking dialog and back in when it returns.
+            val scrimAlpha by animateFloatAsState(
+                targetValue = if (showBackgroundDialog && !sliderActive) 1f else 0f,
+                animationSpec = tween(200),
+                label = "dialogScrim",
+            )
+            if (scrimAlpha > 0.01f) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .graphicsLayer { alpha = scrimAlpha }
+                        .background(MiuixTheme.colorScheme.windowDimming),
+                )
+            }
         }
 
         // Customize background. IMPORTANT: this dialog lives INSIDE the
@@ -610,6 +629,8 @@ fun EventDetailPage(
                 translationY = dialogSink * 240.dp.toPx()
                 alpha = 1f - dialogSink
             },
+            // Dimming is handled by the page's own animated scrim above.
+            enableWindowDim = false,
         ) {
             Column {
                 BgModeRow(
