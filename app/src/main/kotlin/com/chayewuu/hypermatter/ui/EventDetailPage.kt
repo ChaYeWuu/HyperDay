@@ -89,6 +89,7 @@ import top.yukonga.miuix.kmp.basic.IconButton
 import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.basic.SmallTopAppBar
 import top.yukonga.miuix.kmp.basic.Text
+import top.yukonga.miuix.kmp.basic.TextButton
 import top.yukonga.miuix.kmp.blur.BlendColorEntry
 import top.yukonga.miuix.kmp.blur.BlurBlendMode
 import top.yukonga.miuix.kmp.blur.BlurDefaults
@@ -550,9 +551,12 @@ fun EventDetailPage(
         },
     ) { paddingValues ->
         // Liquid Glass mode: the big card becomes a refracting glass panel.
+        // The glass tint follows ONLY the wallpaper brightness — the chosen
+        // font color recolors texts/icons but must never switch the glass to
+        // the opposite theme's look (a dark font on a light wallpaper used
+        // to pull the tint dark and read as "dark-mode glass").
         val liquidActive = liquidBackdrop != null && hasWallpaper
         val liquidTint = when {
-            fontColorCustom -> actionColor.copy(alpha = 0.25f)
             isLightWallpaper -> Color.Black.copy(alpha = 0.22f)
             else -> Color.White.copy(alpha = 0.18f)
         }
@@ -643,12 +647,16 @@ fun EventDetailPage(
                         Row(
                             verticalAlignment = Alignment.Bottom,
                         ) {
+                            // The day number stays fully fixed: at 88sp it
+                            // is the dominant glyph on the card and a visual
+                            // 1.6× would overflow the card's width.
                             FancyText(
                                 text = dayNum.toString(),
                                 autoColor = accent,
                                 settings = effFontSettings,
                                 fontSize = 88.sp,
                                 defaultWeight = FontWeight.Bold,
+                                applyScale = false,
                             )
                             Spacer(Modifier.width(6.dp))
                             FancyText(
@@ -657,6 +665,7 @@ fun EventDetailPage(
                                 settings = effFontSettings,
                                 fontSize = 20.sp,
                                 modifier = Modifier.padding(bottom = 18.dp),
+                                applyScale = false,
                             )
                         }
                         Spacer(Modifier.height(30.dp))
@@ -1049,6 +1058,36 @@ fun EventDetailPage(
             Column(
                 modifier = Modifier.verticalScroll(rememberScrollState()),
             ) {
+                // Reset the WHOLE font customization for this event: every
+                // font* field back to null (= defaults) and the live slider
+                // values re-synced so the preview snaps back instantly.
+                TextButton(
+                    text = "恢复默认",
+                    modifier = Modifier.fillMaxWidth(),
+                    onClick = {
+                        updateEventFresh {
+                            it.copy(
+                                fontScale = null,
+                                fontWeight = null,
+                                textColor = null,
+                                textColorCustom = null,
+                                fontStroke = null,
+                                fontStrokeWidth = null,
+                                strokeColor = null,
+                                strokeColorCustom = null,
+                                fontShadow = null,
+                                shadowColor = null,
+                                shadowColorCustom = null,
+                                shadowBlur = null,
+                                shadowAlpha = null,
+                            )
+                        }
+                        liveFontScale = 1f
+                        liveFontStroke = 2.5f
+                        liveShadowBlur = 8f
+                        liveShadowAlpha = 0.45f
+                    },
+                )
                 SliderPreference(
                     title = "字体大小",
                     value = liveFontScale,

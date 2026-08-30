@@ -9,6 +9,7 @@ import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextStyle
@@ -86,6 +87,13 @@ val FontSettings.hasExplicitTextColor: Boolean
  * optional contrast outline behind the glyphs and an optional drop
  * shadow. With the outline enabled the stroke layer and the fill layer
  * are stacked in a Box so both share the same layout.
+ *
+ * The size scale is purely visual (a graphicsLayer transform around the
+ * text's center): the text is always LAID OUT at its base size, so the
+ * card's measured geometry never changes while the size slider is being
+ * dragged. Callers can opt an element out entirely with
+ * [applyScale] = false (used by the big day number, whose 88sp glyphs
+ * would visually overflow the card at high scales).
  */
 @Composable
 fun FancyText(
@@ -96,6 +104,7 @@ fun FancyText(
     style: TextStyle = TextStyle(),
     fontSize: TextUnit = TextUnit.Unspecified,
     defaultWeight: FontWeight? = null,
+    applyScale: Boolean = true,
 ) {
     val weight = when (settings.weightIdx) {
         1 -> FontWeight.Normal
@@ -128,10 +137,21 @@ fun FancyText(
     }
     val base = style.copy(
         color = fill,
-        fontSize = baseSize * settings.scale,
+        fontSize = baseSize,
         fontWeight = weight,
         shadow = shadow,
     )
+
+    // Layout-stable visual scale: laid out at the base size, scaled around
+    // the center at draw time — the card never resizes.
+    val scaleModifier = if (applyScale && settings.scale != 1f) {
+        Modifier.graphicsLayer {
+            scaleX = settings.scale
+            scaleY = settings.scale
+        }
+    } else {
+        Modifier
+    }
 
     if (settings.strokeOn) {
         // Contrast outline: light glyphs get a dark rim and vice versa, so
@@ -149,11 +169,11 @@ fun FancyText(
                 cap = StrokeCap.Round,
             )
         }
-        Box(modifier = modifier) {
+        Box(modifier = modifier.then(scaleModifier)) {
             Text(text = text, style = base.copy(color = strokeColor, drawStyle = drawStroke))
             Text(text = text, style = base)
         }
     } else {
-        Text(text = text, style = base, modifier = modifier)
+        Text(text = text, style = base, modifier = modifier.then(scaleModifier))
     }
 }
