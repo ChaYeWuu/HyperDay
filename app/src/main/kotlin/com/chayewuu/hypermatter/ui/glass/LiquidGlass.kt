@@ -11,9 +11,11 @@
 package com.chayewuu.hypermatter.ui.glass
 
 import android.view.HapticFeedbackConstants
-import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -33,13 +35,20 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -54,12 +63,14 @@ import com.kyant.backdrop.highlight.Highlight
 import com.kyant.backdrop.isRenderEffectSupported
 import com.kyant.backdrop.shadow.InnerShadow
 import com.kyant.backdrop.shadow.Shadow
+import kotlinx.coroutines.launch
 import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.FloatingActionButton
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.NavigationItem
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.theme.MiuixTheme
+import kotlin.math.roundToInt
 
 /** Whether the Liquid Glass app style is active (appStyle=1 + RenderEffect). */
 val LocalGlassEnabled = staticCompositionLocalOf { false }
@@ -259,6 +270,7 @@ fun LiquidGlassTabBar(
     val accent = MiuixTheme.colorScheme.primary
     val summary = MiuixTheme.colorScheme.onSurfaceVariantSummary
     val view = LocalView.current
+    val scope = rememberCoroutineScope()
 
     BoxWithConstraints(
         modifier = modifier
@@ -267,19 +279,79 @@ fun LiquidGlassTabBar(
             .padding(horizontal = 24.dp, vertical = 12.dp),
     ) {
         val tabWidth = (maxWidth - 8.dp) / tabs.size
-        // The lens pill springs under the newly selected tab.
-        val pillOffset by animateDpAsState(
-            targetValue = tabWidth * selected,
-            animationSpec = spring(dampingRatio = 0.75f, stiffness = 480f),
-            label = "glassTabPill",
-        )
+        val density = LocalDensity.current
+        val tabWidthPx = with(density) { tabWidth.toPx() }
+
+        // The lens pill is draggable (official LiquidBottomTabs behavior):
+        // it follows the finger while dragging, then springs onto the
+        // nearest tab on release.
+        val pillAnim = remember { Animatable(0f) }
+        var isDragging by remember { mutableStateOf(false) }
+        // Tab highlighted while dragging (follows the pill), else the
+        // selected one.
+        val hoverIndex = if (isDragging)
+            (pillAnim.value / tabWidthPx).roundToInt().coerceIn(0, tabs.lastIndex)
+        else selected
+
+        // Keep the pill parked under the selected tab (animated, so a
+        // release-fling lands smoothly from the dragged position).
+        LaunchedEffect(selected, tabs.size) {
+            if (!isDragging) {
+                pillAnim.animateTo(
+                    targetValue = tabWidthPx * selected,
+                    animationSpec = spring(dampingRatio = 0.75f, stiffness = 480f),
+                )
+            }
+        }
+        val pillOffset = with(density) { pillAnim.value.toDp() }
 
         // Floating capsule bar: vibrancy + blur + lens over the recorded
-        // content, lightly tinted for icon readability.
+        // content, lightly tinted for icon readability. The whole capsule
+        // is horizontally draggable to fling the selection pill.
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(64.dp)
+                .pointerInput(tabs.size) {
+                    val maxOffset = tabWidthPx * (tabs.size - 1)
+                    detectHorizontalDragGestures(
+                        onDragStart = { isDragging = true },
+                        onDragEnd = {
+                            isDragging = false
+                            val target = (pillAnim.value / tabWidthPx)
+                                .roundToInt()
+                                .coerceIn(0, tabs.lastIndex)
+                            if (target != selected) {
+                                view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                                onSelect(target)
+                            } else {
+                                // Snap back even when the tab didn't change.
+                                scope.launch {
+                                    pillAnim.animateTo(
+                                        targetValue = tabWidthPx * target,
+                                        animationSpec = spring(dampingRatio = 0.75f, stiffness = 480f),
+                                    )
+                                }
+                            }
+                        },
+                        onDragCancel = {
+                            isDragging = false
+                            scope.launch {
+                                pillAnim.animateTo(
+                                    targetValue = tabWidthPx * selected,
+                                    animationSpec = spring(dampingRatio = 0.75f, stiffness = 480f),
+                                )
+                            }
+                        },
+                    ) { change, dragAmount ->
+                        change.consume()
+                        scope.launch {
+                            pillAnim.snapTo(
+                                (pillAnim.value + dragAmount).coerceIn(0f, maxOffset)
+                            )
+                        }
+                    }
+                }
                 .drawBackdrop(
                     backdrop = backdrop,
                     shape = { RoundedCornerShape(50) },
@@ -312,19 +384,25 @@ fun LiquidGlassTabBar(
                     ),
             )
 
-            // Tabs: icon + label, tinted with the accent when selected.
+            // Tabs: icon + label, tinted with the accent when highlighted.
+            // Clicks use no ripple indication — the glass pill is the
+            // selection feedback (a gray ripple block over glass looks wrong).
             Row(
                 modifier = Modifier.fillMaxSize(),
             ) {
                 tabs.forEachIndexed { index, item ->
-                    val isSelected = index == selected
+                    val isHighlighted = index == hoverIndex
+                    val interactionSource = remember { MutableInteractionSource() }
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.Center,
                         modifier = Modifier
                             .weight(1f)
                             .fillMaxHeight()
-                            .clickable {
+                            .clickable(
+                                interactionSource = interactionSource,
+                                indication = null,
+                            ) {
                                 view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
                                 onSelect(index)
                             },
@@ -332,12 +410,12 @@ fun LiquidGlassTabBar(
                         Icon(
                             imageVector = item.icon,
                             contentDescription = item.label,
-                            tint = if (isSelected) accent else summary,
+                            tint = if (isHighlighted) accent else summary,
                             modifier = Modifier.size(22.dp),
                         )
                         Text(
                             text = item.label,
-                            color = if (isSelected) accent else summary,
+                            color = if (isHighlighted) accent else summary,
                             style = MiuixTheme.textStyles.footnote2,
                         )
                     }
