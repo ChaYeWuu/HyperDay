@@ -408,6 +408,11 @@ fun EventDetailPage(
                 // black in the saved PNG). The saved card mirrors the page's
                 // customized background: wallpaper + dim (or card-color
                 // gradient) and matching adaptive text colors.
+                // Translate the page's blur (dp, screen space) into the
+                // 1080px-wide share-card canvas so the saved background
+                // matches what the user sees.
+                val dm = context.resources.displayMetrics
+                val bgBlurCanvasPx = effBgBlur * dm.density * (1080f / dm.widthPixels)
                 val bitmap = withContext(Dispatchers.Default) {
                     renderShareCard(
                         title = event.title,
@@ -421,6 +426,7 @@ fun EventDetailPage(
                         wallpaper = wallpaper?.bitmap?.asAndroidBitmap(),
                         bgDim = effBgDim,
                         wallpaperLuminance = wpLum,
+                        bgBlurCanvasPx = bgBlurCanvasPx,
                     )
                 }
                 val saved = withContext(Dispatchers.IO) {
@@ -1080,6 +1086,7 @@ private fun renderShareCard(
     wallpaper: Bitmap?,
     bgDim: Float,
     wallpaperLuminance: Float,
+    bgBlurCanvasPx: Float,
 ): Bitmap {
     val w = 1080
     val h = 1620
@@ -1124,27 +1131,38 @@ private fun renderShareCard(
     }
 
     if (wallpaper != null) {
-        // Center-crop the wallpaper to the card canvas, blurring it by
-        // downscaling then bilinearly upscaling (a soft blur that matches
-        // the detail page's frosted background look).
-        val scale = maxOf(w / wallpaper.width.toFloat(), h / wallpaper.height.toFloat())
-        val blurScale = scale / 8f
-        val smallW = (wallpaper.width * blurScale).toInt().coerceAtLeast(8)
-        val smallH = (wallpaper.height * blurScale).toInt().coerceAtLeast(8)
-        val small = Bitmap.createScaledBitmap(wallpaper, smallW, smallH, true)
-        val drawW = smallW * 8f
-        val drawH = smallH * 8f
-        val dx = (w - drawW) / 2f
-        val dy = (h - drawH) / 2f
-        val wallPaint = Paint(Paint.FILTER_BITMAP_FLAG or Paint.ANTI_ALIAS_FLAG)
-        val matrix = android.graphics.Matrix().apply { setTranslate(dx, dy) }
-        wallPaint.shader = android.graphics.BitmapShader(
-            small, android.graphics.Shader.TileMode.CLAMP, android.graphics.Shader.TileMode.CLAMP,
-        )
-        canvas.save()
-        canvas.concat(matrix)
-        canvas.drawRect(0f, 0f, drawW, drawH, wallPaint)
-        canvas.restore()
+        // Center-crop the wallpaper to the card canvas aspect, then blur by
+        // downscaling (box-blur approximation, scaled by the user's
+        // background-blur slider) and stretching back with bilinear
+        // filtering — mirrors the detail page's blurred wallpaper look.
+        runCatching {
+            val bw = wallpaper.width
+            val bh = wallpaper.height
+            val cropW = (w / maxOf(w / bw.toFloat(), h / bh.toFloat()))
+                .toInt().coerceIn(1, bw)
+            val cropH = (h / maxOf(w / bw.toFloat(), h / bh.toFloat()))
+                .toInt().coerceIn(1, bh)
+            val crop = Bitmap.createBitmap(
+                wallpaper,
+                ((bw - cropW) / 2).toInt().coerceIn(0, bw - cropW),
+                ((bh - cropH) / 2).toInt().coerceIn(0, bh - cropH),
+                cropW,
+                cropH,
+            )
+            val f = (bgBlurCanvasPx / 2f).coerceAtLeast(1f)
+            val small = if (f > 1f) {
+                Bitmap.createScaledBitmap(
+                    crop,
+                    (cropW / f).toInt().coerceAtLeast(1),
+                    (cropH / f).toInt().coerceAtLeast(1),
+                    true,
+                )
+            } else {
+                crop
+            }
+            val wallPaint = Paint(Paint.FILTER_BITMAP_FLAG or Paint.ANTI_ALIAS_FLAG)
+            canvas.drawBitmap(small, null, android.graphics.RectF(0f, 0f, w.toFloat(), h.toFloat()), wallPaint)
+        }
         // User's dim scrim.
         if (bgDim > 0.01f) {
             canvas.drawRect(
