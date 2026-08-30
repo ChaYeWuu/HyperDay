@@ -203,9 +203,11 @@ fun EventDetailPage(
         else -> BgMode.SOLID
     }
 
-    // The frosted-glass card/buttons are on whenever runtime shaders are
-    // supported (all three modes); solid cards on API < 33.
-    val glassMode = glassSupported
+    // The frosted-glass card/buttons only make sense over a wallpaper (they
+    // sample what's behind them). On the solid canvas they would blur a flat
+    // color and blend into the background, so the solid mode uses the
+    // standard Miuix card (white / #242424) instead.
+    val glassMode = glassSupported && hasWallpaper
 
     // User-tunable parameters (persisted per event, live-adjustable in the
     // customize-background dialog).
@@ -226,13 +228,12 @@ fun EventDetailPage(
     }
     val accent = when {
         hasWallpaper -> onCard
-        isPast -> MiuixTheme.colorScheme.onSurfaceVariantSummary
-        else -> MiuixTheme.colorScheme.primary
+        else -> MiuixTheme.colorScheme.onSurface
     }
     val pillFg = when {
         hasWallpaper -> onCard
         isPast -> MiuixTheme.colorScheme.onSurfaceVariantSummary
-        else -> MiuixTheme.colorScheme.primary
+        else -> MiuixTheme.colorScheme.onSurface
     }
 
     // The glass card/backdrop records the background layer (wallpaper or
@@ -633,7 +634,7 @@ fun EventDetailPage(
                         },
                     )
                 }
-                if (glassSupported) {
+                if (bgMode == BgMode.WALLPAPER && glassSupported) {
                     SliderPreference(
                         title = "卡片模糊度",
                         value = liveCardBlur,
