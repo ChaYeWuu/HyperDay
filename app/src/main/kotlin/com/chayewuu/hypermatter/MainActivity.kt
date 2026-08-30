@@ -255,7 +255,9 @@ private fun MainTabs(
                 // Official-style liquid glass tab bar: floating capsule +
                 // refracting selection pill sliding under the active tab.
                 // The + add action is docked to the right of the capsule —
-                // same glass recipe — replacing the classic in-page FAB.
+                // primary-tinted glass — replacing the classic in-page FAB.
+                // It only shows on the home page; on Settings it collapses
+                // away and the capsule returns to full width.
                 LiquidGlassTabBar(
                     backdrop = glassNavBackdrop,
                     tabs = navItems,
@@ -277,6 +279,7 @@ private fun MainTabs(
                             },
                         )
                     },
+                    actionVisible = pagerState.currentPage == 0,
                 )
             } else {
                 NavigationBar(content = navBarContent)
@@ -320,19 +323,21 @@ private fun MainTabs(
                     }
                 }
             }
-        }
-    }
 
-    // Add-event sheet: opened from the classic FAB or the glass bottom-bar
-    // + action. Renders into the root (this) scaffold's popup host.
-    if (showAddSheet) {
-        AddEventBottomSheet(
-            show = showAddSheet,
-            onDismiss = { showAddSheet = false },
-            onConfirm = { title, epochDay, note ->
-                viewModel.addEvent(title, epochDay, note)
-                showAddSheet = false
-            },
-        )
+            // Add-event sheet: opened from the classic FAB or the glass
+            // bottom-bar + action. It must live INSIDE the Scaffold content
+            // so the overlay can render into the scaffold's popup host —
+            // outside the Scaffold it would simply never appear.
+            if (showAddSheet) {
+                AddEventBottomSheet(
+                    show = showAddSheet,
+                    onDismiss = { showAddSheet = false },
+                    onConfirm = { title, epochDay, note ->
+                        viewModel.addEvent(title, epochDay, note)
+                        showAddSheet = false
+                    },
+                )
+            }
+        }
     }
 }

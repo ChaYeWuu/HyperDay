@@ -11,9 +11,14 @@
 package com.chayewuu.hypermatter.ui.glass
 
 import android.view.HapticFeedbackConstants
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.EaseOut
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.expandHorizontally
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -295,6 +300,7 @@ fun LiquidGlassTabBar(
     modifier: Modifier = Modifier,
     isDarkTheme: Boolean = false,
     action: (@Composable () -> Unit)? = null,
+    actionVisible: Boolean = true,
 ) {
     val contentColor = if (isDarkTheme) Color.White else Color.Black
     val accentColor = MiuixTheme.colorScheme.primary
@@ -550,10 +556,20 @@ fun LiquidGlassTabBar(
             )
         }
 
-        // Docked action (e.g. the + add button) sharing the bar row.
+        // Docked action (e.g. the + add button) sharing the bar row. It
+        // expands/collapses with [actionVisible] — the capsule (weight 1f)
+        // grows back to full width as the action shrinks away.
         if (action != null) {
-            Spacer(Modifier.width(12.dp))
-            action()
+            AnimatedVisibility(
+                visible = actionVisible,
+                enter = expandHorizontally() + fadeIn(),
+                exit = shrinkHorizontally() + fadeOut(),
+            ) {
+                Row {
+                    Spacer(Modifier.width(12.dp))
+                    action()
+                }
+            }
         }
     }
 }
@@ -561,7 +577,9 @@ fun LiquidGlassTabBar(
 /**
  * Circular glass action button docked next to the liquid glass tab bar.
  * Uses the exact same glass recipe as the capsule (vibrancy + 8dp blur +
- * 24/24 lens over the shared [backdrop]) so the two read as one bar.
+ * 24/24 lens over the shared [backdrop]) but tinted with the theme primary
+ * — the same look the old in-page glass FAB had — so the affordance reads
+ * as the primary action.
  */
 @Composable
 fun GlassNavAction(
@@ -572,10 +590,9 @@ fun GlassNavAction(
     isDarkTheme: Boolean = false,
 ) {
     val view = LocalView.current
-    val containerColor =
-        if (isDarkTheme) Color(0xFF121212).copy(alpha = 0.4f)
-        else Color(0xFFFAFAFA).copy(alpha = 0.4f)
-    val contentColor = if (isDarkTheme) Color.White else Color.Black
+    // Primary-tinted glass (matches the previous GlassFab look), not the
+    // neutral capsule tint — otherwise the button looks washed-out white.
+    val tint = MiuixTheme.colorScheme.primary.copy(alpha = 0.45f)
     Box(
         contentAlignment = Alignment.Center,
         modifier = modifier
@@ -588,7 +605,7 @@ fun GlassNavAction(
                     blur(8.dp.toPx())
                     lens(24.dp.toPx(), 24.dp.toPx())
                 },
-                onDrawSurface = { drawRect(containerColor) },
+                onDrawSurface = { drawRect(tint) },
             )
             .clip(RoundedCornerShape(50))
             .clickable(
@@ -603,7 +620,7 @@ fun GlassNavAction(
         Icon(
             imageVector = icon,
             contentDescription = null,
-            tint = contentColor,
+            tint = Color.White,
             modifier = Modifier.size(26.dp),
         )
     }
