@@ -37,10 +37,12 @@ import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
 import top.yukonga.miuix.kmp.basic.SmallTitle
 import top.yukonga.miuix.kmp.basic.Text
+import top.yukonga.miuix.kmp.basic.TextButton
 import top.yukonga.miuix.kmp.icon.MiuixIcons
 import top.yukonga.miuix.kmp.icon.extended.Add
 import top.yukonga.miuix.kmp.icon.extended.Delete
 import top.yukonga.miuix.kmp.icon.extended.Months
+import top.yukonga.miuix.kmp.overlay.OverlayDialog
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.utils.overScrollVertical
 import top.yukonga.miuix.kmp.utils.scrollEndHaptic
@@ -62,6 +64,14 @@ fun HomePage(
     }
 
     var showAddSheet by remember { mutableStateOf(false) }
+    // Pending deletion: set by the card's delete button, consumed by the
+    // confirmation dialog below.
+    var deleteTarget by remember { mutableStateOf<CountdownEvent?>(null) }
+
+    fun requestDelete(event: CountdownEvent) {
+        view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+        deleteTarget = event
+    }
 
     // Content extends under the blurred top bar (frosted when scrolled);
     // the bar's height is fed to the list as content padding instead.
@@ -116,7 +126,7 @@ fun HomePage(
                 items(upcoming, key = { it.id }) { event ->
                     EventCard(
                         event = event,
-                        onDelete = { viewModel.deleteEvent(event.id) },
+                        onDelete = { requestDelete(event) },
                         onOpen = {
                             view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
                             onOpenEvent(event.id)
@@ -134,7 +144,7 @@ fun HomePage(
                 items(past, key = { it.id }) { event ->
                     EventCard(
                         event = event,
-                        onDelete = { viewModel.deleteEvent(event.id) },
+                        onDelete = { requestDelete(event) },
                         onOpen = {
                             view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
                             onOpenEvent(event.id)
@@ -178,6 +188,33 @@ fun HomePage(
                 showAddSheet = false
             },
         )
+    }
+
+    // Miuix-style delete confirmation (same pattern as the settings
+    // clear-all dialog): cancel / delete side by side.
+    deleteTarget?.let { target ->
+        OverlayDialog(
+            title = "删除倒数日",
+            summary = "确定要删除「${target.title}」吗？此操作不可撤销。",
+            show = true,
+            onDismissRequest = { deleteTarget = null },
+        ) {
+            Row(modifier = Modifier.fillMaxWidth()) {
+                TextButton(
+                    text = "取消",
+                    onClick = { deleteTarget = null },
+                    modifier = Modifier.weight(1f),
+                )
+                TextButton(
+                    text = "删除",
+                    onClick = {
+                        viewModel.deleteEvent(target.id)
+                        deleteTarget = null
+                    },
+                    modifier = Modifier.weight(1f),
+                )
+            }
+        }
     }
 }
 

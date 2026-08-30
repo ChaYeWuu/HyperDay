@@ -21,7 +21,6 @@ import top.yukonga.miuix.kmp.basic.SmallTitle
 import top.yukonga.miuix.kmp.basic.TextButton
 import top.yukonga.miuix.kmp.overlay.OverlayDialog
 import top.yukonga.miuix.kmp.preference.ArrowPreference
-import top.yukonga.miuix.kmp.preference.SwitchPreference
 import top.yukonga.miuix.kmp.utils.overScrollVertical
 import top.yukonga.miuix.kmp.utils.scrollEndHaptic
 
@@ -29,6 +28,7 @@ import top.yukonga.miuix.kmp.utils.scrollEndHaptic
 fun SettingsPage(
     contentPadding: PaddingValues,
     onOpenAbout: () -> Unit,
+    onOpenTheme: () -> Unit,
 ) {
     val settingsStore = LocalSettingsStore.current
     val viewModel = LocalEventViewModel.current
@@ -36,9 +36,11 @@ fun SettingsPage(
 
     var showClearDialog by remember { mutableStateOf(false) }
 
-    // Derived toggle states from colorMode: 0=System, 1=Light, 2=Dark
-    val followSystem = colorMode == 0
-    val darkMode = colorMode == 2
+    val modeName = when (colorMode) {
+        1 -> "浅色"
+        2 -> "深色"
+        else -> "跟随系统"
+    }
 
     // Content scrolls under the blurred top bar; bar height becomes
     // list content padding so the first item starts below the bar.
@@ -60,26 +62,10 @@ fun SettingsPage(
                     .fillMaxWidth()
                     .padding(horizontal = 12.dp),
             ) {
-                SwitchPreference(
-                    title = "跟随系统",
-                    summary = "跟随系统深色模式",
-                    checked = followSystem,
-                    onCheckedChange = { checked ->
-                        if (checked) {
-                            settingsStore.setColorMode(0)
-                        } else {
-                            settingsStore.setColorMode(if (darkMode) 2 else 1)
-                        }
-                    },
-                )
-                SwitchPreference(
-                    title = "深色模式",
-                    summary = "手动切换深色/浅色",
-                    checked = darkMode,
-                    onCheckedChange = { checked ->
-                        settingsStore.setColorMode(if (checked) 2 else 1)
-                    },
-                    enabled = !followSystem,
+                ArrowPreference(
+                    title = "主题风格",
+                    summary = modeName,
+                    onClick = onOpenTheme,
                 )
             }
         }

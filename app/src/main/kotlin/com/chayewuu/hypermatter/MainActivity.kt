@@ -24,6 +24,7 @@ import com.chayewuu.hypermatter.ui.BlurredBar
 import com.chayewuu.hypermatter.ui.EventDetailPage
 import com.chayewuu.hypermatter.ui.HomePage
 import com.chayewuu.hypermatter.ui.SettingsPage
+import com.chayewuu.hypermatter.ui.ThemePage
 import com.chayewuu.hypermatter.ui.rememberBlurBackdrop
 import com.chayewuu.hypermatter.ui.theme.LocalEventViewModel
 import com.chayewuu.hypermatter.ui.theme.LocalSettingsStore
@@ -86,6 +87,9 @@ private sealed interface Route : NavKey {
     data object About : Route
 
     @Serializable
+    data object Theme : Route
+
+    @Serializable
     data class EventDetail(val id: String) : Route
 }
 
@@ -110,10 +114,14 @@ private fun App() {
             MainTabs(
                 onOpenEvent = { backStack.add(Route.EventDetail(it)) },
                 onOpenAbout = { backStack.add(Route.About) },
+                onOpenTheme = { backStack.add(Route.Theme) },
             )
         }
         entry<Route.About>(swipeDismiss = NavSwipeDirection.LeftToRight) {
             AboutPage(onBack = { backStack.removeLastOrNull() })
+        }
+        entry<Route.Theme>(swipeDismiss = NavSwipeDirection.LeftToRight) {
+            ThemePage(onBack = { backStack.removeLastOrNull() })
         }
         entry<Route.EventDetail>(swipeDismiss = NavSwipeDirection.LeftToRight) { route ->
             EventDetailPage(
@@ -128,6 +136,7 @@ private fun App() {
 private fun MainTabs(
     onOpenEvent: (String) -> Unit,
     onOpenAbout: () -> Unit,
+    onOpenTheme: () -> Unit,
 ) {
     val pagerState = rememberPagerState { 2 }
     val scope = rememberCoroutineScope()
@@ -193,6 +202,7 @@ private fun MainTabs(
                     1 -> SettingsPage(
                         contentPadding = paddingValues,
                         onOpenAbout = onOpenAbout,
+                        onOpenTheme = onOpenTheme,
                     )
                 }
             }

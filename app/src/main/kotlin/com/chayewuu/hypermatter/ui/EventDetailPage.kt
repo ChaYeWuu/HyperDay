@@ -62,7 +62,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.chayewuu.hypermatter.data.DateUtils
-import com.chayewuu.hypermatter.ui.effect.BgEffectBackground
 import com.chayewuu.hypermatter.ui.theme.LocalEventViewModel
 import com.chayewuu.hypermatter.ui.theme.LocalSettingsStore
 import kotlinx.coroutines.Dispatchers
@@ -89,7 +88,6 @@ import top.yukonga.miuix.kmp.icon.extended.Image
 import top.yukonga.miuix.kmp.icon.extended.Ok
 import top.yukonga.miuix.kmp.icon.extended.ScreenCapture
 import top.yukonga.miuix.kmp.icon.extended.Share
-import top.yukonga.miuix.kmp.icon.extended.Theme
 import top.yukonga.miuix.kmp.overlay.OverlayDialog
 import top.yukonga.miuix.kmp.preference.SliderPreference
 import top.yukonga.miuix.kmp.shader.isRuntimeShaderSupported
@@ -98,7 +96,7 @@ import java.io.File
 import java.io.FileOutputStream
 
 /** Detail-page background modes. */
-private enum class BgMode { SOLID, DYNAMIC, WALLPAPER }
+private enum class BgMode { SOLID, WALLPAPER }
 
 // Official Miuix example card-blend presets (ColorBlendToken.kt):
 // frosted glass blends for the glass card and action buttons.
@@ -199,7 +197,6 @@ fun EventDetailPage(
 
     val bgMode = when {
         hasWallpaper -> BgMode.WALLPAPER
-        event.dynamicBg == true -> BgMode.DYNAMIC
         else -> BgMode.SOLID
     }
 
@@ -496,8 +493,6 @@ fun EventDetailPage(
                 // brightness — not to the card text colors.
                 val onBackgroundText = when {
                     hasWallpaper -> if (isLightWallpaper) Color(0xFF1B1B1F) else Color.White
-                    bgMode == BgMode.DYNAMIC ->
-                        if (isDarkTheme) Color.White else Color(0xFF1B1B1F)
                     else -> MiuixTheme.colorScheme.onSurfaceVariantSummary
                 }
                 Row(
@@ -575,21 +570,7 @@ fun EventDetailPage(
                     }
                     content()
                 }
-                // Official dynamic color-blending shader + glass card.
-                bgMode == BgMode.DYNAMIC -> {
-                    BgEffectBackground(
-                        dynamicBackground = true,
-                        isFullSize = true,
-                        isDarkTheme = isDarkTheme,
-                        bgModifier = if (cardBackdrop != null)
-                            Modifier.layerBackdrop(cardBackdrop)
-                        else
-                            Modifier,
-                    ) {
-                        content()
-                    }
-                }
-                // Solid canvas.
+                // Solid Miuix canvas.
                 else -> content()
             }
         }
@@ -614,15 +595,6 @@ fun EventDetailPage(
                 ) {
                     viewModel.updateEvent(
                         event.copy(wallpaperUri = null, dynamicBg = null, cardColor = null)
-                    )
-                }
-                BgModeRow(
-                    icon = MiuixIcons.Theme,
-                    label = "动态取色",
-                    selected = bgMode == BgMode.DYNAMIC,
-                ) {
-                    viewModel.updateEvent(
-                        event.copy(wallpaperUri = null, dynamicBg = true, cardColor = null)
                     )
                 }
                 BgModeRow(
