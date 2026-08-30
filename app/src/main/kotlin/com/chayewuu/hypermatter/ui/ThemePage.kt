@@ -21,10 +21,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
@@ -184,9 +184,13 @@ fun ThemePage(
 }
 
 /**
- * One appearance-mode preview card: screenshot image with a border that hugs
- * the image edge, label text below. Selected = blue border + blue label,
- * no checkmark.
+ * One appearance-mode preview card: screenshot image with a rounded border,
+ * label text below. Selected = blue border + blue label, no checkmark.
+ *
+ * Border geometry (corner-smooth continuous curve, constant 4dp gap):
+ *   - Border drawn as a smooth path: straight edges blended into corner arcs
+ *     with quadratic curves — no visible seam between line and arc.
+ *   - Image sits 4dp inside the border's inner edge everywhere.
  */
 @Composable
 private fun AppearanceCard(
@@ -196,11 +200,6 @@ private fun AppearanceCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    // Concentric-corner geometry — corner-circle centers at 28dp from each
-    // corner (rounder look), gap constant 3dp everywhere:
-    //   clip 28dp > border outer radius 26.5dp (stroke fully visible)
-    //   border: topLeft 2dp, centerline radius 25.5dp, width 3dp
-    //   image: inset 6dp, corner radius 22dp
     val borderColor = if (selected)
         MiuixTheme.colorScheme.primary
     else
@@ -210,21 +209,17 @@ private fun AppearanceCard(
             modifier = Modifier
                 .fillMaxWidth()
                 .aspectRatio(480f / 680f)
-                .clip(RoundedCornerShape(28.dp))
                 .drawBehind {
                     if (borderColor != Color.Transparent) {
-                        val stroke = 3.dp.toPx()
-                        drawRoundRect(
+                        drawSmoothRoundedBorder(
                             color = borderColor,
-                            topLeft = Offset(stroke, stroke),
-                            size = Size(size.width - stroke * 2f, size.height - stroke * 2f),
-                            cornerRadius = CornerRadius(25.5.dp.toPx()),
-                            style = Stroke(width = stroke),
+                            strokeWidth = 3.dp.toPx(),
+                            radius = 24.dp.toPx(),
                         )
                     }
                 }
                 .clickable(onClick = onClick)
-                .padding(6.dp),
+                .padding(7.dp),
         ) {
             Image(
                 painter = painterResource(drawableRes),
@@ -232,7 +227,7 @@ private fun AppearanceCard(
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
                     .fillMaxSize()
-                    .clip(RoundedCornerShape(22.dp)),
+                    .clip(RoundedCornerShape(20.dp)),
             )
         }
         Text(
@@ -249,4 +244,44 @@ private fun AppearanceCard(
             textAlign = TextAlign.Center,
         )
     }
+}
+
+/**
+ * Draws a border whose straight segments flow continuously into corner arcs
+ * (quadratic smoothing at the junctions), stroked fully inside [radius].
+ */
+private fun DrawScope.drawSmoothRoundedBorder(
+    color: Color,
+    strokeWidth: Float,
+    radius: Float,
+) {
+    val half = strokeWidth / 2f
+    // Inner inset keeps the whole stroke inside the draw area
+    val left = half
+    val top = half
+    val right = size.width - half
+    val bottom = size.height - half
+    // Shrink the arc radius so arcs stay inside bounds too
+    val r = radius.coerceAtMost(minOf(right - left, bottom - top) / 2f)
+    val path = Path().apply {
+        // Start at the mid-top, go clockwise: top edge → smooth into
+        // top-right arc → right edge → bottom-right arc → bottom edge →
+        // bottom-left arc → left edge → top-left arc → back to start.
+        moveTo(left + r, top)
+        lineTo(right - r, top)
+        // quadratic smoothing from end of straight edge into the arc
+        quadraticTo(right, top, right, top + r)
+        lineTo(right, bottom - r)
+        quadraticTo(right, bottom, right - r, bottom)
+        lineTo(left + r, bottom)
+        quadraticTo(left, bottom, left, bottom - r)
+        lineTo(left, top + r)
+        quadraticTo(left, top, left + r, top)
+        close()
+    }
+    drawPath(
+        path = path,
+        color = color,
+        style = Stroke(width = strokeWidth),
+    )
 }
