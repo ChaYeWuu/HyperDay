@@ -10,23 +10,37 @@
 
 package com.chayewuu.hypermatter.ui.glass
 
+import android.view.HapticFeedbackConstants
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.defaultMinSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.kyant.backdrop.backdrops.LayerBackdrop
@@ -36,11 +50,15 @@ import com.kyant.backdrop.drawBackdrop
 import com.kyant.backdrop.effects.blur
 import com.kyant.backdrop.effects.lens
 import com.kyant.backdrop.effects.vibrancy
+import com.kyant.backdrop.highlight.Highlight
 import com.kyant.backdrop.isRenderEffectSupported
+import com.kyant.backdrop.shadow.InnerShadow
 import com.kyant.backdrop.shadow.Shadow
 import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.FloatingActionButton
-import top.yukonga.miuix.kmp.basic.NavigationBar
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.NavigationItem
+import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 /** Whether the Liquid Glass app style is active (appStyle=1 + RenderEffect). */
@@ -219,31 +237,112 @@ fun GlassFab(
 }
 
 /**
- * Liquid glass bottom navigation bar: the standard Miuix NavigationBar with
- * a transparent background wrapped in a top-rounded glass surface that
- * frosts whatever scrolls beneath it. Insets/height/selection behavior all
- * come from the Miuix bar.
+ * Official-catalog-style liquid glass bottom tab bar (LiquidBottomTabs):
+ * a floating capsule that frosts + refracts the content scrolling beneath
+ * it, with a refracting lens pill that slides under the selected tab.
  */
 @Composable
-fun GlassNavigationBar(
+fun LiquidGlassTabBar(
     backdrop: LayerBackdrop,
+    tabs: List<NavigationItem>,
+    selected: Int,
+    onSelect: (Int) -> Unit,
     modifier: Modifier = Modifier,
-    content: @Composable RowScope.() -> Unit,
+    isDarkTheme: Boolean = false,
 ) {
-    Box(
-        modifier = modifier.liquidGlass(
-            backdrop = backdrop,
-            shape = RoundedCornerShape(topStart = 30.dp, topEnd = 30.dp),
-            blurRadius = 10.dp,
-            tint = MiuixTheme.colorScheme.surface.copy(alpha = 0.35f),
-            lensHeight = 22.dp,
-            lensAmount = 12.dp,
-        ),
+    val containerColor =
+        if (isDarkTheme) Color(0xFF121212).copy(alpha = 0.4f)
+        else Color(0xFFFAFAFA).copy(alpha = 0.4f)
+    val pillScrim =
+        if (isDarkTheme) Color.White.copy(alpha = 0.1f)
+        else Color.Black.copy(alpha = 0.1f)
+    val accent = MiuixTheme.colorScheme.primary
+    val summary = MiuixTheme.colorScheme.onSurfaceVariantSummary
+    val view = LocalView.current
+
+    BoxWithConstraints(
+        modifier = modifier
+            .fillMaxWidth()
+            .navigationBarsPadding()
+            .padding(horizontal = 24.dp, vertical = 12.dp),
     ) {
-        NavigationBar(
-            color = Color.Transparent,
-            showDivider = false,
-            content = content,
+        val tabWidth = (maxWidth - 8.dp) / tabs.size
+        // The lens pill springs under the newly selected tab.
+        val pillOffset by animateDpAsState(
+            targetValue = tabWidth * selected,
+            animationSpec = spring(dampingRatio = 0.75f, stiffness = 480f),
+            label = "glassTabPill",
         )
+
+        // Floating capsule bar: vibrancy + blur + lens over the recorded
+        // content, lightly tinted for icon readability.
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(64.dp)
+                .drawBackdrop(
+                    backdrop = backdrop,
+                    shape = { RoundedCornerShape(50) },
+                    effects = {
+                        vibrancy()
+                        blur(8.dp.toPx())
+                        lens(24.dp.toPx(), 24.dp.toPx())
+                    },
+                    shadow = { Shadow(radius = 16.dp, color = Color.Black.copy(alpha = 0.15f)) },
+                    onDrawSurface = { drawRect(containerColor) },
+                ),
+        ) {
+            // Refracting selection pill (official recipe: lens with
+            // dispersion + highlight + shadow + inner shadow).
+            Box(
+                modifier = Modifier
+                    .offset(x = 4.dp + pillOffset, y = 4.dp)
+                    .width(tabWidth)
+                    .height(56.dp)
+                    .drawBackdrop(
+                        backdrop = backdrop,
+                        shape = { RoundedCornerShape(50) },
+                        effects = {
+                            lens(10.dp.toPx(), 14.dp.toPx(), chromaticAberration = true)
+                        },
+                        highlight = { Highlight.Default },
+                        shadow = { Shadow(radius = 8.dp, color = Color.Black.copy(alpha = 0.15f)) },
+                        innerShadow = { InnerShadow(radius = 8.dp, alpha = 1f) },
+                        onDrawSurface = { drawRect(pillScrim) },
+                    ),
+            )
+
+            // Tabs: icon + label, tinted with the accent when selected.
+            Row(
+                modifier = Modifier.fillMaxSize(),
+            ) {
+                tabs.forEachIndexed { index, item ->
+                    val isSelected = index == selected
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center,
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight()
+                            .clickable {
+                                view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                                onSelect(index)
+                            },
+                    ) {
+                        Icon(
+                            imageVector = item.icon,
+                            contentDescription = item.label,
+                            tint = if (isSelected) accent else summary,
+                            modifier = Modifier.size(22.dp),
+                        )
+                        Text(
+                            text = item.label,
+                            color = if (isSelected) accent else summary,
+                            style = MiuixTheme.textStyles.footnote2,
+                        )
+                    }
+                }
+            }
+        }
     }
 }

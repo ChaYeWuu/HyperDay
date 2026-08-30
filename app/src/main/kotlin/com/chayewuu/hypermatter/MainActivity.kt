@@ -5,6 +5,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxSize
@@ -28,7 +29,7 @@ import com.chayewuu.hypermatter.ui.SettingsPage
 import com.chayewuu.hypermatter.ui.ThemePage
 import com.chayewuu.hypermatter.ui.rememberBlurBackdrop
 import com.chayewuu.hypermatter.ui.glass.GlassCanvasRecorder
-import com.chayewuu.hypermatter.ui.glass.GlassNavigationBar
+import com.chayewuu.hypermatter.ui.glass.LiquidGlassTabBar
 import com.chayewuu.hypermatter.ui.glass.LocalGlassBackdrop
 import com.chayewuu.hypermatter.ui.glass.LocalGlassEnabled
 import com.chayewuu.hypermatter.ui.glass.rememberContentGlassBackdrop
@@ -171,6 +172,15 @@ private fun MainTabs(
     val pagerState = rememberPagerState { 2 }
     val scope = rememberCoroutineScope()
 
+    // Dark-theme flag for the liquid glass bar tint.
+    val settingsStore = LocalSettingsStore.current
+    val colorMode by settingsStore.colorMode.collectAsState()
+    val isDarkTheme = when (colorMode) {
+        2 -> true
+        1 -> false
+        else -> isSystemInDarkTheme()
+    }
+
     val navItems = listOf(
         NavigationItem("首页", MiuixIcons.Home),
         NavigationItem("设置", MiuixIcons.Settings),
@@ -221,8 +231,19 @@ private fun MainTabs(
         },
         bottomBar = {
             if (glassNavBackdrop != null) {
-                // Liquid glass bottom bar: frosts the list scrolling under it.
-                GlassNavigationBar(backdrop = glassNavBackdrop, content = navBarContent)
+                // Official-style liquid glass tab bar: floating capsule +
+                // refracting selection pill sliding under the active tab.
+                LiquidGlassTabBar(
+                    backdrop = glassNavBackdrop,
+                    tabs = navItems,
+                    selected = pagerState.currentPage,
+                    onSelect = { index ->
+                        if (pagerState.currentPage != index) {
+                            scope.launch { pagerState.animateScrollToPage(index) }
+                        }
+                    },
+                    isDarkTheme = isDarkTheme,
+                )
             } else {
                 NavigationBar(content = navBarContent)
             }
