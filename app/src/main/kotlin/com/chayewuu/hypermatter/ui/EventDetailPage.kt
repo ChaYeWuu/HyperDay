@@ -231,41 +231,6 @@ fun EventDetailPage(
     val bgDim = event.wallpaperDim ?: DEFAULT_WALLPAPER_DIM
     val cardBlur = event.cardBlur ?: DEFAULT_CARD_BLUR
 
-    // Adaptive text colors. On wallpaper the card's EFFECTIVE brightness
-    // decides: the glass layers tint the blurred photo behind the card
-    // (white/black tint in liquid mode, gray blend in frosted mode), which
-    // can flip a mid-bright photo into a light-looking card — so the raw
-    // photo luminance alone is not enough.
-    val wpLum = wallpaper?.luminance ?: 0f
-    val effCardLum = when {
-        !hasWallpaper -> if (isDarkTheme) 0.14f else 1f
-        liquidBackdrop != null ->
-            if (isLightWallpaper)
-                wpLum * (1f - 0.22f) // black 22% tint darkens the sample
-            else
-                wpLum + 0.18f * (1f - wpLum) // white 18% tint lightens it
-        glassSupported -> wpLum + 0.2f * (1f - wpLum) // frosted gray blend
-        else -> if (isDarkTheme) 0.14f else 1f
-    }
-    val cardTextDark = effCardLum > 0.5f
-    val onCard = when {
-        hasWallpaper -> if (cardTextDark) Color(0xFF1B1B1F) else Color.White
-        else -> MiuixTheme.colorScheme.onSurface
-    }
-    val onCardSummary = when {
-        hasWallpaper -> onCard.copy(alpha = 0.78f)
-        else -> MiuixTheme.colorScheme.onSurfaceVariantSummary
-    }
-    val accent = when {
-        hasWallpaper -> onCard
-        else -> MiuixTheme.colorScheme.onSurface
-    }
-    val pillFg = when {
-        hasWallpaper -> onCard
-        isPast -> MiuixTheme.colorScheme.onSurfaceVariantSummary
-        else -> MiuixTheme.colorScheme.onSurface
-    }
-
     // The glass card/backdrop records the background layer (wallpaper or
     // shader) so the card and buttons can frost it.
     val cardBackdrop: LayerBackdrop? = if (glassMode) {
@@ -366,15 +331,35 @@ fun EventDetailPage(
     val effBgDim = if (showBackgroundDialog) liveBgDim else bgDim
     val effCardBlur = if (showBackgroundDialog) liveCardBlur else cardBlur
 
-    // Effective BACKGROUND brightness (photo + dim scrim) — drives the
-    // colors of elements drawn directly on the background: the top-bar
-    // back arrow and the action-button labels. Solid mode keeps the
-    // theme's summary color.
-    val bgTextColor = if (hasWallpaper) {
-        if (wpLum * (1f - effBgDim) > 0.5f) Color(0xFF1B1B1F) else Color.White
-    } else {
-        MiuixTheme.colorScheme.onSurfaceVariantSummary
+    // ONE shared brightness decision for EVERY element drawn over the
+    // wallpaper — the card content, the action-button icons/labels and the
+    // back arrow: the photo's luminance after the dim scrim. They all flip
+    // black/white together (separate thresholds previously made mid-bright
+    // wallpapers flip the labels but not the card). Solid mode keeps the
+    // theme's own colors.
+    val wpLum = wallpaper?.luminance ?: 0f
+    val wallpaperTextDark = hasWallpaper && wpLum * (1f - effBgDim) > 0.5f
+    val overlayTextColor =
+        if (wallpaperTextDark) Color(0xFF1B1B1F) else Color.White
+    val onCard =
+        if (hasWallpaper) overlayTextColor
+        else MiuixTheme.colorScheme.onSurface
+    val onCardSummary =
+        if (hasWallpaper) onCard.copy(alpha = 0.78f)
+        else MiuixTheme.colorScheme.onSurfaceVariantSummary
+    val accent =
+        if (hasWallpaper) onCard
+        else MiuixTheme.colorScheme.onSurface
+    val pillFg = when {
+        hasWallpaper -> onCard
+        isPast -> MiuixTheme.colorScheme.onSurfaceVariantSummary
+        else -> MiuixTheme.colorScheme.onSurface
     }
+    // Elements directly on the background (back arrow, button labels) share
+    // the same color in wallpaper mode; solid mode keeps the summary tone.
+    val bgTextColor =
+        if (hasWallpaper) onCard
+        else MiuixTheme.colorScheme.onSurfaceVariantSummary
 
     val pageCanvas = MiuixTheme.colorScheme.surface
     val backdrop = rememberBlurBackdrop()
@@ -384,9 +369,10 @@ fun EventDetailPage(
             if (hasWallpaper) {
                 // Wallpaper mode: the image fills the whole scaffold (under
                 // the bar too), so the bar is plain transparent. The back
-                // icon adapts to the wallpaper brightness.
+                // icon adapts to the wallpaper brightness. No title — the
+                // card below already shows the event name big.
                 SmallTopAppBar(
-                    title = event.title,
+                    title = "",
                     color = Color.Transparent,
                     navigationIcon = {
                         IconButton(onClick = onBack) {
@@ -401,7 +387,7 @@ fun EventDetailPage(
             } else {
                 BlurredBar(backdrop) {
                     SmallTopAppBar(
-                        title = event.title,
+                        title = "",
                         color = if (backdrop != null)
                             Color.Transparent
                         else
