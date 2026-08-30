@@ -174,7 +174,7 @@ fun ThemePage(
                     ) {
                         SwitchPreference(
                             title = "莫奈取色",
-                            summary = "从系统壁纸提取主题色",
+                            summary = "跟随系统壁纸动态取色，与上方外观模式叠加生效",
                             checked = monetColor,
                             onCheckedChange = { settingsStore.setMonetColor(it) },
                         )

@@ -23,17 +23,20 @@ val LocalSettingsStore = compositionLocalOf<SettingsStore> {
 /**
  * Root Miuix theme.
  * @param colorMode 0 = System, 1 = Light, 2 = Dark
+ * @param monetColor true = derive the palette from the system wallpaper
+ *   (Material You / HyperOS dynamic color), combined with [colorMode]
  */
 @Composable
 fun MiuixAppTheme(
     colorMode: Int = 0,
+    monetColor: Boolean = false,
     content: @Composable () -> Unit,
 ) {
-    val controller = remember(colorMode) {
+    val controller = remember(colorMode, monetColor) {
         when (colorMode) {
-            1 -> ThemeController(ColorSchemeMode.Light)
-            2 -> ThemeController(ColorSchemeMode.Dark)
-            else -> ThemeController(ColorSchemeMode.System)
+            1 -> ThemeController(if (monetColor) ColorSchemeMode.MonetLight else ColorSchemeMode.Light)
+            2 -> ThemeController(if (monetColor) ColorSchemeMode.MonetDark else ColorSchemeMode.Dark)
+            else -> ThemeController(if (monetColor) ColorSchemeMode.MonetSystem else ColorSchemeMode.System)
         }
     }
     MiuixTheme(controller = controller) {
