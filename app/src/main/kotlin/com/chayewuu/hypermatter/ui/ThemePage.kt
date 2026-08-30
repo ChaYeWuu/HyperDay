@@ -23,6 +23,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -115,21 +116,21 @@ fun ThemePage(
                         horizontalArrangement = Arrangement.spacedBy(10.dp),
                     ) {
                         AppearanceCard(
-                            label = "自动",
+                            label = "自动切换",
                             drawableRes = R.drawable.theme_preview_auto,
                             selected = colorMode == 0,
                             onClick = { settingsStore.setColorMode(0) },
                             modifier = Modifier.weight(1f),
                         )
                         AppearanceCard(
-                            label = "浅色",
+                            label = "浅色模式",
                             drawableRes = R.drawable.theme_preview_light,
                             selected = colorMode == 1,
                             onClick = { settingsStore.setColorMode(1) },
                             modifier = Modifier.weight(1f),
                         )
                         AppearanceCard(
-                            label = "深色",
+                            label = "深色模式",
                             drawableRes = R.drawable.theme_preview_night,
                             selected = colorMode == 2,
                             onClick = { settingsStore.setColorMode(2) },
@@ -198,7 +199,8 @@ private fun AppearanceCard(
         insideMargin = PaddingValues(0.dp),
         onClick = onClick,
     ) {
-        // Border at the outer edge, image inset 2dp inside it
+        // Border sits at the outer edge, image inset 4dp inside it —
+        // the border never touches the image pixels
         Image(
             painter = painterResource(drawableRes),
             contentDescription = label,
@@ -212,21 +214,22 @@ private fun AppearanceCard(
                         MiuixTheme.colorScheme.primary
                     else
                         Color.Transparent,
-                    shape = RoundedCornerShape(12.dp),
+                    shape = RoundedCornerShape(14.dp),
                 )
-                .padding(2.dp)
+                .padding(4.dp)
                 .clip(RoundedCornerShape(10.dp)),
         )
         Text(
             text = label,
-            fontSize = 13.sp,
+            fontSize = 15.sp,
+            fontWeight = FontWeight.Bold,
             color = if (selected)
                 MiuixTheme.colorScheme.primary
             else
                 MiuixTheme.colorScheme.onSurfaceVariantSummary,
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(top = 7.dp, bottom = 8.dp),
+                .padding(top = 8.dp, bottom = 8.dp),
             textAlign = TextAlign.Center,
         )
     }
