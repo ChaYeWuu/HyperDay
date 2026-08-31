@@ -41,9 +41,17 @@ android {
 
     buildTypes {
         release {
+            // R8 code + resource shrinking: strips unused library code
+            // (Compose/Miuix/backdrop ship megabytes; without this the APK
+            // is ~9MB of mostly-dead library classes). Consumer rules from
+            // the dependencies plus app/proguard-rules.pro keep the rest.
             optimization {
-                enable = false
+                enable = true
             }
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
             if (keystoreProperties.isNotEmpty()) {
                 signingConfig = signingConfigs.getByName("release")
             }
