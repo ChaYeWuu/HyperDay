@@ -18,10 +18,19 @@ import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -81,7 +90,6 @@ import com.chayewuu.hypermatter.ui.theme.LocalSettingsStore
 import com.kyant.backdrop.backdrops.LayerBackdrop as LiquidBackdrop
 import com.kyant.backdrop.backdrops.layerBackdrop as liquidLayerBackdrop
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import top.yukonga.miuix.kmp.basic.Card
@@ -251,22 +259,6 @@ fun EventDetailPage(
 
     var showBackgroundDialog by remember { mutableStateOf(false) }
     var showFontDialog by remember { mutableStateOf(false) }
-
-    // Click-type font adjustments (cycle rows, switches, palettes, reset)
-    // have no slider thumb to hold, so the dialog normally just sits on top
-    // of the card and hides the very animation the user is tuning. Each such
-    // click bumps this trigger; the font dialog then sinks out of the way
-    // for a moment (same 240dp fade the sliders use) so the card's 200ms
-    // text animation is visible, then returns automatically.
-    var fontPeekTrigger by remember { mutableStateOf(0) }
-    var fontPeekActive by remember { mutableStateOf(false) }
-    LaunchedEffect(fontPeekTrigger) {
-        if (fontPeekTrigger > 0) {
-            fontPeekActive = true
-            delay(1500)
-            fontPeekActive = false
-        }
-    }
 
     val isPast = DateUtils.isPastEvent(event)
     val dayNum = DateUtils.dayNumber(event)
@@ -931,7 +923,7 @@ fun EventDetailPage(
             // slider tuning. This one animates: it fades out together with
             // the sinking dialog and back in when it returns.
             val scrimAlpha by animateFloatAsState(
-                targetValue = if ((showBackgroundDialog || showFontDialog) && activeSlider == null && !fontPeekActive) 1f else 0f,
+                targetValue = if ((showBackgroundDialog || showFontDialog) && activeSlider == null) 1f else 0f,
                 animationSpec = tween(200),
                 label = "dialogScrim",
             )
@@ -1021,7 +1013,7 @@ fun EventDetailPage(
         // being tuned stays fully visible. The in-progress drag keeps working
         // (pointer events follow the pointer id, not the on-screen position).
         val dialogSink by animateFloatAsState(
-            targetValue = if (activeSlider != null || fontPeekActive) 1f else 0f,
+            targetValue = if (activeSlider != null) 1f else 0f,
             animationSpec = tween(200),
             label = "dialogSink",
         )
@@ -1173,7 +1165,6 @@ fun EventDetailPage(
                         liveFontStroke = 2.5f
                         liveShadowBlur = 8f
                         liveShadowAlpha = 0.45f
-                        fontPeekTrigger++
                     },
                 )
                 SliderPreference(
@@ -1197,7 +1188,6 @@ fun EventDetailPage(
                     updateEventFresh {
                         it.copy(fontWeight = ((it.fontWeight ?: 0) + 1) % FontWeightItems.size)
                     }
-                    fontPeekTrigger++
                 }
                 FontCycleRow(
                     label = "文字颜色",
@@ -1206,16 +1196,18 @@ fun EventDetailPage(
                     updateEventFresh {
                         it.copy(textColor = ((it.textColor ?: 0) + 1) % FontColorItems.size)
                     }
-                    fontPeekTrigger++
                 }
-                if (fs.colorIdx == 3) {
+                AnimatedVisibility(
+                    visible = fs.colorIdx == 3,
+                    enter = expandVertically(tween(200)) + fadeIn(tween(200)),
+                    exit = shrinkVertically(tween(200)) + fadeOut(tween(200)),
+                ) {
                     ColorPalette(
                         color = fs.colorCustom,
                         onColorChanged = { c ->
                             updateEventFresh {
                                 it.copy(textColorCustom = c.toArgb().toLong())
                             }
-                            fontPeekTrigger++
                         },
                     )
                 }
@@ -1225,43 +1217,50 @@ fun EventDetailPage(
                     checked = fs.strokeOn,
                     onCheckedChange = { checked ->
                         updateEventFresh { it.copy(fontStroke = checked) }
-                        fontPeekTrigger++
                     },
                 )
-                if (fs.strokeOn) {
-                    SliderPreference(
-                        title = "描边宽度",
-                        value = liveFontStroke,
-                        onValueChange = {
-                            activeSlider = ActiveSlider.FONT_STROKE
-                            liveFontStroke = it
-                        },
-                        valueRange = 1f..6f,
-                        valueText = "${liveFontStroke.toInt()} dp",
-                        onValueChangeFinished = {
-                            activeSlider = null
-                            updateEventFresh { it.copy(fontStrokeWidth = liveFontStroke) }
-                        },
-                    )
-                    FontCycleRow(
-                        label = "描边颜色",
-                        valueLabel = StrokeColorItems[fs.strokeColorIdx],
-                    ) {
-                        updateEventFresh {
-                            it.copy(strokeColor = ((it.strokeColor ?: 0) + 1) % StrokeColorItems.size)
-                        }
-                        fontPeekTrigger++
-                    }
-                    if (fs.strokeColorIdx == 3) {
-                        ColorPalette(
-                            color = fs.strokeColorCustom,
-                            onColorChanged = { c ->
-                                updateEventFresh {
-                                    it.copy(strokeColorCustom = c.toArgb().toLong())
-                                }
-                                fontPeekTrigger++
+                AnimatedVisibility(
+                    visible = fs.strokeOn,
+                    enter = expandVertically(tween(200)) + fadeIn(tween(200)),
+                    exit = shrinkVertically(tween(200)) + fadeOut(tween(200)),
+                ) {
+                    Column {
+                        SliderPreference(
+                            title = "描边宽度",
+                            value = liveFontStroke,
+                            onValueChange = {
+                                activeSlider = ActiveSlider.FONT_STROKE
+                                liveFontStroke = it
+                            },
+                            valueRange = 1f..6f,
+                            valueText = "${liveFontStroke.toInt()} dp",
+                            onValueChangeFinished = {
+                                activeSlider = null
+                                updateEventFresh { it.copy(fontStrokeWidth = liveFontStroke) }
                             },
                         )
+                        FontCycleRow(
+                            label = "描边颜色",
+                            valueLabel = StrokeColorItems[fs.strokeColorIdx],
+                        ) {
+                            updateEventFresh {
+                                it.copy(strokeColor = ((it.strokeColor ?: 0) + 1) % StrokeColorItems.size)
+                            }
+                        }
+                        AnimatedVisibility(
+                            visible = fs.strokeColorIdx == 3,
+                            enter = expandVertically(tween(200)) + fadeIn(tween(200)),
+                            exit = shrinkVertically(tween(200)) + fadeOut(tween(200)),
+                        ) {
+                            ColorPalette(
+                                color = fs.strokeColorCustom,
+                                onColorChanged = { c ->
+                                    updateEventFresh {
+                                        it.copy(strokeColorCustom = c.toArgb().toLong())
+                                    }
+                                },
+                            )
+                        }
                     }
                 }
                 SwitchPreference(
@@ -1270,58 +1269,65 @@ fun EventDetailPage(
                     checked = fs.shadowOn,
                     onCheckedChange = { checked ->
                         updateEventFresh { it.copy(fontShadow = checked) }
-                        fontPeekTrigger++
                     },
                 )
-                if (fs.shadowOn) {
-                    FontCycleRow(
-                        label = "阴影颜色",
-                        valueLabel = ShadowColorItems[fs.shadowColorIdx],
-                    ) {
-                        updateEventFresh {
-                            it.copy(shadowColor = ((it.shadowColor ?: 0) + 1) % ShadowColorItems.size)
+                AnimatedVisibility(
+                    visible = fs.shadowOn,
+                    enter = expandVertically(tween(200)) + fadeIn(tween(200)),
+                    exit = shrinkVertically(tween(200)) + fadeOut(tween(200)),
+                ) {
+                    Column {
+                        FontCycleRow(
+                            label = "阴影颜色",
+                            valueLabel = ShadowColorItems[fs.shadowColorIdx],
+                        ) {
+                            updateEventFresh {
+                                it.copy(shadowColor = ((it.shadowColor ?: 0) + 1) % ShadowColorItems.size)
+                            }
                         }
-                        fontPeekTrigger++
-                    }
-                    if (fs.shadowColorIdx == 3) {
-                        ColorPalette(
-                            color = fs.shadowColorCustom,
-                            onColorChanged = { c ->
-                                updateEventFresh {
-                                    it.copy(shadowColorCustom = c.toArgb().toLong())
-                                }
-                                fontPeekTrigger++
+                        AnimatedVisibility(
+                            visible = fs.shadowColorIdx == 3,
+                            enter = expandVertically(tween(200)) + fadeIn(tween(200)),
+                            exit = shrinkVertically(tween(200)) + fadeOut(tween(200)),
+                        ) {
+                            ColorPalette(
+                                color = fs.shadowColorCustom,
+                                onColorChanged = { c ->
+                                    updateEventFresh {
+                                        it.copy(shadowColorCustom = c.toArgb().toLong())
+                                    }
+                                },
+                            )
+                        }
+                        SliderPreference(
+                            title = "阴影模糊",
+                            value = liveShadowBlur,
+                            onValueChange = {
+                                activeSlider = ActiveSlider.FONT_SHADOW_BLUR
+                                liveShadowBlur = it
+                            },
+                            valueRange = 0f..20f,
+                            valueText = "${liveShadowBlur.toInt()} dp",
+                            onValueChangeFinished = {
+                                activeSlider = null
+                                updateEventFresh { it.copy(shadowBlur = liveShadowBlur) }
+                            },
+                        )
+                        SliderPreference(
+                            title = "阴影浓度",
+                            value = liveShadowAlpha,
+                            onValueChange = {
+                                activeSlider = ActiveSlider.FONT_SHADOW_ALPHA
+                                liveShadowAlpha = it
+                            },
+                            valueRange = 0f..1f,
+                            valueText = "${(liveShadowAlpha * 100).toInt()}%",
+                            onValueChangeFinished = {
+                                activeSlider = null
+                                updateEventFresh { it.copy(shadowAlpha = liveShadowAlpha) }
                             },
                         )
                     }
-                    SliderPreference(
-                        title = "阴影模糊",
-                        value = liveShadowBlur,
-                        onValueChange = {
-                            activeSlider = ActiveSlider.FONT_SHADOW_BLUR
-                            liveShadowBlur = it
-                        },
-                        valueRange = 0f..20f,
-                        valueText = "${liveShadowBlur.toInt()} dp",
-                        onValueChangeFinished = {
-                            activeSlider = null
-                            updateEventFresh { it.copy(shadowBlur = liveShadowBlur) }
-                        },
-                    )
-                    SliderPreference(
-                        title = "阴影浓度",
-                        value = liveShadowAlpha,
-                        onValueChange = {
-                            activeSlider = ActiveSlider.FONT_SHADOW_ALPHA
-                            liveShadowAlpha = it
-                        },
-                        valueRange = 0f..1f,
-                        valueText = "${(liveShadowAlpha * 100).toInt()}%",
-                        onValueChangeFinished = {
-                            activeSlider = null
-                            updateEventFresh { it.copy(shadowAlpha = liveShadowAlpha) }
-                        },
-                    )
                 }
             }
         }
@@ -1399,11 +1405,22 @@ private fun FontCycleRow(
             style = MiuixTheme.textStyles.body1,
             modifier = Modifier.weight(1f),
         )
-        Text(
-            text = "$valueLabel ›",
-            color = MiuixTheme.colorScheme.primary,
-            style = MiuixTheme.textStyles.body1,
-        )
+        // Cycle value slides in from below while the old one slides up and
+        // fades — no hard text swap when tapping the row.
+        AnimatedContent(
+            targetState = valueLabel,
+            transitionSpec = {
+                (slideInVertically(tween(200)) { it / 2 } + fadeIn(tween(200))) togetherWith
+                    (slideOutVertically(tween(200)) { -it / 2 } + fadeOut(tween(200)))
+            },
+            label = "cycleValue",
+        ) { value ->
+            Text(
+                text = "$value ›",
+                color = MiuixTheme.colorScheme.primary,
+                style = MiuixTheme.textStyles.body1,
+            )
+        }
     }
 }
 
