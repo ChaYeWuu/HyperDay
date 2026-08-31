@@ -18,6 +18,8 @@ import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
@@ -497,48 +499,75 @@ fun EventDetailPage(
 
     val pageCanvas = MiuixTheme.colorScheme.surface
     val backdrop = rememberBlurBackdrop()
+    // Background-mode crossfade: 0 = solid canvas, 1 = wallpaper shell.
+    // Every mode-dependent visual (page canvas color, wallpaper layer,
+    // card/button colors, top bar) tracks this single progress, so
+    // switching between solid and wallpaper fades as one coherent motion
+    // instead of hard-cutting branch by branch.
+    val modeProgress by animateFloatAsState(
+        targetValue = if (wallpaperConfigured) 1f else 0f,
+        animationSpec = tween(350),
+        label = "bgModeProgress",
+    )
+    val pageColor by animateColorAsState(
+        targetValue = if (wallpaperConfigured) Color.Black else pageCanvas,
+        animationSpec = tween(350),
+        label = "pageColor",
+    )
+    // Keep the last decoded bitmap around so switching BACK to solid fades
+    // the image out (modeProgress 1 -> 0) instead of dropping it in one
+    // frame the moment wallpaperUri becomes null.
+    var lastWallpaper by remember { mutableStateOf<WallpaperInfo?>(null) }
+    if (wallpaper != null) lastWallpaper = wallpaper
+    val displayWallpaper = wallpaper ?: lastWallpaper
     Scaffold(
-        containerColor = if (wallpaperConfigured) Color.Black else pageCanvas,
+        containerColor = pageColor,
         topBar = {
-            if (wallpaperConfigured) {
-                // Wallpaper mode: the image fills the whole scaffold (under
-                // the bar too), so the bar is plain transparent. The back
-                // icon adapts to the wallpaper brightness. No title — the
-                // card below already shows the event name big.
-                SmallTopAppBar(
-                    title = "",
-                    color = Color.Transparent,
-                    navigationIcon = {
-                        IconButton(onClick = onBack) {
-                            Icon(
-                                imageVector = MiuixIcons.Back,
-                                contentDescription = "返回",
-                                tint = actionColor,
-                            )
-                        }
-                    },
-                )
-            } else {
-                BlurredBar(backdrop) {
+            Crossfade(
+                targetState = wallpaperConfigured,
+                animationSpec = tween(350),
+                label = "topBarMode",
+            ) { wp ->
+                if (wp) {
+                    // Wallpaper mode: the image fills the whole scaffold
+                    // (under the bar too), so the bar is plain transparent.
+                    // The back icon adapts to the wallpaper brightness. No
+                    // title — the card below already shows the event name.
                     SmallTopAppBar(
                         title = "",
-                        color = if (backdrop != null)
-                            Color.Transparent
-                        else
-                            pageCanvas,
+                        color = Color.Transparent,
                         navigationIcon = {
                             IconButton(onClick = onBack) {
                                 Icon(
                                     imageVector = MiuixIcons.Back,
                                     contentDescription = "返回",
-                                    tint = if (fontColorCustom)
-                                        actionColor
-                                    else
-                                        MiuixTheme.colorScheme.onSurface,
+                                    tint = actionColor,
                                 )
                             }
                         },
                     )
+                } else {
+                    BlurredBar(backdrop) {
+                        SmallTopAppBar(
+                            title = "",
+                            color = if (backdrop != null)
+                                Color.Transparent
+                            else
+                                pageCanvas,
+                            navigationIcon = {
+                                IconButton(onClick = onBack) {
+                                    Icon(
+                                        imageVector = MiuixIcons.Back,
+                                        contentDescription = "返回",
+                                        tint = if (fontColorCustom)
+                                            actionColor
+                                        else
+                                            MiuixTheme.colorScheme.onSurface,
+                                    )
+                                }
+                            },
+                        )
+                    }
                 }
             }
         },
@@ -563,6 +592,26 @@ fun EventDetailPage(
         )
 
         val cardContent: @Composable () -> Unit = {
+            // The card background follows the mode crossfade: the solid
+            // surface-container card dissolves into the transparent glass
+            // card as the wallpaper layer fades in (and back on revert).
+            val cardTransparent = cardBackdrop != null || liquidActive || wallpaperConfigured
+            val cardBg by animateColorAsState(
+                targetValue = if (cardTransparent)
+                    Color.Transparent
+                else
+                    MiuixTheme.colorScheme.surfaceContainer,
+                animationSpec = tween(350),
+                label = "cardBg",
+            )
+            val cardFg by animateColorAsState(
+                targetValue = if (cardTransparent)
+                    Color.Transparent
+                else
+                    MiuixTheme.colorScheme.onSurface,
+                animationSpec = tween(350),
+                label = "cardFg",
+            )
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -585,14 +634,7 @@ fun EventDetailPage(
                         }
                     ),
                 insideMargin = PaddingValues(24.dp),
-                colors = if (cardBackdrop != null || liquidActive || wallpaperConfigured) {
-                    // Wallpaper mode (including the brief decode-pending
-                    // window) keeps the card transparent so the solid card
-                    // background never flashes before the glass kicks in.
-                    CardDefaults.defaultColors(Color.Transparent, Color.Transparent)
-                } else {
-                    CardDefaults.defaultColors()
-                },
+                colors = CardDefaults.defaultColors(cardBg, cardFg),
             ) {
                 Column(
                     modifier = Modifier.fillMaxWidth(),
@@ -721,16 +763,25 @@ fun EventDetailPage(
                 // Non-glass fallback look: an explicit font color tints the
                 // circle; wallpaper mode (incl. the brief decode-pending
                 // window) uses a translucent circle so the solid
-                // surfaceContainer never pops on the dark shell.
-                val btnFallbackContainer = when {
-                    fontColorCustom -> actionColor.copy(alpha = 0.18f)
-                    wallpaperConfigured -> Color.White.copy(alpha = 0.15f)
-                    else -> MiuixTheme.colorScheme.surfaceContainer
-                }
-                val btnFallbackContent = when {
-                    fontColorCustom || wallpaperConfigured -> onBackgroundText
-                    else -> MiuixTheme.colorScheme.onSurface
-                }
+                // surfaceContainer never pops on the dark shell. Both
+                // colors ride the mode crossfade for a smooth switch.
+                val btnFallbackContainer by animateColorAsState(
+                    targetValue = when {
+                        fontColorCustom -> actionColor.copy(alpha = 0.18f)
+                        wallpaperConfigured -> Color.White.copy(alpha = 0.15f)
+                        else -> MiuixTheme.colorScheme.surfaceContainer
+                    },
+                    animationSpec = tween(350),
+                    label = "btnContainer",
+                )
+                val btnFallbackContent by animateColorAsState(
+                    targetValue = when {
+                        fontColorCustom || wallpaperConfigured -> onBackgroundText
+                        else -> MiuixTheme.colorScheme.onSurface
+                    },
+                    animationSpec = tween(350),
+                    label = "btnContent",
+                )
                 Row(
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
@@ -778,7 +829,7 @@ fun EventDetailPage(
                     ) { showBackgroundDialog = true }
                     ActionButton(
                         icon = MiuixIcons.Rename,
-                        label = "字体",
+                        label = "字体设置",
                         onCardText = onBackgroundText,
                         glassBackdrop = cardBackdrop,
                         glassBlend = glassBlend,
@@ -793,61 +844,69 @@ fun EventDetailPage(
         }
 
         // Record everything under the top bar so the progressive blur can
-        // sample it, then layer the chosen background mode.
+        // sample it, then layer the chosen background mode. The wallpaper
+        // layer stays composed while modeProgress > 0 so both directions of
+        // the solid <-> wallpaper switch crossfade; content() lives in ONE
+        // place so no state inside it resets mid-transition.
+        val showingWallpaperLayer = wallpaperConfigured || modeProgress > 0.01f
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .then(if (backdrop != null && !wallpaperConfigured) Modifier.layerBackdrop(backdrop) else Modifier),
+                .then(
+                    if (backdrop != null && modeProgress < 0.99f)
+                        Modifier.layerBackdrop(backdrop)
+                    else
+                        Modifier
+                ),
         ) {
-            when {
+            if (showingWallpaperLayer) {
                 // Custom gallery wallpaper: fills the whole scaffold —
                 // including behind the transparent top bar — blurred at the
                 // user-chosen radius with an adjustable dark scrim. While the
-                // bitmap is still decoding this branch renders the black
-                // shell only (no flash of the solid canvas).
-                wallpaperConfigured -> {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .then(
-                                if (cardBackdrop != null)
-                                    Modifier.layerBackdrop(cardBackdrop)
-                                else
-                                    Modifier
-                            )
-                            .then(
-                                if (liquidBackdrop != null)
-                                    Modifier.liquidLayerBackdrop(liquidBackdrop)
-                                else
-                                    Modifier
-                            ),
-                    ) {
-                        if (wallpaper != null) {
-                            Image(
-                                bitmap = wallpaper!!.bitmap,
-                                contentDescription = null,
-                                contentScale = ContentScale.Crop,
+                // bitmap is still decoding this layer renders the black shell
+                // only (no flash of the solid canvas). Fade in/out rides
+                // modeProgress; a fresh decode additionally fades via
+                // wallpaperAlpha over the fading-in layer.
+                val layerAlpha = modeProgress * (if (hasWallpaper) wallpaperAlpha else 1f)
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .then(
+                            if (cardBackdrop != null)
+                                Modifier.layerBackdrop(cardBackdrop)
+                            else
+                                Modifier
+                        )
+                        .then(
+                            if (liquidBackdrop != null)
+                                Modifier.liquidLayerBackdrop(liquidBackdrop)
+                            else
+                                Modifier
+                        ),
+                ) {
+                    if (displayWallpaper != null) {
+                        Image(
+                            bitmap = displayWallpaper!!.bitmap,
+                            contentDescription = null,
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .blur(effBgBlur.dp)
+                                .graphicsLayer { alpha = layerAlpha },
+                        )
+                        // Dark scrim for text readability over any photo.
+                        if (effBgDim > 0.01f) {
+                            Box(
                                 modifier = Modifier
                                     .fillMaxSize()
-                                    .blur(effBgBlur.dp)
-                                    .graphicsLayer { alpha = wallpaperAlpha },
+                                    .graphicsLayer { alpha = layerAlpha }
+                                    .background(Color.Black.copy(alpha = effBgDim)),
                             )
-                            // Dark scrim for text readability over any photo.
-                            if (effBgDim > 0.01f) {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .graphicsLayer { alpha = wallpaperAlpha }
-                                        .background(Color.Black.copy(alpha = effBgDim)),
-                                )
-                            }
                         }
                     }
-                    content()
                 }
-                // Solid Miuix canvas.
-                else -> content()
             }
+            content()
 
             // Custom window-dim scrim for the customize-background dialog.
             // The dialog's built-in enableWindowDim scrim can only snap on
