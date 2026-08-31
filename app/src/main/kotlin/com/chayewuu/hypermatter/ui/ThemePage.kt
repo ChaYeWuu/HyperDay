@@ -16,8 +16,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.collectAsState
@@ -31,11 +29,17 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Outline
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipPath
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -313,8 +317,12 @@ private fun AppearanceCard(
                 .fillMaxWidth()
                 .aspectRatio(480f / 680f)
                 // Bound the press ripple to the card's rounded shape (a bare
-                // Box would clip the indication to a rectangle).
-                .clip(RoundedCornerShape(24.dp))
+                // Box would clip the indication to a rectangle). Uses the
+                // SAME smooth continuous curve as the hand-drawn border —
+                // a standard RoundedCornerShape arc would bite into the
+                // border's corners (radius 25.5dp fully contains the 3dp
+                // stroke drawn at radius 24dp inset 1.5dp).
+                .clip(SmoothRoundedShape(25.5.dp))
                 .drawBehind {
                     if (borderColor != Color.Transparent) {
                         drawSmoothRoundedShape(
@@ -412,4 +420,37 @@ private fun DrawScope.drawSmoothRoundedShape(
     } else {
         drawPath(path, color = color, style = Stroke(width = strokeWidth))
     }
+}
+
+/**
+ * A [Shape] whose outline is the same smooth continuous curve family as
+ * the card border (straight edges blended into corner arcs with
+ * quadratic curves). Used to clip the press ripple to the card
+ * silhouette: a standard [androidx.compose.foundation.shape.RoundedCornerShape]
+ * arc has a different corner geometry than the hand-drawn border and
+ * bites into its corners.
+ */
+private class SmoothRoundedShape(
+    private val radius: Dp,
+) : Shape {
+    override fun createOutline(
+        size: Size,
+        layoutDirection: LayoutDirection,
+        density: Density,
+    ): Outline = Outline.Generic(
+        Path().apply {
+            val r = with(density) { radius.toPx() }
+                .coerceAtMost(minOf(size.width, size.height) / 2f)
+            moveTo(r, 0f)
+            lineTo(size.width - r, 0f)
+            quadraticTo(size.width, 0f, size.width, r)
+            lineTo(size.width, size.height - r)
+            quadraticTo(size.width, size.height, size.width - r, size.height)
+            lineTo(r, size.height)
+            quadraticTo(0f, size.height, 0f, size.height - r)
+            lineTo(0f, r)
+            quadraticTo(0f, 0f, r, 0f)
+            close()
+        }
+    )
 }

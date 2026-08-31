@@ -1,7 +1,11 @@
 package com.chayewuu.hypermatter.ui
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Box
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
@@ -18,6 +22,7 @@ import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.chayewuu.hypermatter.data.CountdownEvent
+import kotlin.math.roundToInt
 import top.yukonga.miuix.kmp.basic.Text
 
 /**
@@ -94,6 +99,10 @@ val FontSettings.hasExplicitTextColor: Boolean
  * dragged. Callers can opt an element out entirely with
  * [applyScale] = false (used by the big day number, whose 88sp glyphs
  * would visually overflow the card at high scales).
+ *
+ * Every property animates over 200ms: discrete picks from the font dialog
+ * (weight cycle, color cycle, stroke/shadow switches, palette picks) ease
+ * in instead of hard-cutting, and slider drags get slightly smoothed.
  */
 @Composable
 fun FancyText(
@@ -106,30 +115,72 @@ fun FancyText(
     defaultWeight: FontWeight? = null,
     applyScale: Boolean = true,
 ) {
-    val weight = when (settings.weightIdx) {
+    val fill by animateColorAsState(
+        targetValue = settings.resolvedTextColor(autoColor),
+        animationSpec = tween(200),
+        label = "fill",
+    )
+    val scale by animateFloatAsState(
+        targetValue = if (applyScale) settings.scale else 1f,
+        animationSpec = tween(200),
+        label = "scale",
+    )
+
+    // Weight interpolates numerically (400/500/700...) so cycling
+    // 常规 → 中等 → 粗体 glides instead of snapping.
+    val weightTarget = when (settings.weightIdx) {
         1 -> FontWeight.Normal
         2 -> FontWeight.Medium
         3 -> FontWeight.Bold
-        else -> defaultWeight
+        else -> defaultWeight ?: FontWeight.Normal
     }
-    val fill = settings.resolvedTextColor(autoColor)
+    val weightNum by animateFloatAsState(
+        targetValue = weightTarget.weight.toFloat(),
+        animationSpec = tween(200),
+        label = "weight",
+    )
+    val weight = FontWeight(weightNum.roundToInt())
+
     val baseSize = (if (fontSize != TextUnit.Unspecified) fontSize else style.fontSize)
         .takeIf { it != TextUnit.Unspecified }
         ?: 16.sp
 
+    // Shadow: fades in/out via a 0..1 progress; color, blur and density
+    // animate too so switching the shadow color glides.
+    val shadowOnProgress by animateFloatAsState(
+        targetValue = if (settings.shadowOn) 1f else 0f,
+        animationSpec = tween(200),
+        label = "shadowOn",
+    )
+    val shadowAlpha by animateFloatAsState(
+        targetValue = settings.shadowAlpha,
+        animationSpec = tween(200),
+        label = "shadowAlpha",
+    )
+    val shadowBlur by animateFloatAsState(
+        targetValue = settings.shadowBlurDp,
+        animationSpec = tween(200),
+        label = "shadowBlur",
+    )
+    val shadowColorBase = when (settings.shadowColorIdx) {
+        1 -> Color.White
+        2 -> Color.Black
+        3 -> settings.shadowColorCustom
+        else -> if (fill.luminance() > 0.5f) Color.Black else Color.White
+    }
+    val shadowColor by animateColorAsState(
+        targetValue = shadowColorBase,
+        animationSpec = tween(200),
+        label = "shadowColor",
+    )
+
     val density = LocalDensity.current
-    val shadow = if (settings.shadowOn) {
-        val shadowColor = when (settings.shadowColorIdx) {
-            1 -> Color.White
-            2 -> Color.Black
-            3 -> settings.shadowColorCustom
-            else -> if (fill.luminance() > 0.5f) Color.Black else Color.White
-        }
+    val shadow = if (shadowOnProgress > 0.01f) {
         with(density) {
             Shadow(
-                color = shadowColor.copy(alpha = settings.shadowAlpha),
+                color = shadowColor.copy(alpha = (shadowAlpha * shadowOnProgress).coerceIn(0f, 1f)),
                 offset = Offset(0f, 2.dp.toPx()),
-                blurRadius = settings.shadowBlurDp.dp.toPx(),
+                blurRadius = shadowBlur.dp.toPx(),
             )
         }
     } else {
@@ -144,33 +195,57 @@ fun FancyText(
 
     // Layout-stable visual scale: laid out at the base size, scaled around
     // the center at draw time — the card never resizes.
-    val scaleModifier = if (applyScale && settings.scale != 1f) {
+    val scaleModifier = if (scale != 1f) {
         Modifier.graphicsLayer {
-            scaleX = settings.scale
-            scaleY = settings.scale
+            scaleX = scale
+            scaleY = scale
         }
     } else {
         Modifier
     }
 
-    if (settings.strokeOn) {
+    // Outline: same fade-progress trick — the stroke layer's alpha rides
+    // the toggle so switching the outline on/off never pops.
+    val strokeOnProgress by animateFloatAsState(
+        targetValue = if (settings.strokeOn) 1f else 0f,
+        animationSpec = tween(200),
+        label = "strokeOn",
+    )
+    val strokeWidth by animateFloatAsState(
+        targetValue = settings.strokeWidthDp,
+        animationSpec = tween(200),
+        label = "strokeWidth",
+    )
+    val strokeColorBase = when (settings.strokeColorIdx) {
+        1 -> Color.White
+        2 -> Color.Black
+        3 -> settings.strokeColorCustom
+        else -> if (fill.luminance() > 0.5f) Color.Black else Color.White
+    }
+    val strokeColor by animateColorAsState(
+        targetValue = strokeColorBase,
+        animationSpec = tween(200),
+        label = "strokeColor",
+    )
+
+    if (strokeOnProgress > 0.01f) {
         // Contrast outline: light glyphs get a dark rim and vice versa, so
         // the outline is always visible against both the fill and the page.
-        val strokeColor = when (settings.strokeColorIdx) {
-            1 -> Color.White
-            2 -> Color.Black
-            3 -> settings.strokeColorCustom
-            else -> if (fill.luminance() > 0.5f) Color.Black else Color.White
-        }
         val drawStroke = with(density) {
             Stroke(
-                width = settings.strokeWidthDp.dp.toPx(),
+                width = strokeWidth.dp.toPx(),
                 join = StrokeJoin.Round,
                 cap = StrokeCap.Round,
             )
         }
         Box(modifier = modifier.then(scaleModifier)) {
-            Text(text = text, style = base.copy(color = strokeColor, drawStyle = drawStroke))
+            Text(
+                text = text,
+                style = base.copy(
+                    color = strokeColor.copy(alpha = strokeOnProgress),
+                    shadow = null,
+                ),
+            )
             Text(text = text, style = base)
         }
     } else {
