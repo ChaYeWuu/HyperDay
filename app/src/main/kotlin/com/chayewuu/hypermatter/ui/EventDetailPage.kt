@@ -81,6 +81,7 @@ import com.chayewuu.hypermatter.ui.theme.LocalSettingsStore
 import com.kyant.backdrop.backdrops.LayerBackdrop as LiquidBackdrop
 import com.kyant.backdrop.backdrops.layerBackdrop as liquidLayerBackdrop
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import top.yukonga.miuix.kmp.basic.Card
@@ -250,6 +251,22 @@ fun EventDetailPage(
 
     var showBackgroundDialog by remember { mutableStateOf(false) }
     var showFontDialog by remember { mutableStateOf(false) }
+
+    // Click-type font adjustments (cycle rows, switches, palettes, reset)
+    // have no slider thumb to hold, so the dialog normally just sits on top
+    // of the card and hides the very animation the user is tuning. Each such
+    // click bumps this trigger; the font dialog then sinks out of the way
+    // for a moment (same 240dp fade the sliders use) so the card's 200ms
+    // text animation is visible, then returns automatically.
+    var fontPeekTrigger by remember { mutableStateOf(0) }
+    var fontPeekActive by remember { mutableStateOf(false) }
+    LaunchedEffect(fontPeekTrigger) {
+        if (fontPeekTrigger > 0) {
+            fontPeekActive = true
+            delay(1500)
+            fontPeekActive = false
+        }
+    }
 
     val isPast = DateUtils.isPastEvent(event)
     val dayNum = DateUtils.dayNumber(event)
@@ -914,7 +931,7 @@ fun EventDetailPage(
             // slider tuning. This one animates: it fades out together with
             // the sinking dialog and back in when it returns.
             val scrimAlpha by animateFloatAsState(
-                targetValue = if ((showBackgroundDialog || showFontDialog) && activeSlider == null) 1f else 0f,
+                targetValue = if ((showBackgroundDialog || showFontDialog) && activeSlider == null && !fontPeekActive) 1f else 0f,
                 animationSpec = tween(200),
                 label = "dialogScrim",
             )
@@ -1004,7 +1021,7 @@ fun EventDetailPage(
         // being tuned stays fully visible. The in-progress drag keeps working
         // (pointer events follow the pointer id, not the on-screen position).
         val dialogSink by animateFloatAsState(
-            targetValue = if (activeSlider != null) 1f else 0f,
+            targetValue = if (activeSlider != null || fontPeekActive) 1f else 0f,
             animationSpec = tween(200),
             label = "dialogSink",
         )
@@ -1156,6 +1173,7 @@ fun EventDetailPage(
                         liveFontStroke = 2.5f
                         liveShadowBlur = 8f
                         liveShadowAlpha = 0.45f
+                        fontPeekTrigger++
                     },
                 )
                 SliderPreference(
@@ -1179,6 +1197,7 @@ fun EventDetailPage(
                     updateEventFresh {
                         it.copy(fontWeight = ((it.fontWeight ?: 0) + 1) % FontWeightItems.size)
                     }
+                    fontPeekTrigger++
                 }
                 FontCycleRow(
                     label = "文字颜色",
@@ -1187,6 +1206,7 @@ fun EventDetailPage(
                     updateEventFresh {
                         it.copy(textColor = ((it.textColor ?: 0) + 1) % FontColorItems.size)
                     }
+                    fontPeekTrigger++
                 }
                 if (fs.colorIdx == 3) {
                     ColorPalette(
@@ -1195,6 +1215,7 @@ fun EventDetailPage(
                             updateEventFresh {
                                 it.copy(textColorCustom = c.toArgb().toLong())
                             }
+                            fontPeekTrigger++
                         },
                     )
                 }
@@ -1204,6 +1225,7 @@ fun EventDetailPage(
                     checked = fs.strokeOn,
                     onCheckedChange = { checked ->
                         updateEventFresh { it.copy(fontStroke = checked) }
+                        fontPeekTrigger++
                     },
                 )
                 if (fs.strokeOn) {
@@ -1228,6 +1250,7 @@ fun EventDetailPage(
                         updateEventFresh {
                             it.copy(strokeColor = ((it.strokeColor ?: 0) + 1) % StrokeColorItems.size)
                         }
+                        fontPeekTrigger++
                     }
                     if (fs.strokeColorIdx == 3) {
                         ColorPalette(
@@ -1236,6 +1259,7 @@ fun EventDetailPage(
                                 updateEventFresh {
                                     it.copy(strokeColorCustom = c.toArgb().toLong())
                                 }
+                                fontPeekTrigger++
                             },
                         )
                     }
@@ -1246,6 +1270,7 @@ fun EventDetailPage(
                     checked = fs.shadowOn,
                     onCheckedChange = { checked ->
                         updateEventFresh { it.copy(fontShadow = checked) }
+                        fontPeekTrigger++
                     },
                 )
                 if (fs.shadowOn) {
@@ -1256,6 +1281,7 @@ fun EventDetailPage(
                         updateEventFresh {
                             it.copy(shadowColor = ((it.shadowColor ?: 0) + 1) % ShadowColorItems.size)
                         }
+                        fontPeekTrigger++
                     }
                     if (fs.shadowColorIdx == 3) {
                         ColorPalette(
@@ -1264,6 +1290,7 @@ fun EventDetailPage(
                                 updateEventFresh {
                                     it.copy(shadowColorCustom = c.toArgb().toLong())
                                 }
+                                fontPeekTrigger++
                             },
                         )
                     }
