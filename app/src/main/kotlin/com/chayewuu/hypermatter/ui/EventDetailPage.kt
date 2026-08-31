@@ -305,13 +305,6 @@ fun EventDetailPage(
     // through (that was the white/black blink on entering the page).
     val wallpaperConfigured = event.wallpaperUri != null
     val hasWallpaper = wallpaperConfigured && wallpaper != null
-    // Bright wallpapers flip the card/button text to dark for readability.
-    val isLightWallpaper = (wallpaper?.luminance ?: 0f) > 0.5f
-
-    val bgMode = when {
-        wallpaperConfigured -> BgMode.WALLPAPER
-        else -> BgMode.SOLID
-    }
 
     // The frosted-glass card/buttons only make sense over a wallpaper (they
     // sample what's behind them). On the solid canvas they would blur a flat
@@ -969,11 +962,22 @@ fun EventDetailPage(
             // Dimming is handled by the page's own animated scrim above.
             enableWindowDim = false,
         ) {
+            // The popup content lives in the Scaffold popup host's own
+            // composition; plain values captured outside it (bgMode, event
+            // fields) can go stale there — the page's recomposition does
+            // not reliably propagate a fresh content lambda into the popup.
+            // Reading the store's StateFlow INSIDE this scope keeps every
+            // row, check mark and slider section live (same mechanism that
+            // already makes the sliders track liveBgBlur etc.).
+            val liveEvents by viewModel.events.collectAsState()
+            val liveEvent = liveEvents.firstOrNull { it.id == eventId } ?: event
+            val dialogBgMode =
+                if (liveEvent.wallpaperUri != null) BgMode.WALLPAPER else BgMode.SOLID
             Column {
                 BgModeRow(
                     icon = MiuixIcons.Background,
                     label = "纯色背景",
-                    selected = bgMode == BgMode.SOLID,
+                    selected = dialogBgMode == BgMode.SOLID,
                 ) {
                     updateEventFresh {
                         it.copy(wallpaperUri = null, dynamicBg = null, cardColor = null)
@@ -982,7 +986,7 @@ fun EventDetailPage(
                 BgModeRow(
                     icon = MiuixIcons.Image,
                     label = "自定义壁纸",
-                    selected = bgMode == BgMode.WALLPAPER,
+                    selected = dialogBgMode == BgMode.WALLPAPER,
                 ) {
                     wallpaperPicker.launch(
                         PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
@@ -990,7 +994,7 @@ fun EventDetailPage(
                 }
 
                 // ---- Live tuning sliders ----
-                if (bgMode == BgMode.WALLPAPER) {
+                if (dialogBgMode == BgMode.WALLPAPER) {
                     SliderPreference(
                         title = "背景模糊度",
                         value = liveBgBlur,
@@ -1020,7 +1024,7 @@ fun EventDetailPage(
                         },
                     )
                 }
-                if (bgMode == BgMode.WALLPAPER && glassSupported) {
+                if (dialogBgMode == BgMode.WALLPAPER && glassSupported) {
                     SliderPreference(
                         title = "卡片模糊度",
                         value = liveCardBlur,
@@ -1043,7 +1047,6 @@ fun EventDetailPage(
         // inside the Scaffold, no root rendering, custom scrim, sinks away
         // while a slider thumb is held so the card text stays visible).
         // The content scrolls — the full option set exceeds one screen.
-        val fs = event.fontSettings()
         OverlayDialog(
             title = "字体设置",
             summary = "自定义这张卡片的文字样式；点击选项值循环切换",
@@ -1056,6 +1059,13 @@ fun EventDetailPage(
             },
             enableWindowDim = false,
         ) {
+            // Same live-read pattern as the background dialog above: the
+            // font settings come from the store's CURRENT state so every
+            // cycle row, switch, palette and conditional section updates
+            // the moment a write lands — no exit-and-reenter needed.
+            val liveEvents by viewModel.events.collectAsState()
+            val liveEvent = liveEvents.firstOrNull { it.id == eventId } ?: event
+            val fs = liveEvent.fontSettings()
             Column(
                 modifier = Modifier.verticalScroll(rememberScrollState()),
             ) {
