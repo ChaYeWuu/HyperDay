@@ -63,6 +63,20 @@ class EventStore(context: Context) {
         _events.value = emptyList()
     }
 
+    /**
+     * Merge imported events into the store. Events whose id already exists
+     * are skipped. Returns the number of newly added events.
+     */
+    fun importEvents(events: List<CountdownEvent>): Int {
+        val existing = _events.value.map { it.id }.toHashSet()
+        val fresh = events.filterNot { existing.contains(it.id) }
+        if (fresh.isEmpty()) return 0
+        val updated = _events.value + fresh
+        persist(updated)
+        _events.value = updated
+        return fresh.size
+    }
+
     /** Seed a couple of sample events the first time the app is opened. */
     private fun defaultSeed(): List<CountdownEvent> {
         val today = DateUtils.today()

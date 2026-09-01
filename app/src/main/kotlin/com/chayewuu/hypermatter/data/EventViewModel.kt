@@ -48,6 +48,8 @@ class EventViewModel(
         store.clearAll()
     }
 
+    fun importEvents(events: List<CountdownEvent>): Int = store.importEvents(events)
+
     companion object {
         val Factory: ViewModelProvider.Factory = viewModelFactory {
             initializer {
