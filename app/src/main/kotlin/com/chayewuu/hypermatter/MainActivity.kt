@@ -1,7 +1,9 @@
 package com.chayewuu.hypermatter
 
+import android.os.Build
 import android.os.Bundle
 import android.view.HapticFeedbackConstants
+import android.view.RoundedCorner
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
@@ -25,7 +27,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.chayewuu.hypermatter.data.EventStore
 import com.chayewuu.hypermatter.data.EventViewModel
@@ -145,6 +149,39 @@ private sealed interface Route : NavKey {
     data class EventDetail(val id: String) : Route
 }
 
+/**
+ * System-adaptive corner radius for page transitions: prefer the device's
+ * actual display corner radius (WindowInsets RoundedCorner, API 31+), then
+ * the system dialog corner radius (config_dialogCornerRadius), falling back
+ * to 18.dp when neither is available.
+ */
+@Composable
+private fun rememberSystemCornerRadius(): Dp {
+    val view = LocalView.current
+    return remember(view) {
+        var radiusPx = 0
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            radiusPx = view.rootWindowInsets
+                ?.getRoundedCorner(RoundedCorner.POSITION_TOP_LEFT)
+                ?.radius ?: 0
+        }
+        if (radiusPx <= 0) {
+            radiusPx = try {
+                val field = Class.forName("com.android.internal.R\$dimen")
+                    .getField("config_dialogCornerRadius")
+                view.resources.getDimensionPixelSize(field.getInt(null))
+            } catch (_: Exception) {
+                0
+            }
+        }
+        if (radiusPx > 0) {
+            (radiusPx / view.resources.displayMetrics.density).dp
+        } else {
+            18.dp
+        }
+    }
+}
+
 @Composable
 private fun App() {
     // Liquid Glass app style: enabled by the settings switch and only when
@@ -165,6 +202,7 @@ private fun App() {
     }
 
     val backStack = rememberNavBackStack<Route>(Route.Main)
+    val systemCorner = rememberSystemCornerRadius()
 
     CompositionLocalProvider(LocalGlassEnabled provides glassEnabled) {
         // Official Miuix navigation: NavDisplay + NavTransitions.MiuixDefault —
@@ -180,8 +218,10 @@ private fun App() {
             transition = NavTransitions.MiuixDefault,
             effects = NavDisplayEffects(
                 // Official iOS-style corner clip: the entering page gets
-                // rounded corners while it slides in from the edge.
-                cornerClipRadius = 18.dp,
+                // rounded corners while it slides in from the edge. Radius
+                // follows the system: the device's display corner radius
+                // when available, else the system dialog corner radius.
+                cornerClipRadius = systemCorner,
                 dimAmount = 0.5f,
             ),
         ) {
