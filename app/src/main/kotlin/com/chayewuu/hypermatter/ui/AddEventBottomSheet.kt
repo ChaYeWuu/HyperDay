@@ -347,11 +347,14 @@ fun AddEventBottomSheet(
                         )
                     }
 
-                    // Date picker — three NumberPickers side by side
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        insideMargin = PaddingValues(16.dp),
-                    ) {
+                    // Date picker — only meaningful for one-off events.
+                    // Recurring events get their parameters (weekday /
+                    // month-day / lunar date / time) from the config page.
+                    if (repeatType == 0) {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            insideMargin = PaddingValues(16.dp),
+                        ) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.Center,
@@ -392,38 +395,46 @@ fun AddEventBottomSheet(
                                 modifier = Modifier.weight(1f),
                             )
                         }
+                        }
                     }
 
                     // One-line live preview (compact — keeps the form
                     // short enough to never need scrolling).
-                    val selectedDate = safeLocalDate(year, month, day)
-                    val nextDate = if (repeatType != 0) {
-                        val probe = com.chayewuu.hypermatter.data.CountdownEvent(
-                            id = "preview",
-                            title = "",
-                            epochDay = selectedDate.toEpochDay(),
-                            note = null,
-                            repeatType = repeatType,
-                            lunarMonth = lunarMonth,
-                            lunarDay = lunarDay,
-                            repeatWeekday = if (repeatType == 2) weekday else null,
-                            repeatMonthDay = if (repeatType == 3 || repeatType == 4) monthDay else null,
-                            repeatYearMonth = if (repeatType == 4) yearMonth else null,
-                            timeHour = if (repeatType == 1) hour else null,
-                            timeMinute = if (repeatType == 1) minute else null,
-                        )
-                        DateUtils.effectiveDate(probe)
-                    } else {
-                        selectedDate
-                    }
-                    val diff = nextDate.toEpochDay() - DateUtils.todayEpochDay()
-                    val dayText = when {
-                        diff == 0L -> "就是今天"
-                        diff > 0 -> "距离 ${nextDate.year}年${nextDate.monthValue}月${nextDate.dayOfMonth}日 还有 $diff 天"
-                        else -> "距离 ${nextDate.year}年${nextDate.monthValue}月${nextDate.dayOfMonth}日 已过去 ${-diff} 天"
+                    val previewText = when (repeatType) {
+                        0 -> {
+                            val selectedDate = safeLocalDate(year, month, day)
+                            val diff = selectedDate.toEpochDay() - DateUtils.todayEpochDay()
+                            when {
+                                diff == 0L -> "就是今天"
+                                diff > 0 -> "距离 ${selectedDate.year}年${selectedDate.monthValue}月${selectedDate.dayOfMonth}日 还有 $diff 天"
+                                else -> "距离 ${selectedDate.year}年${selectedDate.monthValue}月${selectedDate.dayOfMonth}日 已过去 ${-diff} 天"
+                            }
+                        }
+                        // Daily: the countdown is always "today" — just the rule.
+                        1 -> repeatSummary
+                        else -> {
+                            val probe = com.chayewuu.hypermatter.data.CountdownEvent(
+                                id = "preview",
+                                title = "",
+                                epochDay = DateUtils.todayEpochDay(),
+                                note = null,
+                                repeatType = repeatType,
+                                lunarMonth = lunarMonth,
+                                lunarDay = lunarDay,
+                                repeatWeekday = if (repeatType == 2) weekday else null,
+                                repeatMonthDay = if (repeatType == 3 || repeatType == 4) monthDay else null,
+                                repeatYearMonth = if (repeatType == 4) yearMonth else null,
+                                timeHour = if (repeatType == 1) hour else null,
+                                timeMinute = if (repeatType == 1) minute else null,
+                            )
+                            val nextDate = DateUtils.effectiveDate(probe)
+                            val diff = nextDate.toEpochDay() - DateUtils.todayEpochDay()
+                            if (diff == 0L) "「$repeatSummary」 就是今天"
+                            else "「$repeatSummary」 下次 ${nextDate.year}年${nextDate.monthValue}月${nextDate.dayOfMonth}日，还有 $diff 天"
+                        }
                     }
                     Text(
-                        text = if (repeatType != 0) "「$repeatSummary」 $dayText" else dayText,
+                        text = previewText,
                         color = MiuixTheme.colorScheme.primary,
                         style = MiuixTheme.textStyles.subtitle,
                         modifier = Modifier.padding(horizontal = 16.dp),
