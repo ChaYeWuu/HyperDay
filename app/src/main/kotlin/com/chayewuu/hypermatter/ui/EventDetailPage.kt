@@ -259,8 +259,12 @@ fun EventDetailPage(
 
     val isPast = DateUtils.isPastEvent(event)
     val dayNum = DateUtils.dayNumber(event)
-    val dateStr = DateUtils.formatDate(event.epochDay)
-    val weekday = DateUtils.weekdayLabel(event.epochDay)
+    // Recurring events display their next occurrence + repeat label.
+    val effectiveDay = DateUtils.effectiveEpochDay(event)
+    val dateStr = DateUtils.formatDate(effectiveDay)
+    val weekday = DateUtils.weekdayLabel(effectiveDay)
+    val repeatLabel = DateUtils.repeatLabel(event)
+    val dateLine = if (repeatLabel.isNotBlank()) "$repeatLabel · $dateStr" else "$dateStr $weekday"
 
     val glassSupported = isRuntimeShaderSupported()
     val colorMode by settingsStore.colorMode.collectAsState()
@@ -345,7 +349,7 @@ fun EventDetailPage(
 
     fun shareEvent() {
         val text = "「${event.title}」${DateUtils.describe(event)}" +
-            "（${dateStr} $weekday）—— 来自 HyperDay"
+            "（${if (repeatLabel.isNotBlank()) "$repeatLabel · " else ""}$dateStr）—— 来自 HyperDay"
         val intent = Intent(Intent.ACTION_SEND).apply {
             type = "text/plain"
             putExtra(Intent.EXTRA_TEXT, text)
@@ -479,7 +483,7 @@ fun EventDetailPage(
                         note = event.note,
                         describe = DateUtils.describe(event),
                         dayNum = dayNum,
-                        dateLine = "$dateStr $weekday",
+                        dateLine = dateLine,
                         statusLabel = if (isPast) "已经过去" else "即将到来",
                         isPast = isPast,
                         cardArgb = event.cardColor,
@@ -720,14 +724,14 @@ fun EventDetailPage(
                         )
                         Spacer(Modifier.height(16.dp))
                         FancyText(
-                            text = "起始日",
+                            text = if (repeatLabel.isNotBlank()) "下次发生" else "起始日",
                             autoColor = onCardSummary,
                             settings = effFontSettings,
                             style = MiuixTheme.textStyles.footnote2,
                         )
                         Spacer(Modifier.height(4.dp))
                         FancyText(
-                            text = "$dateStr $weekday",
+                            text = dateLine,
                             autoColor = onCard,
                             settings = effFontSettings,
                             style = MiuixTheme.textStyles.body1,

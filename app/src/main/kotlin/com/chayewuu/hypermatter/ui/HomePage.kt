@@ -61,7 +61,9 @@ fun HomePage(
     val view = LocalView.current
 
     val upcoming = remember(events) {
-        events.filter { !DateUtils.isPastEvent(it) }.sortedBy { it.epochDay }
+        // Recurring events always target their next occurrence and never
+        // fall into the "past" bucket; sorting uses the effective date.
+        events.filter { !DateUtils.isPastEvent(it) }.sortedBy { DateUtils.effectiveEpochDay(it) }
     }
     val past = remember(events) {
         events.filter { DateUtils.isPastEvent(it) }.sortedByDescending { it.epochDay }
@@ -226,8 +228,12 @@ private fun EventCard(
 ) {
     val dayNum = DateUtils.dayNumber(event)
     val isPast = DateUtils.isPastEvent(event)
-    val dateStr = DateUtils.formatDate(event.epochDay)
-    val weekday = DateUtils.weekdayLabel(event.epochDay)
+    val effectiveDay = DateUtils.effectiveEpochDay(event)
+    val dateStr = DateUtils.formatDate(effectiveDay)
+    val weekday = DateUtils.weekdayLabel(effectiveDay)
+    val repeatLabel = DateUtils.repeatLabel(event)
+    // Date line: recurring events show their repeat rule + next occurrence.
+    val dateLine = if (repeatLabel.isNotBlank()) "$repeatLabel · $dateStr" else "$dateStr $weekday"
 
     LiquidGlassCard(
         modifier = modifier.fillMaxWidth(),
@@ -251,7 +257,7 @@ private fun EventCard(
                 )
                 Spacer(Modifier.height(4.dp))
                 Text(
-                    text = "$dateStr $weekday",
+                    text = dateLine,
                     color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                     style = MiuixTheme.textStyles.body2,
                 )

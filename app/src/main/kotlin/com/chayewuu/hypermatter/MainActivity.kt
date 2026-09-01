@@ -344,8 +344,8 @@ private fun MainTabs(
                 AddEventBottomSheet(
                     show = showAddSheet,
                     onDismiss = { showAddSheet = false },
-                    onConfirm = { title, epochDay, note ->
-                        viewModel.addEvent(title, epochDay, note)
+                    onConfirm = { title, epochDay, note, repeatType, lunarMonth, lunarDay ->
+                        viewModel.addEvent(title, epochDay, note, repeatType, lunarMonth, lunarDay)
                         showAddSheet = false
                     },
                 )

@@ -33,6 +33,12 @@ import kotlinx.serialization.Serializable
  * @param shadowColorCustom ARGB used when shadowColor == 3.
  * @param shadowBlur   shadow blur radius in dp (null = 8).
  * @param shadowAlpha  shadow opacity 0..1 (null = 0.45).
+ * @param repeatType      0/NULL = one-off; 1 = daily; 2 = weekly;
+ *                        3 = monthly; 4 = yearly (solar); 5 = yearly lunar.
+ *                        Recurring events always count down to their next
+ *                        occurrence (never "past").
+ * @param lunarMonth      For repeatType 5: lunar month of the anniversary.
+ * @param lunarDay        For repeatType 5: lunar day of the anniversary.
  */
 @Serializable
 data class CountdownEvent(
@@ -41,6 +47,9 @@ data class CountdownEvent(
     val epochDay: Long,
     val note: String? = null,
     val isPast: Boolean? = null,
+    val repeatType: Int? = null,
+    val lunarMonth: Int? = null,
+    val lunarDay: Int? = null,
     val cardColor: Long? = null,
     val wallpaperUri: String? = null,
     val dynamicBg: Boolean? = null,

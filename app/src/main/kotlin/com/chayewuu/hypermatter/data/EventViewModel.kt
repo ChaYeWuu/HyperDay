@@ -25,13 +25,23 @@ class EventViewModel(
             .filter { DateUtils.isPastEvent(it) }
             .sortedByDescending { it.epochDay }
 
-    fun addEvent(title: String, epochDay: Long, note: String?) {
+    fun addEvent(
+        title: String,
+        epochDay: Long,
+        note: String?,
+        repeatType: Int = 0,
+        lunarMonth: Int? = null,
+        lunarDay: Int? = null,
+    ) {
         store.add(
             CountdownEvent(
                 id = UUID.randomUUID().toString(),
                 title = title.trim(),
                 epochDay = epochDay,
                 note = note?.trim()?.ifBlank { null },
+                repeatType = repeatType.takeIf { it != 0 },
+                lunarMonth = lunarMonth,
+                lunarDay = lunarDay,
             )
         )
     }
