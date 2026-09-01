@@ -6,8 +6,8 @@
     android:layout_height="wrap_content"
     android:gravity="center_vertical"
     android:orientation="horizontal"
-    android:paddingTop="7dp"
-    android:paddingBottom="7dp">
+    android:paddingTop="8dp"
+    android:paddingBottom="8dp">
 
     <TextView
         android:id="@+id/widget_row_title"
@@ -15,6 +15,7 @@
         android:layout_height="wrap_content"
         android:layout_weight="1"
         android:ellipsize="end"
+        android:fontFamily="sans-serif-medium"
         android:maxLines="1"
         android:text=""
         android:textColor="@color/widget_text_primary"
@@ -33,13 +34,14 @@
 
     <TextView
         android:id="@+id/widget_row_days"
-        android:layout_width="34dp"
+        android:layout_width="38dp"
         android:layout_height="wrap_content"
+        android:fontFamily="sans-serif"
         android:gravity="end"
         android:includeFontPadding="false"
         android:text=""
         android:textColor="@color/widget_accent"
-        android:textSize="16sp"
+        android:textSize="17sp"
         android:textStyle="bold" />
 
     <TextView

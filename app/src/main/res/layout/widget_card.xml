@@ -6,29 +6,33 @@
     android:layout_height="match_parent"
     android:background="@drawable/widget_bg"
     android:orientation="vertical"
-    android:padding="16dp">
+    android:paddingStart="18dp"
+    android:paddingTop="16dp"
+    android:paddingEnd="18dp"
+    android:paddingBottom="16dp">
 
     <TextView
         android:id="@+id/widget_title"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:ellipsize="end"
+        android:fontFamily="sans-serif-medium"
+        android:letterSpacing="0.01"
         android:maxLines="1"
         android:text="@string/widget_empty_title"
         android:textColor="@color/widget_text_primary"
-        android:textSize="15sp"
-        android:textStyle="bold" />
+        android:textSize="16sp" />
 
     <TextView
         android:id="@+id/widget_date"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="2dp"
+        android:layout_marginTop="3dp"
         android:ellipsize="end"
         android:maxLines="1"
         android:text=""
         android:textColor="@color/widget_text_secondary"
-        android:textSize="11sp" />
+        android:textSize="12sp" />
 
     <!-- RemoteViews only whitelists specific view classes: Space is not
          allowed and makes the host fail to inflate ("Problem loading
@@ -49,18 +53,19 @@
             android:id="@+id/widget_days"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:fontFamily="sans-serif"
             android:includeFontPadding="false"
             android:text="--"
             android:textColor="@color/widget_accent"
-            android:textSize="40sp"
+            android:textSize="52sp"
             android:textStyle="bold" />
 
         <TextView
             android:id="@+id/widget_days_unit"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginStart="4dp"
-            android:layout_marginBottom="6dp"
+            android:layout_marginStart="6dp"
+            android:layout_marginBottom="9dp"
             android:text="天"
             android:textColor="@color/widget_text_secondary"
             android:textSize="14sp" />

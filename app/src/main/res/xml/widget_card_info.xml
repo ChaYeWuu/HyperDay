@@ -7,6 +7,7 @@
     android:resizeMode="horizontal|vertical"
     android:updatePeriodMillis="1800000"
     android:initialLayout="@layout/widget_card"
+    android:previewImage="@drawable/widget_card_preview"
     android:previewLayout="@layout/widget_card"
     android:description="@string/widget_card_desc"
     android:widgetCategory="home_screen" />

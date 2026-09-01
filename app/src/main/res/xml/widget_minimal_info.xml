@@ -6,6 +6,7 @@
     android:targetCellHeight="1"
     android:updatePeriodMillis="1800000"
     android:initialLayout="@layout/widget_minimal"
+    android:previewImage="@drawable/widget_minimal_preview"
     android:previewLayout="@layout/widget_minimal"
     android:description="@string/widget_minimal_desc"
     android:widgetCategory="home_screen" />
