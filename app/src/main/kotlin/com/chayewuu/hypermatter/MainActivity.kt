@@ -15,6 +15,7 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -92,6 +93,24 @@ class MainActivity : ComponentActivity() {
             val monetPaletteStyleValue = monetPaletteStyle
             val monetSeedColor by settingsStore.monetSeedColor.collectAsState()
             val monetSeedColorValue = monetSeedColor
+
+            // Status / navigation bar icons must follow the APP theme (the
+            // colorMode setting), not the system theme: auto() in onCreate
+            // follows the system dark mode, so a forced light app theme on
+            // a dark system would get invisible light icons. Re-apply
+            // edge-to-edge with the matching style whenever the app theme
+            // flips.
+            val appDark = when (colorMode) {
+                2 -> true
+                1 -> false
+                else -> isSystemInDarkTheme()
+            }
+            SideEffect {
+                enableEdgeToEdge(
+                    statusBarStyle = if (appDark) SystemBarStyle.dark(0) else SystemBarStyle.light(0, 0),
+                    navigationBarStyle = if (appDark) SystemBarStyle.dark(0) else SystemBarStyle.light(0, 0),
+                )
+            }
 
             MiuixAppTheme(
                 colorMode = colorModeValue,

@@ -8,7 +8,9 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -132,6 +134,7 @@ fun SettingsPage(
         }
 
         item {
+            Spacer(Modifier.height(12.dp))
             SmallTitle(text = "数据")
             LiquidGlassCard(
                 modifier = Modifier
@@ -140,7 +143,7 @@ fun SettingsPage(
             ) {
                 ArrowPreference(
                     title = "备份数据",
-                    summary = "导出全部倒数日为 HyperDay 备份文件",
+                    summary = "把全部倒数日导出为一个备份文件",
                     onClick = {
                         val stamp = LocalDateTime.now()
                             .format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"))
@@ -149,7 +152,7 @@ fun SettingsPage(
                 )
                 ArrowPreference(
                     title = "导入数据",
-                    summary = "支持 HyperDay 备份与官方倒数日 .idmbaks 备份",
+                    summary = "从备份文件恢复倒数日，重复的自动跳过",
                     enabled = !importing,
                     onClick = { importLauncher.launch(arrayOf("*/*")) },
                 )
@@ -162,6 +165,7 @@ fun SettingsPage(
         }
 
         item {
+            Spacer(Modifier.height(12.dp))
             SmallTitle(text = "其他")
             LiquidGlassCard(
                 modifier = Modifier
