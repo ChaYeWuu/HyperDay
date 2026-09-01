@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Single upcoming event card widget (2x2, resizable).
-     Day number is vertically centered between the header and the bottom,
-     horizontally centered too, large (72sp). -->
+<!-- Card widget (2x2, resizable). One event — user-picked via
+     Settings > 小部件 (WidgetPrefs), falls back to the nearest event.
+     Top-left tag pill shows 距离 (upcoming/recurring) or 过去 (past);
+     day number is vertically centered, 56sp. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/widget_root"
     android:layout_width="match_parent"
@@ -14,16 +15,30 @@
     android:paddingBottom="16dp">
 
     <TextView
+        android:id="@+id/widget_tag"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:background="@drawable/widget_tag_bg"
+        android:paddingStart="8dp"
+        android:paddingTop="2dp"
+        android:paddingEnd="8dp"
+        android:paddingBottom="3dp"
+        android:text="距离"
+        android:textColor="@color/widget_text_secondary"
+        android:textSize="11sp" />
+
+    <TextView
         android:id="@+id/widget_title"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
         android:ellipsize="end"
         android:fontFamily="sans-serif-medium"
         android:letterSpacing="0.01"
         android:maxLines="1"
         android:text="@string/widget_empty_title"
         android:textColor="@color/widget_text_primary"
-        android:textSize="16sp" />
+        android:textSize="22sp" />
 
     <TextView
         android:id="@+id/widget_date"
@@ -61,18 +76,18 @@
             android:includeFontPadding="false"
             android:text="--"
             android:textColor="@color/widget_accent"
-            android:textSize="72sp"
+            android:textSize="56sp"
             android:textStyle="bold" />
 
         <TextView
             android:id="@+id/widget_days_unit"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginStart="8dp"
-            android:layout_marginBottom="13dp"
+            android:layout_marginStart="6dp"
+            android:layout_marginBottom="10dp"
             android:text="天"
             android:textColor="@color/widget_text_secondary"
-            android:textSize="16sp" />
+            android:textSize="14sp" />
     </LinearLayout>
 
     <TextView

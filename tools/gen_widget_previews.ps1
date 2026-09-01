@@ -40,28 +40,47 @@ function Font([string]$name, [float]$size, [System.Drawing.FontStyle]$style) {
 $YaHei = 'Microsoft YaHei UI'
 
 # ---------------------------------------------------------------- card 2x2
-# Day number vertically centered between the header and the bottom edge,
-# horizontally centered, large.
+# Merged card widget: tag pill (距离/过去) top-left, title + date,
+# big centered day number.
 $bmp, $g = New-Canvas 600 600
 $pad = 60
 $bPrimary = New-Object System.Drawing.SolidBrush($Primary)
 $bSecondary = New-Object System.Drawing.SolidBrush($Secondary)
 $bAccent = New-Object System.Drawing.SolidBrush($Accent)
 
-$fTitle = Font $YaHei 42 ([System.Drawing.FontStyle]::Bold)
+$fTag = Font $YaHei 26 ([System.Drawing.FontStyle]::Regular)
+$fTitle = Font $YaHei 50 ([System.Drawing.FontStyle]::Bold)
 $fDate = Font $YaHei 30 ([System.Drawing.FontStyle]::Regular)
-$fNum = Font $YaHei 168 ([System.Drawing.FontStyle]::Bold)
-$fUnit = Font $YaHei 40 ([System.Drawing.FontStyle]::Regular)
+$fNum = Font $YaHei 130 ([System.Drawing.FontStyle]::Bold)
+$fUnit = Font $YaHei 36 ([System.Drawing.FontStyle]::Regular)
 
-$g.DrawString('生日', $fTitle, $bPrimary, $pad, 58)
-$g.DrawString('2月14日 周五', $fDate, $bSecondary, $pad, 116)
+# tag pill (rounded 18px, 8% black)
+$tagText = '距离'
+$tagSize = $g.MeasureString($tagText, $fTag)
+$tagX = $pad
+$tagY = 46
+$tagW = $tagSize.Width + 32
+$tagH = $tagSize.Height + 20
+$tagPath = New-Object System.Drawing.Drawing2D.GraphicsPath
+$r = 18
+$tagPath.AddArc($tagX, $tagY, 2 * $r, 2 * $r, 180, 90)
+$tagPath.AddArc($tagX + $tagW - 2 * $r, $tagY, 2 * $r, 2 * $r, 270, 90)
+$tagPath.AddArc($tagX + $tagW - 2 * $r, $tagY + $tagH - 2 * $r, 2 * $r, 2 * $r, 0, 90)
+$tagPath.AddArc($tagX, $tagY + $tagH - 2 * $r, 2 * $r, 2 * $r, 90, 90)
+$tagPath.CloseFigure()
+$tagBg = New-Object System.Drawing.SolidBrush([System.Drawing.Color]::FromArgb(0x14, 0x00, 0x00, 0x00))
+$g.FillPath($tagBg, $tagPath)
+$g.DrawString($tagText, $fTag, $bSecondary, ($tagX + 16), ($tagY + 9))
+
+$g.DrawString('生日', $fTitle, $bPrimary, $pad, ($tagY + $tagH + 22))
+$g.DrawString('2月14日 周五', $fDate, $bSecondary, $pad, ($tagY + $tagH + 84))
 
 $numText = '12'
 $numSize = $g.MeasureString($numText, $fNum)
 $unitSize = $g.MeasureString('天', $fUnit)
 $blockW = $numSize.Width + 14 + $unitSize.Width
 $bx = (600 - $blockW) / 2
-$top = 180
+$top = 210
 $bottom = 600 - 60
 $by = $top + ($bottom - $top - $numSize.Height) / 2
 $g.DrawString($numText, $fNum, $bAccent, $bx, $by)
@@ -124,52 +143,6 @@ $g.DrawString('天', $fUnit, $bSecondary, ($pad + $ns.Width + 8), ($ny + $ns.Hei
 $g.DrawString('去上海', $fTitle, $bPrimary, ($pad + $ns.Width + 8 + $us.Width + 26), ((300 - $ts.Height) / 2))
 
 $bmp.Save("$outDir\widget_minimal_preview.png", [System.Drawing.Imaging.ImageFormat]::Png)
-$g.Dispose(); $bmp.Dispose()
-
-# ---------------------------------------------------------------- event 2x2
-# Single-event widget: 距离/过去 tag pill top-left, title + date,
-# big centered day number.
-$bmp, $g = New-Canvas 600 600
-$pad = 60
-$fTag = Font $YaHei 26 ([System.Drawing.FontStyle]::Regular)
-$fTitle = Font $YaHei 44 ([System.Drawing.FontStyle]::Bold)
-$fDate = Font $YaHei 30 ([System.Drawing.FontStyle]::Regular)
-$fNum = Font $YaHei 168 ([System.Drawing.FontStyle]::Bold)
-$fUnit = Font $YaHei 40 ([System.Drawing.FontStyle]::Regular)
-
-# tag pill (rounded 18px, 8% black)
-$tagText = '距离'
-$tagSize = $g.MeasureString($tagText, $fTag)
-$tagX = $pad
-$tagY = 46
-$tagW = $tagSize.Width + 32
-$tagH = $tagSize.Height + 20
-$tagPath = New-Object System.Drawing.Drawing2D.GraphicsPath
-$r = 18
-$tagPath.AddArc($tagX, $tagY, 2 * $r, 2 * $r, 180, 90)
-$tagPath.AddArc($tagX + $tagW - 2 * $r, $tagY, 2 * $r, 2 * $r, 270, 90)
-$tagPath.AddArc($tagX + $tagW - 2 * $r, $tagY + $tagH - 2 * $r, 2 * $r, 2 * $r, 0, 90)
-$tagPath.AddArc($tagX, $tagY + $tagH - 2 * $r, 2 * $r, 2 * $r, 90, 90)
-$tagPath.CloseFigure()
-$tagBg = New-Object System.Drawing.SolidBrush([System.Drawing.Color]::FromArgb(0x14, 0x00, 0x00, 0x00))
-$g.FillPath($tagBg, $tagPath)
-$g.DrawString($tagText, $fTag, $bSecondary, ($tagX + 16), ($tagY + 9))
-
-$g.DrawString('生日', $fTitle, $bPrimary, $pad, ($tagY + $tagH + 22))
-$g.DrawString('2月14日 周五', $fDate, $bSecondary, $pad, ($tagY + $tagH + 84))
-
-$numText = '12'
-$numSize = $g.MeasureString($numText, $fNum)
-$unitSize = $g.MeasureString('天', $fUnit)
-$blockW = $numSize.Width + 14 + $unitSize.Width
-$bx = (600 - $blockW) / 2
-$top = 210
-$bottom = 600 - 60
-$by = $top + ($bottom - $top - $numSize.Height) / 2
-$g.DrawString($numText, $fNum, $bAccent, $bx, $by)
-$g.DrawString('天', $fUnit, $bSecondary, ($bx + $numSize.Width + 14), ($by + $numSize.Height - $unitSize.Height))
-
-$bmp.Save("$outDir\widget_event_preview.png", [System.Drawing.Imaging.ImageFormat]::Png)
 $g.Dispose(); $bmp.Dispose()
 
 Get-ChildItem $outDir\widget_*_preview.png | Select-Object Name, Length

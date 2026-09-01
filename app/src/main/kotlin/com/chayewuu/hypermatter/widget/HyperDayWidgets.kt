@@ -22,10 +22,10 @@ import com.chayewuu.hypermatter.data.EventStore
  * values / values-night color resources, primary-blue accents.
  *
  * Three styles:
- *  - [CardWidget]   2x2  — nearest upcoming event, big centered day number
+ *  - [CardWidget]   2x2  — one event (user-picked via WidgetPrefs, else auto
+ *                          nearest upcoming/past), 距离/过去 tag top-left
  *  - [ListWidget]   4x2  — next 4 upcoming events, one row each
  *  - [MinimalWidget] 2x1 — day number + title on a single line
- *  - [EventWidget]  2x2  — one user-picked event (距离/过去 tag top-left)
  *
  * Data refresh triggers:
  *  - EventStore writes (see [updateAllWidgets])
@@ -63,9 +63,9 @@ object WidgetPrefs {
 }
 
 /**
- * The event shown by the single-event widget: the user's pick if it still
- * exists, else auto mode (nearest upcoming, else nearest past). Unlike the
- * other widgets this one deliberately supports past events.
+ * The event shown by the card widget: the user's pick if it still exists,
+ * else auto mode (nearest upcoming, else nearest past). Deliberately
+ * supports past events so the tag can flip to 过去.
  */
 internal fun singleEvent(context: Context): CountdownEvent? {
     val all = EventStore(context).events.value
@@ -117,7 +117,7 @@ private fun openApp(context: Context, requestCode: Int): PendingIntent {
 }
 
 // ---------------------------------------------------------------------------
-// Card widget (2x2)
+// Card widget (2x2) — one event with 距离/过去 tag, supports past events
 // ---------------------------------------------------------------------------
 
 class CardWidget : AppWidgetProvider() {
@@ -153,15 +153,18 @@ private fun updateCardWidget(
     manager: AppWidgetManager,
     appWidgetId: Int,
 ) {
-    val event = upcomingEvents(context).firstOrNull()
+    val event = singleEvent(context)
     val views = RemoteViews(context.packageName, R.layout.widget_card)
     if (event == null) {
+        views.setTextViewText(R.id.widget_tag, "")
         views.setTextViewText(R.id.widget_title, context.getString(R.string.widget_empty_title))
         views.setTextViewText(R.id.widget_date, "点击打开 HyperDay 添加")
         views.setTextViewText(R.id.widget_days, "--")
         views.setTextViewText(R.id.widget_days_unit, "")
         views.setOnClickPendingIntent(R.id.widget_root, openApp(context, 1000 + appWidgetId))
     } else {
+        val past = DateUtils.isPastEvent(event)
+        views.setTextViewText(R.id.widget_tag, if (past) "过去" else "距离")
         views.setTextViewText(R.id.widget_title, event.title)
         views.setTextViewText(R.id.widget_date, eventDateLine(event))
         val days = DateUtils.dayNumber(event)
@@ -287,64 +290,6 @@ private fun updateMinimalWidget(
     manager.updateAppWidget(appWidgetId, views)
 }
 
-// ---------------------------------------------------------------------------
-// Single-event widget (2x2) — user-picked event, 距离/过去 tag top-left
-// ---------------------------------------------------------------------------
-
-class EventWidget : AppWidgetProvider() {
-
-    override fun onUpdate(
-        context: Context,
-        appWidgetManager: AppWidgetManager,
-        appWidgetIds: IntArray,
-    ) {
-        appWidgetIds.forEach { updateEventWidget(context, appWidgetManager, it) }
-    }
-
-    override fun onReceive(context: Context, intent: Intent) {
-        if (intent.action == AppWidgetManager.ACTION_APPWIDGET_UPDATE) {
-            super.onReceive(context, intent)
-        } else {
-            // DATE_CHANGED / TIMEZONE_CHANGED: refresh everything.
-            push(context)
-        }
-    }
-
-    companion object {
-        fun push(context: Context) {
-            val manager = AppWidgetManager.getInstance(context)
-            val ids = manager.getAppWidgetIds(ComponentName(context, EventWidget::class.java))
-            ids.forEach { updateEventWidget(context, manager, it) }
-        }
-    }
-}
-
-private fun updateEventWidget(
-    context: Context,
-    manager: AppWidgetManager,
-    appWidgetId: Int,
-) {
-    val event = singleEvent(context)
-    val views = RemoteViews(context.packageName, R.layout.widget_event)
-    if (event == null) {
-        views.setTextViewText(R.id.widget_tag, "")
-        views.setTextViewText(R.id.widget_title, context.getString(R.string.widget_empty_title))
-        views.setTextViewText(R.id.widget_date, "点击打开 HyperDay 添加")
-        views.setTextViewText(R.id.widget_days, "--")
-        views.setTextViewText(R.id.widget_days_unit, "")
-        views.setOnClickPendingIntent(R.id.widget_root, openApp(context, 4000 + appWidgetId))
-    } else {
-        val past = DateUtils.isPastEvent(event)
-        views.setTextViewText(R.id.widget_tag, if (past) "过去" else "距离")
-        views.setTextViewText(R.id.widget_title, event.title)
-        views.setTextViewText(R.id.widget_date, eventDateLine(event))
-        views.setTextViewText(R.id.widget_days, DateUtils.dayNumber(event).toString())
-        views.setTextViewText(R.id.widget_days_unit, "天")
-        views.setOnClickPendingIntent(R.id.widget_root, openEvent(context, event.id))
-    }
-    manager.updateAppWidget(appWidgetId, views)
-}
-
 /**
  * Refresh every HyperDay widget. Called by EventStore after each write so the
  * home screen stays in sync with in-app changes.
@@ -353,5 +298,4 @@ fun updateAllWidgets(context: Context) {
     CardWidget.push(context)
     ListWidget.push(context)
     MinimalWidget.push(context)
-    EventWidget.push(context)
 }

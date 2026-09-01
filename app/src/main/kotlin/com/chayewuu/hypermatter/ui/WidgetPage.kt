@@ -38,7 +38,7 @@ import com.chayewuu.hypermatter.ui.glass.LiquidGlassCard
 import com.chayewuu.hypermatter.ui.glass.LocalGlassBackdrop
 import com.chayewuu.hypermatter.ui.glass.rememberGlassBackdrop
 import com.chayewuu.hypermatter.ui.theme.LocalEventViewModel
-import com.chayewuu.hypermatter.widget.EventWidget
+import com.chayewuu.hypermatter.widget.CardWidget
 import com.chayewuu.hypermatter.widget.WidgetPrefs
 import com.chayewuu.hypermatter.widget.eventDateLine
 import top.yukonga.miuix.kmp.basic.Icon
@@ -56,13 +56,13 @@ import top.yukonga.miuix.kmp.utils.overScrollVertical
 import top.yukonga.miuix.kmp.utils.scrollEndHaptic
 
 /**
- * Widget preview & binding page (设置 → 小部件预览).
+ * Widget preview & binding page (设置 → 小部件).
  *
- *  - 小部件预览: live Compose re-drawings of all four home-screen widgets
- *    (卡片 2×2 / 列表 4×2 / 极简 2×1 / 单个 2×2) using the current event
- *    data, so the user can see what each looks like before adding it.
- *  - 单个事件绑定: pick which event the single-event widget is pinned to
- *    (persisted via [WidgetPrefs], refreshed via [EventWidget.push]).
+ *  - 小部件预览: live Compose re-drawings of all three home-screen widgets
+ *    (卡片 2×2 / 列表 4×2 / 极简 2×1) using the current event data, so the
+ *    user can see what each looks like before adding it.
+ *  - 卡片事件绑定: pick which event the card widget is pinned to
+ *    (persisted via [WidgetPrefs], refreshed via [CardWidget.push]).
  */
 @Composable
 fun WidgetPage(
@@ -132,29 +132,18 @@ fun WidgetPage(
                 ) {
                     item {
                         SmallTitle(text = "小部件预览")
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 12.dp),
-                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        Box(
+                            modifier = Modifier.fillMaxWidth(),
+                            contentAlignment = Alignment.TopCenter,
                         ) {
-                            Column(modifier = Modifier.weight(1f)) {
+                            Column {
                                 CardWidgetPreview(
-                                    event = upcoming.firstOrNull(),
+                                    event = selectedEvent(events, selectedId),
                                     modifier = Modifier
-                                        .fillMaxWidth()
+                                        .fillMaxWidth(0.5f)
                                         .aspectRatio(1f),
                                 )
                                 PreviewCaption("卡片 2×2")
-                            }
-                            Column(modifier = Modifier.weight(1f)) {
-                                SingleWidgetPreview(
-                                    event = selectedEvent(events, selectedId),
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .aspectRatio(1f),
-                                )
-                                PreviewCaption("单个 2×2")
                             }
                         }
                     }
@@ -185,7 +174,7 @@ fun WidgetPage(
 
                     item {
                         Spacer(Modifier.height(12.dp))
-                        SmallTitle(text = "单个事件绑定")
+                        SmallTitle(text = "卡片事件绑定")
                         LiquidGlassCard(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -199,7 +188,7 @@ fun WidgetPage(
                                 onClick = {
                                     selectedId = null
                                     WidgetPrefs.setSingleEventId(context, null)
-                                    EventWidget.push(context)
+                                    CardWidget.push(context)
                                 },
                             )
                             events.forEach { event ->
@@ -210,7 +199,7 @@ fun WidgetPage(
                                     onClick = {
                                         selectedId = event.id
                                         WidgetPrefs.setSingleEventId(context, event.id)
-                                        EventWidget.push(context)
+                                        CardWidget.push(context)
                                     },
                                 )
                             }
@@ -226,7 +215,7 @@ fun WidgetPage(
                             }
                         }
                         Text(
-                            text = "「倒数日 · 单个」小部件会固定显示所选事件，" +
+                            text = "「倒数日 · 卡片」小部件会固定显示所选事件，" +
                                 "左上角标注距离或过去",
                             color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                             fontSize = 12.sp,
@@ -287,7 +276,7 @@ private fun CenteredDayNumber(
             Text(
                 text = "--",
                 color = MiuixTheme.colorScheme.primary,
-                fontSize = 48.sp,
+                fontSize = 42.sp,
                 fontWeight = FontWeight.Bold,
             )
         }
@@ -301,7 +290,7 @@ private fun CenteredDayNumber(
                 Text(
                     text = DateUtils.dayNumber(event).toString(),
                     color = MiuixTheme.colorScheme.primary,
-                    fontSize = 48.sp,
+                    fontSize = 42.sp,
                     fontWeight = FontWeight.Bold,
                 )
                 Text(
@@ -317,21 +306,6 @@ private fun CenteredDayNumber(
 
 @Composable
 private fun CardWidgetPreview(
-    event: CountdownEvent?,
-    modifier: Modifier = Modifier,
-) {
-    Column(
-        modifier = modifier
-            .widgetPreviewSurface()
-            .padding(horizontal = 14.dp, vertical = 12.dp),
-    ) {
-        PreviewHeader(event)
-        CenteredDayNumber(event, modifier = Modifier.weight(1f).fillMaxWidth())
-    }
-}
-
-@Composable
-private fun SingleWidgetPreview(
     event: CountdownEvent?,
     modifier: Modifier = Modifier,
 ) {
@@ -360,7 +334,7 @@ private fun SingleWidgetPreview(
     }
 }
 
-/** Title + date line shared by card & single previews. */
+/** Title + date line shared by the card preview. */
 @Composable
 private fun PreviewHeader(event: CountdownEvent?) {
     Text(
