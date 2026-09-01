@@ -16,7 +16,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -37,14 +37,18 @@ import com.chayewuu.hypermatter.ui.glass.GlassFab
 import com.chayewuu.hypermatter.ui.glass.LiquidGlassCard
 import com.chayewuu.hypermatter.ui.theme.LocalEventViewModel
 import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.ListPopupColumn
+import top.yukonga.miuix.kmp.basic.PopupPositionProvider
 import top.yukonga.miuix.kmp.basic.SmallTitle
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.basic.TextButton
 import top.yukonga.miuix.kmp.icon.MiuixIcons
 import top.yukonga.miuix.kmp.icon.extended.Add
 import top.yukonga.miuix.kmp.icon.extended.Delete
+import top.yukonga.miuix.kmp.icon.extended.Edit
 import top.yukonga.miuix.kmp.icon.extended.Months
 import top.yukonga.miuix.kmp.overlay.OverlayDialog
+import top.yukonga.miuix.kmp.overlay.OverlayListPopup
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.utils.overScrollVertical
 import top.yukonga.miuix.kmp.utils.scrollEndHaptic
@@ -69,9 +73,12 @@ fun HomePage(
         events.filter { DateUtils.isPastEvent(it) }.sortedByDescending { it.epochDay }
     }
 
-    // Pending deletion: set by the card's delete button, consumed by the
+    // Pending deletion: set by the card's long-press menu, consumed by the
     // confirmation dialog below.
     var deleteTarget by remember { mutableStateOf<CountdownEvent?>(null) }
+    // Pending edit: set by the card's long-press menu, opens the add sheet
+    // in edit mode (prefilled).
+    var editTarget by remember { mutableStateOf<CountdownEvent?>(null) }
 
     fun requestDelete(event: CountdownEvent) {
         view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
@@ -131,6 +138,7 @@ fun HomePage(
                 items(upcoming, key = { it.id }) { event ->
                     EventCard(
                         event = event,
+                        onEdit = { editTarget = event },
                         onDelete = { requestDelete(event) },
                         onOpen = {
                             view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
@@ -149,6 +157,7 @@ fun HomePage(
                 items(past, key = { it.id }) { event ->
                     EventCard(
                         event = event,
+                        onEdit = { editTarget = event },
                         onDelete = { requestDelete(event) },
                         onOpen = {
                             view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
@@ -217,11 +226,44 @@ fun HomePage(
             }
         }
     }
+
+    // Edit sheet: the add sheet in edit mode, prefilled with the target's
+    // current values. Confirm writes back with updateEvent — a copy of the
+    // fresh event so wallpaper / font customizations are preserved.
+    editTarget?.let { target ->
+        AddEventBottomSheet(
+            show = true,
+            editEvent = target,
+            onDismiss = { editTarget = null },
+            onConfirm = { title, epochDay, note, repeatType,
+                          lunarMonth, lunarDay, repeatWeekday, repeatMonthDay,
+                          repeatYearMonth, timeHour, timeMinute ->
+                val fresh = viewModel.events.value.firstOrNull { it.id == target.id } ?: target
+                viewModel.updateEvent(
+                    fresh.copy(
+                        title = title.trim(),
+                        epochDay = epochDay,
+                        note = note?.trim()?.ifBlank { null },
+                        repeatType = repeatType.takeIf { it != 0 },
+                        lunarMonth = lunarMonth,
+                        lunarDay = lunarDay,
+                        repeatWeekday = repeatWeekday,
+                        repeatMonthDay = repeatMonthDay,
+                        repeatYearMonth = repeatYearMonth,
+                        timeHour = timeHour,
+                        timeMinute = timeMinute,
+                    )
+                )
+                editTarget = null
+            },
+        )
+    }
 }
 
 @Composable
 private fun EventCard(
     event: CountdownEvent,
+    onEdit: () -> Unit,
     onDelete: () -> Unit,
     onOpen: () -> Unit,
     modifier: Modifier = Modifier,
@@ -235,58 +277,60 @@ private fun EventCard(
     // Date line: recurring events show their repeat rule + next occurrence.
     val dateLine = if (repeatLabel.isNotBlank()) "$repeatLabel · $dateStr" else "$dateStr $weekday"
 
-    LiquidGlassCard(
-        modifier = modifier.fillMaxWidth(),
-        cornerRadius = 16.dp,
-        insideMargin = PaddingValues(16.dp),
-        onClick = onOpen,
-    ) {
-        Row(
+    val view = LocalView.current
+    var showMenu by remember { mutableStateOf(false) }
+
+    Box(modifier = modifier) {
+        LiquidGlassCard(
             modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
+            cornerRadius = 16.dp,
+            insideMargin = PaddingValues(16.dp),
+            onClick = onOpen,
+            onLongClick = {
+                view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+                showMenu = true
+            },
         ) {
-            // Left: title + date + note + countdown description
-            Column(
-                modifier = Modifier.weight(1f),
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text(
-                    text = event.title,
-                    color = MiuixTheme.colorScheme.onSurface,
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Medium,
-                )
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    text = dateLine,
-                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                    style = MiuixTheme.textStyles.body2,
-                )
-                if (!event.note.isNullOrBlank()) {
-                    Spacer(Modifier.height(2.dp))
+                // Left: title + date + note + countdown description
+                Column(
+                    modifier = Modifier.weight(1f),
+                ) {
                     Text(
-                        text = event.note,
+                        text = event.title,
+                        color = MiuixTheme.colorScheme.onSurface,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Medium,
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        text = dateLine,
                         color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                         style = MiuixTheme.textStyles.body2,
                     )
+                    if (!event.note.isNullOrBlank()) {
+                        Spacer(Modifier.height(2.dp))
+                        Text(
+                            text = event.note,
+                            color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                            style = MiuixTheme.textStyles.body2,
+                        )
+                    }
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        text = DateUtils.describe(event),
+                        color = if (isPast)
+                            MiuixTheme.colorScheme.onSurfaceVariantSummary
+                        else
+                            MiuixTheme.colorScheme.primary,
+                        style = MiuixTheme.textStyles.subtitle,
+                    )
                 }
-                Spacer(Modifier.height(6.dp))
-                Text(
-                    text = DateUtils.describe(event),
-                    color = if (isPast)
-                        MiuixTheme.colorScheme.onSurfaceVariantSummary
-                    else
-                        MiuixTheme.colorScheme.primary,
-                    style = MiuixTheme.textStyles.subtitle,
-                )
-            }
 
-            // Right: big day number with the delete button below it. The
-            // column is end-aligned so the delete icon hugs the card's right
-            // edge — identical x-position on every card regardless of the
-            // day-number's width (so stacked cards line up).
-            Column(
-                horizontalAlignment = Alignment.End,
-            ) {
+                // Right: big day number.
                 Row(
                     verticalAlignment = Alignment.Bottom,
                 ) {
@@ -309,23 +353,63 @@ private fun EventCard(
                         fontSize = 14.sp,
                     )
                 }
-                Spacer(Modifier.height(2.dp))
-                // Compact circular touch target, circle-bounded ripple.
-                Box(
-                    contentAlignment = Alignment.Center,
-                    modifier = Modifier
-                        .size(32.dp)
-                        .clip(CircleShape)
-                        .clickable(onClick = onDelete),
-                ) {
-                    Icon(
-                        imageVector = MiuixIcons.Delete,
-                        contentDescription = "删除",
-                        tint = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                        modifier = Modifier.size(18.dp),
-                    )
-                }
             }
         }
+
+        // Long-press context menu, Miuix list popup anchored to this card.
+        OverlayListPopup(
+            show = showMenu,
+            alignment = PopupPositionProvider.Align.BottomStart,
+            onDismissRequest = { showMenu = false },
+        ) {
+            ListPopupColumn {
+                MenuRow(
+                    icon = MiuixIcons.Edit,
+                    label = "编辑",
+                    onClick = {
+                        showMenu = false
+                        onEdit()
+                    },
+                )
+                MenuRow(
+                    icon = MiuixIcons.Delete,
+                    label = "删除",
+                    onClick = {
+                        showMenu = false
+                        onDelete()
+                    },
+                )
+            }
+        }
+    }
+}
+
+/** One row of the card long-press context menu. */
+@Composable
+private fun MenuRow(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    onClick: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 20.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = label,
+            tint = MiuixTheme.colorScheme.onSurface,
+            modifier = Modifier.size(20.dp),
+        )
+        Spacer(Modifier.width(12.dp))
+        Text(
+            text = label,
+            color = MiuixTheme.colorScheme.onSurface,
+            style = MiuixTheme.textStyles.body1,
+        )
     }
 }

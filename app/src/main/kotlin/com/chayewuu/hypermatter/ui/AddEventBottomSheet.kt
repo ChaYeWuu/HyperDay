@@ -33,6 +33,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import android.view.HapticFeedbackConstants
 import androidx.compose.ui.platform.LocalView
+import com.chayewuu.hypermatter.data.CountdownEvent
 import com.chayewuu.hypermatter.data.DateUtils
 import com.chayewuu.hypermatter.data.LunarCalendar
 import java.time.LocalDate
@@ -101,6 +102,7 @@ private val WeekdayItems = (1..7).map { DateUtils.weekdayName(it) }
 fun AddEventBottomSheet(
     show: Boolean,
     onDismiss: () -> Unit,
+    editEvent: CountdownEvent? = null,
     onConfirm: (
         title: String,
         epochDay: Long,
@@ -118,20 +120,23 @@ fun AddEventBottomSheet(
     val today = DateUtils.today()
     val view = LocalView.current
 
-    var title by remember { mutableStateOf("") }
-    var note by remember { mutableStateOf("") }
-    var year by remember { mutableIntStateOf(today.year) }
-    var month by remember { mutableIntStateOf(today.monthValue) }
-    var day by remember { mutableIntStateOf(today.dayOfMonth) }
-    var repeatType by remember { mutableIntStateOf(0) }
-    var lunarMonth by remember { mutableStateOf<Int?>(null) }
-    var lunarDay by remember { mutableStateOf<Int?>(null) }
+    // Edit mode: the sheet is freshly composed for each edit target, so a
+    // plain remember{} seeded from the event gives the prefilled draft.
+    val initialDate = editEvent?.let { LocalDate.ofEpochDay(it.epochDay) } ?: today
+    var title by remember { mutableStateOf(editEvent?.title ?: "") }
+    var note by remember { mutableStateOf(editEvent?.note ?: "") }
+    var year by remember { mutableIntStateOf(initialDate.year) }
+    var month by remember { mutableIntStateOf(initialDate.monthValue) }
+    var day by remember { mutableIntStateOf(initialDate.dayOfMonth) }
+    var repeatType by remember { mutableIntStateOf(editEvent?.repeatType ?: 0) }
+    var lunarMonth by remember { mutableStateOf(editEvent?.lunarMonth) }
+    var lunarDay by remember { mutableStateOf(editEvent?.lunarDay) }
     // Per-type repeat config drafts.
-    var weekday by remember { mutableIntStateOf(today.dayOfWeek.value) }
-    var monthDay by remember { mutableIntStateOf(today.dayOfMonth) }
-    var yearMonth by remember { mutableIntStateOf(today.monthValue) }
-    var hour by remember { mutableIntStateOf(9) }
-    var minute by remember { mutableIntStateOf(0) }
+    var weekday by remember { mutableIntStateOf(editEvent?.repeatWeekday ?: initialDate.dayOfWeek.value) }
+    var monthDay by remember { mutableIntStateOf(editEvent?.repeatMonthDay ?: initialDate.dayOfMonth) }
+    var yearMonth by remember { mutableIntStateOf(editEvent?.repeatYearMonth ?: initialDate.monthValue) }
+    var hour by remember { mutableIntStateOf(editEvent?.timeHour ?: 9) }
+    var minute by remember { mutableIntStateOf(editEvent?.timeMinute ?: 0) }
     var page by remember { mutableStateOf(AddSheetPage.FORM) }
 
     /** Shared "go back one level" used by the back gesture and × button. */
@@ -226,7 +231,7 @@ fun AddEventBottomSheet(
     }
 
     val sheetTitle = when (page) {
-        AddSheetPage.FORM -> "添加倒数日"
+        AddSheetPage.FORM -> if (editEvent != null) "编辑倒数日" else "添加倒数日"
         AddSheetPage.REPEAT -> "选择重复"
         AddSheetPage.CONFIG -> RepeatItems[repeatType]
         AddSheetPage.HOLIDAY -> "选择节假日"

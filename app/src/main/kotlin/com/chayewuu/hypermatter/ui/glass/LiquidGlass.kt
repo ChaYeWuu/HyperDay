@@ -19,7 +19,9 @@ import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkHorizontally
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -190,17 +192,33 @@ fun Modifier.liquidGlass(
  * [Card] when glass is disabled, keeping the same corner radius (16dp) and
  * inside-margin defaults.
  */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun LiquidGlassCard(
     modifier: Modifier = Modifier,
     cornerRadius: Dp = 16.dp,
     insideMargin: PaddingValues = PaddingValues(0.dp),
     onClick: (() -> Unit)? = null,
+    onLongClick: (() -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val backdrop = LocalGlassBackdrop.current
     if (backdrop == null) {
-        if (onClick != null) {
+        if (onLongClick != null) {
+            // Long-press support: the card itself stays static and a
+            // combinedClickable on the modifier chain handles both tap and
+            // long-press, with the ripple clipped to the card shape.
+            Card(
+                modifier = modifier
+                    .clip(RoundedCornerShape(cornerRadius))
+                    .combinedClickable(
+                        onClick = { onClick?.invoke() },
+                        onLongClick = onLongClick,
+                    ),
+                cornerRadius = cornerRadius,
+                insideMargin = insideMargin,
+            ) { content() }
+        } else if (onClick != null) {
             Card(
                 modifier = modifier,
                 cornerRadius = cornerRadius,
@@ -227,7 +245,17 @@ fun LiquidGlassCard(
             )
             // Bound the click ripple to the same rounded shape.
             .clip(shape)
-            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
+            .then(
+                if (onLongClick != null)
+                    Modifier.combinedClickable(
+                        onClick = { onClick?.invoke() },
+                        onLongClick = onLongClick,
+                    )
+                else if (onClick != null)
+                    Modifier.clickable(onClick = onClick)
+                else
+                    Modifier
+            )
             .padding(insideMargin),
         content = content,
     )
