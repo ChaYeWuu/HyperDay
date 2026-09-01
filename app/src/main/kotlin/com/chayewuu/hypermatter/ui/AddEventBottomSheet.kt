@@ -170,6 +170,14 @@ fun AddEventBottomSheet(
         year = anchor.year
         month = anchor.monthValue
         day = anchor.dayOfMonth
+        // Solar yearly holidays (repeatType 4) must carry their real
+        // month/day in the repeat fields — otherwise the confirm callback
+        // emits the form's initial values (today) and the event computes
+        // "every year today" instead of the holiday date.
+        if (preset.repeatType == 4) {
+            yearMonth = preset.month
+            monthDay = preset.day
+        }
         // Picked from the dropdown on the form — no page change needed.
     }
 
