@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -132,19 +133,29 @@ fun WidgetPage(
                 ) {
                     item {
                         SmallTitle(text = "小部件预览")
-                        Box(
-                            modifier = Modifier.fillMaxWidth(),
-                            contentAlignment = Alignment.TopCenter,
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 12.dp),
                         ) {
-                            Column {
+                            Column(modifier = Modifier.weight(1f)) {
                                 CardWidgetPreview(
                                     event = selectedEvent(events, selectedId),
                                     modifier = Modifier
-                                        .padding(horizontal = 12.dp)
-                                        .fillMaxWidth(0.5f)
+                                        .fillMaxWidth()
                                         .aspectRatio(1f),
                                 )
                                 PreviewCaption("卡片 2×2")
+                            }
+                            Spacer(Modifier.width(10.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                MinimalWidgetPreview(
+                                    event = upcoming.firstOrNull(),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .aspectRatio(2f),
+                                )
+                                PreviewCaption("极简 2×1")
                             }
                         }
                     }
@@ -159,18 +170,6 @@ fun WidgetPage(
                                 .aspectRatio(2f),
                         )
                         PreviewCaption("列表 4×2")
-                    }
-
-                    item {
-                        Spacer(Modifier.height(10.dp))
-                        MinimalWidgetPreview(
-                            event = upcoming.firstOrNull(),
-                            modifier = Modifier
-                                .fillMaxWidth(0.55f)
-                                .padding(horizontal = 12.dp)
-                                .aspectRatio(2f),
-                        )
-                        PreviewCaption("极简 2×1")
                     }
 
                     item {
