@@ -22,3 +22,6 @@ keystore.properties
 *.log
 .DS_Store
 Thumbs.db
+
+CLAUDE.md
+release-notes-v1.0.0.md
