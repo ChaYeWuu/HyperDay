@@ -8,6 +8,8 @@
     <string name="widget_list_desc">显示接下来 4 个倒数日，点击直达详情</string>
     <string name="widget_minimal_label">倒数日 · 极简</string>
     <string name="widget_minimal_desc">极简天数显示，一目了然</string>
+    <string name="widget_event_label">倒数日 · 单个</string>
+    <string name="widget_event_desc">绑定一个倒数日，左上角显示距离/过去</string>
     <string name="widget_upcoming">即将到来</string>
     <string name="widget_empty_title">还没有倒数日</string>
 </resources>

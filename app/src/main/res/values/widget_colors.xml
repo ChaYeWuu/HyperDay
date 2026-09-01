@@ -4,6 +4,7 @@
          card = surfaceContainer (white), text = onSurface (black),
          secondary = onSurfaceVariantSummary (60% black), accent = primary. -->
     <color name="widget_bg">#FFFFFFFF</color>
+    <color name="widget_tag_bg">#14000000</color>
     <color name="widget_text_primary">#FF000000</color>
     <color name="widget_text_secondary">#99000000</color>
     <color name="widget_accent">#FF3482FF</color>

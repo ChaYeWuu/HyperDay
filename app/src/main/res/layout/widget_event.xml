@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Single upcoming event card widget (2x2, resizable).
-     Day number is vertically centered between the header and the bottom,
-     horizontally centered too, large (72sp). -->
+<!-- Single-event widget (2x2, resizable). The event can be picked in
+     Settings > 小部件预览 (WidgetPrefs); falls back to the nearest event.
+     Top-left tag pill shows 距离 (upcoming/recurring) or 过去 (past). -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/widget_root"
     android:layout_width="match_parent"
@@ -14,16 +14,30 @@
     android:paddingBottom="16dp">
 
     <TextView
+        android:id="@+id/widget_tag"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:background="@drawable/widget_tag_bg"
+        android:paddingStart="8dp"
+        android:paddingTop="2dp"
+        android:paddingEnd="8dp"
+        android:paddingBottom="3dp"
+        android:text="距离"
+        android:textColor="@color/widget_text_secondary"
+        android:textSize="11sp" />
+
+    <TextView
         android:id="@+id/widget_title"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
         android:ellipsize="end"
         android:fontFamily="sans-serif-medium"
         android:letterSpacing="0.01"
         android:maxLines="1"
         android:text="@string/widget_empty_title"
         android:textColor="@color/widget_text_primary"
-        android:textSize="16sp" />
+        android:textSize="17sp" />
 
     <TextView
         android:id="@+id/widget_date"
@@ -36,10 +50,9 @@
         android:textColor="@color/widget_text_secondary"
         android:textSize="12sp" />
 
-    <!-- RemoteViews only whitelists specific view classes: Space is not
-         allowed and makes the host fail to inflate ("Problem loading
-         widget"). An empty weighted TextView is the standard spacer.
-         Two equal spacers vertically center the day number block. -->
+    <!-- RemoteViews only whitelists specific view classes: an empty
+         weighted TextView is the standard spacer. Two equal spacers
+         vertically center the day number block. -->
     <TextView
         android:layout_width="match_parent"
         android:layout_height="0dp"

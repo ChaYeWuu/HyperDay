@@ -43,6 +43,7 @@ import com.chayewuu.hypermatter.ui.EventDetailPage
 import com.chayewuu.hypermatter.ui.HomePage
 import com.chayewuu.hypermatter.ui.SettingsPage
 import com.chayewuu.hypermatter.ui.ThemePage
+import com.chayewuu.hypermatter.ui.WidgetPage
 import com.chayewuu.hypermatter.ui.prewarmWallpaperThumbs
 import com.chayewuu.hypermatter.ui.rememberBlurBackdrop
 import com.chayewuu.hypermatter.ui.glass.GlassCanvasRecorder
@@ -163,6 +164,9 @@ private sealed interface Route : NavKey {
     data object Theme : Route
 
     @Serializable
+    data object Widget : Route
+
+    @Serializable
     data class EventDetail(val id: String) : Route
 }
 
@@ -256,6 +260,7 @@ private fun App(pendingEventId: MutableState<String?>) {
                     onOpenEvent = { backStack.add(Route.EventDetail(it)) },
                     onOpenAbout = { backStack.add(Route.About) },
                     onOpenTheme = { backStack.add(Route.Theme) },
+                    onOpenWidget = { backStack.add(Route.Widget) },
                 )
             }
             entry<Route.About>(swipeDismiss = NavSwipeDirection.LeftToRight) {
@@ -263,6 +268,9 @@ private fun App(pendingEventId: MutableState<String?>) {
             }
             entry<Route.Theme>(swipeDismiss = NavSwipeDirection.LeftToRight) {
                 ThemePage(onBack = { backStack.removeLastOrNull() })
+            }
+            entry<Route.Widget>(swipeDismiss = NavSwipeDirection.LeftToRight) {
+                WidgetPage(onBack = { backStack.removeLastOrNull() })
             }
             entry<Route.EventDetail>(swipeDismiss = NavSwipeDirection.LeftToRight) { route ->
                 EventDetailPage(
@@ -279,6 +287,7 @@ private fun MainTabs(
     onOpenEvent: (String) -> Unit,
     onOpenAbout: () -> Unit,
     onOpenTheme: () -> Unit,
+    onOpenWidget: () -> Unit,
 ) {
     val pagerState = rememberPagerState { 2 }
     val scope = rememberCoroutineScope()
@@ -416,6 +425,7 @@ private fun MainTabs(
                             contentPadding = paddingValues,
                             onOpenAbout = onOpenAbout,
                             onOpenTheme = onOpenTheme,
+                            onOpenWidget = onOpenWidget,
                         )
                     }
                 }
