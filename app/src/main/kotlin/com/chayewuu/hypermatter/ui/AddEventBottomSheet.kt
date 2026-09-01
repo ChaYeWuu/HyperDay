@@ -328,6 +328,10 @@ fun AddEventBottomSheet(
                 AddSheetPage.FORM -> Column(
                     modifier = Modifier
                         .fillMaxWidth()
+                        // Scrollable so the IME shrinking the sheet never
+                        // squashes the date pickers together — content keeps
+                        // its intrinsic height and scrolls instead.
+                        .verticalScroll(rememberScrollState())
                         .padding(bottom = 16.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp),
                 ) {
