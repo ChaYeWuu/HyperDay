@@ -32,6 +32,11 @@ class EventViewModel(
         repeatType: Int = 0,
         lunarMonth: Int? = null,
         lunarDay: Int? = null,
+        repeatWeekday: Int? = null,
+        repeatMonthDay: Int? = null,
+        repeatYearMonth: Int? = null,
+        timeHour: Int? = null,
+        timeMinute: Int? = null,
     ) {
         store.add(
             CountdownEvent(
@@ -42,6 +47,11 @@ class EventViewModel(
                 repeatType = repeatType.takeIf { it != 0 },
                 lunarMonth = lunarMonth,
                 lunarDay = lunarDay,
+                repeatWeekday = repeatWeekday,
+                repeatMonthDay = repeatMonthDay,
+                repeatYearMonth = repeatYearMonth,
+                timeHour = timeHour,
+                timeMinute = timeMinute,
             )
         )
     }

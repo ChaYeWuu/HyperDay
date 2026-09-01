@@ -1,24 +1,21 @@
 package com.chayewuu.hypermatter.ui
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -57,7 +54,7 @@ import top.yukonga.miuix.kmp.theme.MiuixTheme
 private val RepeatItems = listOf("不重复", "每天", "每周", "每月", "每年", "每年农历")
 
 /** Which sub-page of the add sheet is visible. */
-private enum class AddSheetPage { FORM, REPEAT, HOLIDAY }
+private enum class AddSheetPage { FORM, REPEAT, CONFIG, HOLIDAY }
 
 /** Holiday quick presets. */
 private data class HolidayPreset(
@@ -89,10 +86,16 @@ private val SolarHolidays = listOf(
     HolidayPreset("圣诞节", 4, month = 12, day = 25),
 )
 
+/** Weekday list for the weekly config page (index 0 == 周一, value 1..7). */
+private val WeekdayItems = (1..7).map { DateUtils.weekdayName(it) }
+
 /**
  * Bottom sheet for adding a new countdown event.
  * The form itself stays compact (no scrolling); tapping the 重复/节假日
- * rows slides in a dedicated selection page inside the sheet.
+ * rows slides in a dedicated selection page inside the sheet, and every
+ * repeat type except 不重复 then slides one level deeper into its own
+ * config page (每天→时间, 每周→星期, 每月→几号, 每年→月日,
+ * 每年农历→农历月日). Back gesture walks back one page at a time.
  */
 @Composable
 fun AddEventBottomSheet(
@@ -105,6 +108,11 @@ fun AddEventBottomSheet(
         repeatType: Int,
         lunarMonth: Int?,
         lunarDay: Int?,
+        repeatWeekday: Int?,
+        repeatMonthDay: Int?,
+        repeatYearMonth: Int?,
+        timeHour: Int?,
+        timeMinute: Int?,
     ) -> Unit,
 ) {
     val today = DateUtils.today()
@@ -118,7 +126,21 @@ fun AddEventBottomSheet(
     var repeatType by remember { mutableIntStateOf(0) }
     var lunarMonth by remember { mutableStateOf<Int?>(null) }
     var lunarDay by remember { mutableStateOf<Int?>(null) }
+    // Per-type repeat config drafts.
+    var weekday by remember { mutableIntStateOf(today.dayOfWeek.value) }
+    var monthDay by remember { mutableIntStateOf(today.dayOfMonth) }
+    var yearMonth by remember { mutableIntStateOf(today.monthValue) }
+    var hour by remember { mutableIntStateOf(9) }
+    var minute by remember { mutableIntStateOf(0) }
     var page by remember { mutableStateOf(AddSheetPage.FORM) }
+
+    /** Shared "go back one level" used by the back gesture and × button. */
+    fun pageBack() {
+        page = when (page) {
+            AddSheetPage.FORM -> return
+            else -> AddSheetPage.FORM
+        }
+    }
 
     fun applyPreset(preset: HolidayPreset) {
         view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
@@ -144,45 +166,86 @@ fun AddEventBottomSheet(
         page = AddSheetPage.FORM
     }
 
+    /**
+     * Tapping a repeat option: 不重复 returns straight to the form; every
+     * other type slides into its own config page seeded from the current
+     * selection.
+     */
     fun selectRepeat(index: Int) {
         view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+        val previousType = repeatType
         repeatType = index
-        if (index == 5) {
-            // Yearly-lunar anchored on the currently selected solar date.
-            val lunar = LunarCalendar.solarToLunar(safeLocalDate(year, month, day))
-            lunarMonth = lunar.month
-            lunarDay = lunar.day
-        } else {
-            lunarMonth = null
-            lunarDay = null
+        val selected = safeLocalDate(year, month, day)
+        when (index) {
+            0 -> {
+                lunarMonth = null
+                lunarDay = null
+                page = AddSheetPage.FORM
+            }
+            // Keep the previously chosen weekday when re-entering the
+            // weekly config; otherwise seed from the selected date.
+            2 -> {
+                if (previousType != 2) weekday = selected.dayOfWeek.value
+                page = AddSheetPage.CONFIG
+            }
+            3 -> {
+                if (previousType != 3 && previousType != 4) monthDay = selected.dayOfMonth
+                page = AddSheetPage.CONFIG
+            }
+            4 -> {
+                if (previousType != 4) {
+                    yearMonth = selected.monthValue
+                    if (previousType != 3) monthDay = selected.dayOfMonth
+                }
+                page = AddSheetPage.CONFIG
+            }
+            5 -> {
+                if (previousType != 5) {
+                    val lunar = LunarCalendar.solarToLunar(selected)
+                    lunarMonth = lunar.month
+                    lunarDay = lunar.day
+                }
+                page = AddSheetPage.CONFIG
+            }
+            else -> page = AddSheetPage.CONFIG
         }
-        page = AddSheetPage.FORM
     }
 
     val repeatSummary = when (repeatType) {
         0 -> "不重复"
+        1 -> "每天 %02d:%02d".format(hour, minute)
+        2 -> "每周${DateUtils.weekdayName(weekday)}"
+        3 -> "每月${monthDay}日"
+        4 -> "每年${yearMonth}月${monthDay}日"
         5 -> {
             val lm = lunarMonth ?: 1
             val ld = lunarDay ?: 1
-            "每年农历${if (lm == 12) "腊月" else "${lm}月"}${ld}日"
+            "每年农历${if (lm == 12) "腊月" else if (lm == 11) "冬月" else "${DateUtils.lunarMonthName(lm)}月"}${DateUtils.lunarDayName(ld)}"
         }
-        else -> RepeatItems[repeatType]
+        else -> "不重复"
     }
 
     val sheetTitle = when (page) {
         AddSheetPage.FORM -> "添加倒数日"
         AddSheetPage.REPEAT -> "选择重复"
+        AddSheetPage.CONFIG -> RepeatItems[repeatType]
         AddSheetPage.HOLIDAY -> "选择节假日"
     }
+
+    // Back gesture: walk back one page instead of dismissing the sheet.
+    BackHandler(enabled = page != AddSheetPage.FORM) { pageBack() }
 
     OverlayBottomSheet(
         title = sheetTitle,
         show = show,
+        // Silver-gray canvas so the white cards stand out (light:
+        // #F7F7F7, dark: black — same as the page canvas).
+        backgroundColor = MiuixTheme.colorScheme.surface,
         startAction = {
             IconButton(
                 onClick = {
                     if (page != AddSheetPage.FORM) {
-                        page = AddSheetPage.FORM
+                        pageBack()
                     } else {
                         onDismiss()
                     }
@@ -202,7 +265,15 @@ fun AddEventBottomSheet(
                         AddSheetPage.FORM -> {
                             if (title.isNotBlank()) {
                                 val date = safeLocalDate(year, month, day)
-                                onConfirm(title, date.toEpochDay(), note, repeatType, lunarMonth, lunarDay)
+                                onConfirm(
+                                    title, date.toEpochDay(), note,
+                                    repeatType, lunarMonth, lunarDay,
+                                    if (repeatType == 2) weekday else null,
+                                    if (repeatType == 3 || repeatType == 4) monthDay else null,
+                                    if (repeatType == 4) yearMonth else null,
+                                    if (repeatType == 1) hour else null,
+                                    if (repeatType == 1) minute else null,
+                                )
                             }
                         }
                         else -> page = AddSheetPage.FORM
@@ -219,7 +290,10 @@ fun AddEventBottomSheet(
                 )
             }
         },
-        onDismissRequest = onDismiss,
+        onDismissRequest = {
+            // Back/outside dismiss from a sub-page only pops one level.
+            if (page != AddSheetPage.FORM) pageBack() else onDismiss()
+        },
     ) {
         AnimatedContent(
             targetState = page,
@@ -332,6 +406,11 @@ fun AddEventBottomSheet(
                             repeatType = repeatType,
                             lunarMonth = lunarMonth,
                             lunarDay = lunarDay,
+                            repeatWeekday = if (repeatType == 2) weekday else null,
+                            repeatMonthDay = if (repeatType == 3 || repeatType == 4) monthDay else null,
+                            repeatYearMonth = if (repeatType == 4) yearMonth else null,
+                            timeHour = if (repeatType == 1) hour else null,
+                            timeMinute = if (repeatType == 1) minute else null,
                         )
                         DateUtils.effectiveDate(probe)
                     } else {
@@ -368,6 +447,163 @@ fun AddEventBottomSheet(
                     Spacer(Modifier.height(8.dp))
                     Text(
                         text = "· 重复事件始终显示到下一次发生的倒计时，不会归入「已经过去」",
+                        color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                        style = MiuixTheme.textStyles.body2,
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                    )
+                }
+
+                AddSheetPage.CONFIG -> Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 16.dp),
+                ) {
+                    when (repeatType) {
+                        // 每天 → time of day
+                        1 -> Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            insideMargin = PaddingValues(16.dp),
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.Center,
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                NumberPicker(
+                                    value = hour,
+                                    onValueChange = { hour = it },
+                                    range = 0..23,
+                                    label = { "%02d时".format(it) },
+                                    wrapAround = true,
+                                    modifier = Modifier.weight(1f),
+                                )
+                                Text(
+                                    text = ":",
+                                    fontSize = 20.sp,
+                                    fontWeight = FontWeight.Bold,
+                                )
+                                NumberPicker(
+                                    value = minute,
+                                    onValueChange = { minute = it },
+                                    range = 0..59,
+                                    label = { "%02d分".format(it) },
+                                    wrapAround = true,
+                                    modifier = Modifier.weight(1f),
+                                )
+                            }
+                        }
+
+                        // 每周 → weekday list
+                        2 -> Card(modifier = Modifier.fillMaxWidth()) {
+                            WeekdayItems.forEachIndexed { index, label ->
+                                SelectRow(
+                                    label = label,
+                                    selected = weekday == index + 1,
+                                    onClick = {
+                                        view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                                        weekday = index + 1
+                                        page = AddSheetPage.FORM
+                                    },
+                                )
+                            }
+                        }
+
+                        // 每月 → day of month
+                        3 -> Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            insideMargin = PaddingValues(16.dp),
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.Center,
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                NumberPicker(
+                                    value = monthDay,
+                                    onValueChange = { monthDay = it },
+                                    range = 1..31,
+                                    label = { "${it}日" },
+                                    wrapAround = true,
+                                    modifier = Modifier.weight(1f),
+                                )
+                            }
+                        }
+
+                        // 每年 → month + day
+                        4 -> Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            insideMargin = PaddingValues(16.dp),
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.Center,
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                NumberPicker(
+                                    value = yearMonth,
+                                    onValueChange = { yearMonth = it },
+                                    range = 1..12,
+                                    label = { "${it}月" },
+                                    wrapAround = true,
+                                    modifier = Modifier.weight(1f),
+                                )
+                                Text(
+                                    text = "/",
+                                    fontSize = 20.sp,
+                                    fontWeight = FontWeight.Bold,
+                                )
+                                NumberPicker(
+                                    value = monthDay,
+                                    onValueChange = { monthDay = it },
+                                    range = 1..31,
+                                    label = { "${it}日" },
+                                    wrapAround = true,
+                                    modifier = Modifier.weight(1f),
+                                )
+                            }
+                        }
+
+                        // 每年农历 → lunar month + lunar day
+                        5 -> Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            insideMargin = PaddingValues(16.dp),
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.Center,
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                val lm = lunarMonth ?: 1
+                                val ld = lunarDay ?: 1
+                                NumberPicker(
+                                    value = lm,
+                                    onValueChange = { lunarMonth = it },
+                                    range = 1..12,
+                                    label = { m ->
+                                        if (m == 12) "腊月" else if (m == 11) "冬月" else "${DateUtils.lunarMonthName(m)}月"
+                                    },
+                                    wrapAround = true,
+                                    modifier = Modifier.weight(1f),
+                                )
+                                Text(
+                                    text = "/",
+                                    fontSize = 20.sp,
+                                    fontWeight = FontWeight.Bold,
+                                )
+                                NumberPicker(
+                                    value = ld,
+                                    onValueChange = { lunarDay = it },
+                                    range = 1..30,
+                                    label = { d -> DateUtils.lunarDayName(d) },
+                                    wrapAround = true,
+                                    modifier = Modifier.weight(1f),
+                                )
+                            }
+                        }
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        text = "· 调整完成后点击右上角 ✓ 返回",
                         color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                         style = MiuixTheme.textStyles.body2,
                         modifier = Modifier.padding(horizontal = 16.dp),

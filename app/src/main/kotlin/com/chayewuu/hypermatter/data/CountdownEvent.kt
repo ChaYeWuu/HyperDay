@@ -39,6 +39,14 @@ import kotlinx.serialization.Serializable
  *                        occurrence (never "past").
  * @param lunarMonth      For repeatType 5: lunar month of the anniversary.
  * @param lunarDay        For repeatType 5: lunar day of the anniversary.
+ * @param repeatWeekday   For repeatType 2: weekday 1(周一)..7(周日); null =
+ *                        derive from epochDay (legacy events).
+ * @param repeatMonthDay  For repeatType 3/4: day of month 1..31; null =
+ *                        derive from epochDay.
+ * @param repeatYearMonth For repeatType 4: month 1..12; null = derive from
+ *                        epochDay.
+ * @param timeHour        For repeatType 1: hour of day 0..23 (display only).
+ * @param timeMinute      For repeatType 1: minute 0..59 (display only).
  */
 @Serializable
 data class CountdownEvent(
@@ -50,6 +58,11 @@ data class CountdownEvent(
     val repeatType: Int? = null,
     val lunarMonth: Int? = null,
     val lunarDay: Int? = null,
+    val repeatWeekday: Int? = null,
+    val repeatMonthDay: Int? = null,
+    val repeatYearMonth: Int? = null,
+    val timeHour: Int? = null,
+    val timeMinute: Int? = null,
     val cardColor: Long? = null,
     val wallpaperUri: String? = null,
     val dynamicBg: Boolean? = null,

@@ -36,12 +36,13 @@ object DateUtils {
         val anchor = LocalDate.ofEpochDay(event.epochDay)
         return when (event.repeatType) {
             1 -> today // daily
-            2 -> { // weekly: same weekday as the anchor
-                val delta = (anchor.dayOfWeek.value - today.dayOfWeek.value + 7) % 7
+            2 -> { // weekly: chosen weekday (or the anchor's, legacy)
+                val weekday = event.repeatWeekday ?: anchor.dayOfWeek.value
+                val delta = (weekday - today.dayOfWeek.value + 7) % 7
                 today.plusDays(delta.toLong())
             }
-            3 -> { // monthly: same day-of-month as the anchor (clamped)
-                val targetDay = anchor.dayOfMonth
+            3 -> { // monthly: chosen day-of-month (clamped)
+                val targetDay = event.repeatMonthDay ?: anchor.dayOfMonth
                 val candidate = today.withDayOfMonth(
                     targetDay.coerceIn(1, today.lengthOfMonth()),
                 )
@@ -54,10 +55,12 @@ object DateUtils {
                     candidate
                 }
             }
-            4 -> { // yearly: same month/day as the anchor (Feb 29 -> Feb 28 fallback)
-                val candidate = safeDateOf(today.year, anchor.monthValue, anchor.dayOfMonth)
+            4 -> { // yearly: chosen month/day (Feb 29 -> Feb 28 fallback)
+                val targetMonth = event.repeatYearMonth ?: anchor.monthValue
+                val targetDay = event.repeatMonthDay ?: anchor.dayOfMonth
+                val candidate = safeDateOf(today.year, targetMonth, targetDay)
                 if (candidate.isBefore(today)) {
-                    safeDateOf(today.year + 1, anchor.monthValue, anchor.dayOfMonth)
+                    safeDateOf(today.year + 1, targetMonth, targetDay)
                 } else {
                     candidate
                 }
@@ -82,10 +85,22 @@ object DateUtils {
      */
     fun repeatLabel(event: CountdownEvent): String {
         return when (event.repeatType) {
-            1 -> "每天"
-            2 -> "每周${weekdayLabel(event.epochDay)}"
-            3 -> "每月${LocalDate.ofEpochDay(event.epochDay).dayOfMonth}日"
-            4 -> "每年${LocalDate.ofEpochDay(event.epochDay).monthValue}月${LocalDate.ofEpochDay(event.epochDay).dayOfMonth}日"
+            1 -> {
+                val h = event.timeHour
+                val m = event.timeMinute
+                if (h != null && m != null)
+                    "每天 %02d:%02d".format(h, m)
+                else
+                    "每天"
+            }
+            2 -> "每周${weekdayName(event.repeatWeekday ?: LocalDate.ofEpochDay(event.epochDay).dayOfWeek.value)}"
+            3 -> "每月${event.repeatMonthDay ?: LocalDate.ofEpochDay(event.epochDay).dayOfMonth}日"
+            4 -> {
+                val anchor = LocalDate.ofEpochDay(event.epochDay)
+                val m = event.repeatYearMonth ?: anchor.monthValue
+                val d = event.repeatMonthDay ?: anchor.dayOfMonth
+                "每年${m}月${d}日"
+            }
             5 -> {
                 val anchor = LocalDate.ofEpochDay(event.epochDay)
                 val lm = event.lunarMonth ?: LunarCalendar.solarToLunar(anchor).month
@@ -97,10 +112,16 @@ object DateUtils {
         }
     }
 
-    private fun lunarMonthName(m: Int): String =
+    /** Weekday name for a java.time DayOfWeek value (1=周一..7=周日). */
+    fun weekdayName(weekday: Int): String {
+        val names = arrayOf("周一", "周二", "周三", "周四", "周五", "周六", "周日")
+        return names[(weekday - 1).coerceIn(0, 6)]
+    }
+
+    fun lunarMonthName(m: Int): String =
         arrayOf("正", "二", "三", "四", "五", "六", "七", "八", "九", "十", "十一", "十二")[m - 1]
 
-    private fun lunarDayName(d: Int): String {
+    fun lunarDayName(d: Int): String {
         val prefixes = arrayOf("初", "十", "廿", "三")
         val digits = arrayOf("一", "二", "三", "四", "五", "六", "七", "八", "九", "十")
         return when (d) {
