@@ -232,15 +232,18 @@ fun AddEventBottomSheet(
         AddSheetPage.HOLIDAY -> "选择节假日"
     }
 
-    // Back gesture: walk back one page instead of dismissing the sheet.
-    BackHandler(enabled = page != AddSheetPage.FORM) { pageBack() }
-
     OverlayBottomSheet(
         title = sheetTitle,
         show = show,
         // Silver-gray canvas so the white cards stand out (light:
         // #F7F7F7, dark: black — same as the page canvas).
         backgroundColor = MiuixTheme.colorScheme.surface,
+        // On sub-pages the sheet itself must not consume the back gesture
+        // (or drag-dismiss / outside-tap): those are routed one level back
+        // by the BackHandler below, which composes inside the sheet's
+        // popup AFTER the sheet's own NavigationBackHandler and therefore
+        // wins the back dispatch. Only the form page allows direct dismiss.
+        allowDismiss = page == AddSheetPage.FORM,
         startAction = {
             IconButton(
                 onClick = {
@@ -295,6 +298,12 @@ fun AddEventBottomSheet(
             if (page != AddSheetPage.FORM) pageBack() else onDismiss()
         },
     ) {
+        // Must live INSIDE the sheet content: it then composes within the
+        // sheet's popup after the sheet's own NavigationBackHandler, so on
+        // sub-pages this handler receives the back gesture first and walks
+        // back one page instead of the sheet sliding fully off-screen.
+        BackHandler(enabled = page != AddSheetPage.FORM) { pageBack() }
+
         AnimatedContent(
             targetState = page,
             transitionSpec = {
