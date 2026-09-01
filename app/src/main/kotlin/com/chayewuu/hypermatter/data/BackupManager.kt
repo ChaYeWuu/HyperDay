@@ -277,15 +277,15 @@ private class ZipCrypto(password: ByteArray) {
     private fun crc32(c: Int): Int = crcTable[c and 0xff]
 
     private fun updateKey(byte: Int) {
-        keys[0] = (keys[0] ushr 8) xor crc32(keys[0] and 0xff xor byte)
-        keys[1] = keys[1] + (keys[0] and 0xffff)
+        keys[0] = (keys[0] ushr 8) xor crc32((keys[0] xor byte) and 0xff)
+        keys[1] = keys[1] + (keys[0] and 0xff)
         keys[1] = keys[1] * 134775813 + 1
-        keys[2] = (keys[2] ushr 8) xor crc32((keys[2] xor keys[1]) and 0xff)
+        keys[2] = (keys[2] ushr 8) xor crc32((keys[2] xor (keys[1] ushr 24)) and 0xff)
     }
 
     private fun streamByte(): Int {
-        val temp = (keys[2] and 0xffff) or 2
-        return ((temp * (temp xor 1)) ushr 8) and 0xff
+        val k = keys[2] or 2
+        return ((k * (k xor 1)) ushr 8) and 0xff
     }
 
     fun decrypt(data: ByteArray): ByteArray {
