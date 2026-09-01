@@ -41,21 +41,20 @@ import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
 import top.yukonga.miuix.kmp.basic.NumberPicker
-import top.yukonga.miuix.kmp.basic.SmallTitle
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.basic.TextField
 import top.yukonga.miuix.kmp.icon.MiuixIcons
 import top.yukonga.miuix.kmp.icon.extended.Close
 import top.yukonga.miuix.kmp.icon.extended.Ok
 import top.yukonga.miuix.kmp.overlay.OverlayBottomSheet
-import top.yukonga.miuix.kmp.preference.ArrowPreference
+import top.yukonga.miuix.kmp.preference.OverlayDropdownPreference
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 /** Repeat options. Index == repeatType value. */
 private val RepeatItems = listOf("不重复", "每天", "每周", "每月", "每年", "每年农历")
 
 /** Which sub-page of the add sheet is visible. */
-private enum class AddSheetPage { FORM, REPEAT, CONFIG, HOLIDAY }
+private enum class AddSheetPage { FORM, CONFIG }
 
 /** Holiday quick presets. */
 private data class HolidayPreset(
@@ -86,6 +85,9 @@ private val SolarHolidays = listOf(
     HolidayPreset("国庆节", 4, month = 10, day = 1),
     HolidayPreset("圣诞节", 4, month = 12, day = 25),
 )
+
+/** All holiday presets in dropdown order (lunar first, then solar). */
+private val AllHolidays = LunarHolidays + SolarHolidays
 
 /** Weekday list for the weekly config page (index 0 == 周一, value 1..7). */
 private val WeekdayItems = (1..7).map { DateUtils.weekdayName(it) }
@@ -168,7 +170,7 @@ fun AddEventBottomSheet(
         year = anchor.year
         month = anchor.monthValue
         day = anchor.dayOfMonth
-        page = AddSheetPage.FORM
+        // Picked from the dropdown on the form — no page change needed.
     }
 
     /**
@@ -185,7 +187,7 @@ fun AddEventBottomSheet(
             0 -> {
                 lunarMonth = null
                 lunarDay = null
-                page = AddSheetPage.FORM
+                // Stays on the form — the dropdown collapses on selection.
             }
             // Keep the previously chosen weekday when re-entering the
             // weekly config; otherwise seed from the selected date.
@@ -232,9 +234,7 @@ fun AddEventBottomSheet(
 
     val sheetTitle = when (page) {
         AddSheetPage.FORM -> if (editEvent != null) "编辑倒数日" else "添加倒数日"
-        AddSheetPage.REPEAT -> "选择重复"
         AddSheetPage.CONFIG -> RepeatItems[repeatType]
-        AddSheetPage.HOLIDAY -> "选择节假日"
     }
 
     OverlayBottomSheet(
@@ -349,19 +349,32 @@ fun AddEventBottomSheet(
                         modifier = Modifier.fillMaxWidth(),
                     )
 
-                    // Entry rows: repeat rule + holiday quick presets.
+                    // Entry rows: repeat rule + holiday quick presets, both
+                    // as Miuix dropdowns (selection stays on the form; every
+                    // repeat type except 不重复 then slides one level deeper
+                    // into its own config page).
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                     ) {
-                        ArrowPreference(
+                        OverlayDropdownPreference(
                             title = "重复",
                             summary = repeatSummary,
-                            onClick = { page = AddSheetPage.REPEAT },
+                            items = RepeatItems,
+                            selectedIndex = repeatType,
+                            showValue = false,
+                            renderInRootScaffold = false,
+                            onSelectedIndexChange = { selectRepeat(it) },
                         )
-                        ArrowPreference(
+                        OverlayDropdownPreference(
                             title = "节假日",
                             summary = "快速添加节日，自动设置日期与重复",
-                            onClick = { page = AddSheetPage.HOLIDAY },
+                            items = AllHolidays.map { it.name },
+                            // No persistent selection — picking a preset
+                            // fills the form instead of marking a value.
+                            selectedIndex = -1,
+                            maxHeight = 320.dp,
+                            renderInRootScaffold = false,
+                            onSelectedIndexChange = { applyPreset(AllHolidays[it]) },
                         )
                     }
 
@@ -455,29 +468,6 @@ fun AddEventBottomSheet(
                         text = previewText,
                         color = MiuixTheme.colorScheme.primary,
                         style = MiuixTheme.textStyles.subtitle,
-                        modifier = Modifier.padding(horizontal = 16.dp),
-                    )
-                }
-
-                AddSheetPage.REPEAT -> Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 16.dp),
-                ) {
-                    Card(modifier = Modifier.fillMaxWidth()) {
-                        RepeatItems.forEachIndexed { index, label ->
-                            SelectRow(
-                                label = label,
-                                selected = repeatType == index,
-                                onClick = { selectRepeat(index) },
-                            )
-                        }
-                    }
-                    Spacer(Modifier.height(8.dp))
-                    Text(
-                        text = "· 重复事件始终显示到下一次发生的倒计时，不会归入「已经过去」",
-                        color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                        style = MiuixTheme.textStyles.body2,
                         modifier = Modifier.padding(horizontal = 16.dp),
                     )
                 }
@@ -638,27 +628,6 @@ fun AddEventBottomSheet(
                         modifier = Modifier.padding(horizontal = 16.dp),
                     )
                 }
-
-                AddSheetPage.HOLIDAY -> Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .verticalScroll(rememberScrollState())
-                        .padding(bottom = 16.dp),
-                ) {
-                    SmallTitle(text = "农历节日")
-                    Card(modifier = Modifier.fillMaxWidth()) {
-                        LunarHolidays.forEach { preset ->
-                            HolidayRow(preset = preset) { applyPreset(preset) }
-                        }
-                    }
-                    Spacer(Modifier.height(12.dp))
-                    SmallTitle(text = "公历节日")
-                    Card(modifier = Modifier.fillMaxWidth()) {
-                        SolarHolidays.forEach { preset ->
-                            HolidayRow(preset = preset) { applyPreset(preset) }
-                        }
-                    }
-                }
             }
         }
     }
@@ -695,34 +664,6 @@ private fun SelectRow(
                 tint = MiuixTheme.colorScheme.primary,
             )
         }
-    }
-}
-
-/** One holiday preset row: name + repeat rule on the right. */
-@Composable
-private fun HolidayRow(
-    preset: HolidayPreset,
-    onClick: () -> Unit,
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 14.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(
-            text = preset.name,
-            color = MiuixTheme.colorScheme.onSurface,
-            style = MiuixTheme.textStyles.body1,
-            modifier = Modifier.weight(1f),
-        )
-        Text(
-            text = if (preset.repeatType == 5) "每年农历" else "每年",
-            color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-            style = MiuixTheme.textStyles.body2,
-        )
     }
 }
 
