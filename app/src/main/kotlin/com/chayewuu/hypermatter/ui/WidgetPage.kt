@@ -140,7 +140,8 @@ fun WidgetPage(
                                 CardWidgetPreview(
                                     event = selectedEvent(events, selectedId),
                                     modifier = Modifier
-                                        .fillMaxWidth(0.62f)
+                                        .padding(horizontal = 12.dp)
+                                        .fillMaxWidth(0.5f)
                                         .aspectRatio(1f),
                                 )
                                 PreviewCaption("卡片 2×2")
