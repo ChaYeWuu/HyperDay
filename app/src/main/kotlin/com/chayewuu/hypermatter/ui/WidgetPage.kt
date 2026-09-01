@@ -140,7 +140,7 @@ fun WidgetPage(
                                 CardWidgetPreview(
                                     event = selectedEvent(events, selectedId),
                                     modifier = Modifier
-                                        .fillMaxWidth(0.5f)
+                                        .fillMaxWidth(0.62f)
                                         .aspectRatio(1f),
                                 )
                                 PreviewCaption("卡片 2×2")
@@ -389,7 +389,7 @@ private fun ListWidgetPreview(
                         Text(
                             text = event.title,
                             color = MiuixTheme.colorScheme.onSurface,
-                            fontSize = 13.sp,
+                            fontSize = 15.sp,
                             fontWeight = FontWeight.Medium,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
@@ -398,7 +398,7 @@ private fun ListWidgetPreview(
                         Text(
                             text = shortDate(event),
                             color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                            fontSize = 11.sp,
+                            fontSize = 12.sp,
                             modifier = Modifier
                                 .weight(1f)
                                 .padding(start = 8.dp),
@@ -409,13 +409,13 @@ private fun ListWidgetPreview(
                             Text(
                                 text = DateUtils.dayNumber(event).toString(),
                                 color = MiuixTheme.colorScheme.primary,
-                                fontSize = 15.sp,
+                                fontSize = 20.sp,
                                 fontWeight = FontWeight.Bold,
                             )
                             Text(
                                 text = "天",
                                 color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                                fontSize = 10.sp,
+                                fontSize = 12.sp,
                                 modifier = Modifier.padding(start = 2.dp, bottom = 1.dp),
                             )
                         }
@@ -444,31 +444,29 @@ private fun MinimalWidgetPreview(
             .padding(horizontal = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        Text(
+            text = event?.title ?: "还没有倒数日",
+            color = MiuixTheme.colorScheme.onSurface,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Medium,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f),
+        )
         Row(verticalAlignment = Alignment.Bottom) {
             Text(
                 text = event?.let { DateUtils.dayNumber(it).toString() } ?: "--",
                 color = MiuixTheme.colorScheme.primary,
-                fontSize = 24.sp,
+                fontSize = 30.sp,
                 fontWeight = FontWeight.Bold,
             )
             Text(
                 text = "天",
                 color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                fontSize = 10.sp,
-                modifier = Modifier.padding(start = 2.dp, bottom = 3.dp),
+                fontSize = 12.sp,
+                modifier = Modifier.padding(start = 4.dp, bottom = 4.dp),
             )
         }
-        Text(
-            text = event?.title ?: "还没有倒数日",
-            color = MiuixTheme.colorScheme.onSurface,
-            fontSize = 12.sp,
-            fontWeight = FontWeight.Medium,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier
-                .weight(1f)
-                .padding(start = 10.dp),
-        )
     }
 }
 

@@ -19,7 +19,7 @@
         android:maxLines="1"
         android:text=""
         android:textColor="@color/widget_text_primary"
-        android:textSize="13sp" />
+        android:textSize="15sp" />
 
     <TextView
         android:id="@+id/widget_row_date"
@@ -30,18 +30,18 @@
         android:maxLines="1"
         android:text=""
         android:textColor="@color/widget_text_secondary"
-        android:textSize="10sp" />
+        android:textSize="12sp" />
 
     <TextView
         android:id="@+id/widget_row_days"
-        android:layout_width="38dp"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:layout_marginStart="12dp"
         android:fontFamily="sans-serif"
-        android:gravity="end"
         android:includeFontPadding="false"
         android:text=""
         android:textColor="@color/widget_accent"
-        android:textSize="17sp"
+        android:textSize="20sp"
         android:textStyle="bold" />
 
     <TextView
@@ -51,5 +51,5 @@
         android:layout_marginStart="2dp"
         android:text="天"
         android:textColor="@color/widget_text_secondary"
-        android:textSize="10sp" />
+        android:textSize="12sp" />
 </LinearLayout>

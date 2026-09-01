@@ -93,10 +93,10 @@ $g.Dispose(); $bmp.Dispose()
 $bmp, $g = New-Canvas 1200 600
 $pad = 60
 $fHeader = Font $YaHei 27 ([System.Drawing.FontStyle]::Bold)
-$fRowTitle = Font $YaHei 33 ([System.Drawing.FontStyle]::Bold)
-$fRowDate = Font $YaHei 26 ([System.Drawing.FontStyle]::Regular)
-$fRowNum = Font $YaHei 42 ([System.Drawing.FontStyle]::Bold)
-$fRowUnit = Font $YaHei 25 ([System.Drawing.FontStyle]::Regular)
+$fRowTitle = Font $YaHei 38 ([System.Drawing.FontStyle]::Bold)
+$fRowDate = Font $YaHei 30 ([System.Drawing.FontStyle]::Regular)
+$fRowNum = Font $YaHei 48 ([System.Drawing.FontStyle]::Bold)
+$fRowUnit = Font $YaHei 28 ([System.Drawing.FontStyle]::Regular)
 
 $g.DrawString('即将到来', $fHeader, $bSecondary, $pad, 54)
 
@@ -129,18 +129,20 @@ $g.Dispose(); $bmp.Dispose()
 # ---------------------------------------------------------------- minimal 2x1
 $bmp, $g = New-Canvas 600 300
 $pad = 60
-$fNum = Font $YaHei 86 ([System.Drawing.FontStyle]::Bold)
-$fUnit = Font $YaHei 27 ([System.Drawing.FontStyle]::Regular)
-$fTitle = Font $YaHei 32 ([System.Drawing.FontStyle]::Bold)
+$fNum = Font $YaHei 100 ([System.Drawing.FontStyle]::Bold)
+$fUnit = Font $YaHei 31 ([System.Drawing.FontStyle]::Regular)
+$fTitle = Font $YaHei 36 ([System.Drawing.FontStyle]::Bold)
 
 $numText = '12'
 $ns = $g.MeasureString($numText, $fNum)
 $us = $g.MeasureString('天', $fUnit)
 $ts = $g.MeasureString('去上海', $fTitle)
+# Title on the left, day number hugging the right edge.
+$g.DrawString('去上海', $fTitle, $bPrimary, $pad, ((300 - $ts.Height) / 2))
+$rightEdge = 600 - $pad
 $ny = (300 - $ns.Height) / 2
-$g.DrawString($numText, $fNum, $bAccent, $pad, $ny)
-$g.DrawString('天', $fUnit, $bSecondary, ($pad + $ns.Width + 8), ($ny + $ns.Height - $us.Height))
-$g.DrawString('去上海', $fTitle, $bPrimary, ($pad + $ns.Width + 8 + $us.Width + 26), ((300 - $ts.Height) / 2))
+$g.DrawString('天', $fUnit, $bSecondary, ($rightEdge - $us.Width), ($ny + $ns.Height - $us.Height))
+$g.DrawString($numText, $fNum, $bAccent, ($rightEdge - $us.Width - 10 - $ns.Width), $ny)
 
 $bmp.Save("$outDir\widget_minimal_preview.png", [System.Drawing.Imaging.ImageFormat]::Png)
 $g.Dispose(); $bmp.Dispose()

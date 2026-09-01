@@ -11,14 +11,27 @@
     android:paddingEnd="16dp">
 
     <TextView
+        android:id="@+id/widget_title"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:ellipsize="end"
+        android:fontFamily="sans-serif-medium"
+        android:maxLines="1"
+        android:text="@string/widget_empty_title"
+        android:textColor="@color/widget_text_primary"
+        android:textSize="15sp" />
+
+    <TextView
         android:id="@+id/widget_days"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:layout_marginStart="12dp"
         android:fontFamily="sans-serif"
         android:includeFontPadding="false"
         android:text="--"
         android:textColor="@color/widget_accent"
-        android:textSize="30sp"
+        android:textSize="36sp"
         android:textStyle="bold" />
 
     <TextView
@@ -26,21 +39,8 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginStart="4dp"
-        android:layout_marginBottom="3dp"
+        android:layout_marginBottom="5dp"
         android:text="天"
         android:textColor="@color/widget_text_secondary"
-        android:textSize="12sp" />
-
-    <TextView
-        android:id="@+id/widget_title"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="12dp"
-        android:layout_weight="1"
-        android:ellipsize="end"
-        android:fontFamily="sans-serif-medium"
-        android:maxLines="1"
-        android:text="@string/widget_empty_title"
-        android:textColor="@color/widget_text_primary"
-        android:textSize="13sp" />
+        android:textSize="14sp" />
 </LinearLayout>
