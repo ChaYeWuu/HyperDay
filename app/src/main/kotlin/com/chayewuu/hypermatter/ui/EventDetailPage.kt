@@ -18,7 +18,6 @@ import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.animateColorAsState
@@ -28,9 +27,6 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
-import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -117,6 +113,7 @@ import top.yukonga.miuix.kmp.icon.extended.Rename
 import top.yukonga.miuix.kmp.icon.extended.ScreenCapture
 import top.yukonga.miuix.kmp.icon.extended.Share
 import top.yukonga.miuix.kmp.overlay.OverlayDialog
+import top.yukonga.miuix.kmp.preference.OverlayDropdownPreference
 import top.yukonga.miuix.kmp.preference.SliderPreference
 import top.yukonga.miuix.kmp.preference.SwitchPreference
 import top.yukonga.miuix.kmp.shader.isRuntimeShaderSupported
@@ -1117,7 +1114,7 @@ fun EventDetailPage(
         // The content scrolls — the full option set exceeds one screen.
         OverlayDialog(
             title = "字体设置",
-            summary = "自定义这张卡片的文字样式；点击选项值循环切换",
+            summary = "自定义这张卡片的文字样式",
             show = showFontDialog,
             onDismissRequest = { showFontDialog = false },
             renderInRootScaffold = false,
@@ -1181,22 +1178,26 @@ fun EventDetailPage(
                         updateEventFresh { it.copy(fontScale = liveFontScale) }
                     },
                 )
-                FontCycleRow(
-                    label = "字体粗细",
-                    valueLabel = FontWeightItems[fs.weightIdx],
-                ) {
-                    updateEventFresh {
-                        it.copy(fontWeight = ((it.fontWeight ?: 0) + 1) % FontWeightItems.size)
-                    }
-                }
-                FontCycleRow(
-                    label = "文字颜色",
-                    valueLabel = FontColorItems[fs.colorIdx],
-                ) {
-                    updateEventFresh {
-                        it.copy(textColor = ((it.textColor ?: 0) + 1) % FontColorItems.size)
-                    }
-                }
+                OverlayDropdownPreference(
+                    title = "字体粗细",
+                    summary = "选择卡片文字的字重",
+                    items = FontWeightItems,
+                    selectedIndex = fs.weightIdx,
+                    renderInRootScaffold = false,
+                    onSelectedIndexChange = { index ->
+                        updateEventFresh { it.copy(fontWeight = index) }
+                    },
+                )
+                OverlayDropdownPreference(
+                    title = "文字颜色",
+                    summary = "自定义时在下方色板中选色",
+                    items = FontColorItems,
+                    selectedIndex = fs.colorIdx,
+                    renderInRootScaffold = false,
+                    onSelectedIndexChange = { index ->
+                        updateEventFresh { it.copy(textColor = index) }
+                    },
+                )
                 AnimatedVisibility(
                     visible = fs.colorIdx == 3,
                     enter = expandVertically(tween(200)) + fadeIn(tween(200)),
@@ -1239,14 +1240,16 @@ fun EventDetailPage(
                                 updateEventFresh { it.copy(fontStrokeWidth = liveFontStroke) }
                             },
                         )
-                        FontCycleRow(
-                            label = "描边颜色",
-                            valueLabel = StrokeColorItems[fs.strokeColorIdx],
-                        ) {
-                            updateEventFresh {
-                                it.copy(strokeColor = ((it.strokeColor ?: 0) + 1) % StrokeColorItems.size)
-                            }
-                        }
+                        OverlayDropdownPreference(
+                            title = "描边颜色",
+                            summary = "自定义时在下方色板中选色",
+                            items = StrokeColorItems,
+                            selectedIndex = fs.strokeColorIdx,
+                            renderInRootScaffold = false,
+                            onSelectedIndexChange = { index ->
+                                updateEventFresh { it.copy(strokeColor = index) }
+                            },
+                        )
                         AnimatedVisibility(
                             visible = fs.strokeColorIdx == 3,
                             enter = expandVertically(tween(200)) + fadeIn(tween(200)),
@@ -1277,14 +1280,16 @@ fun EventDetailPage(
                     exit = shrinkVertically(tween(200)) + fadeOut(tween(200)),
                 ) {
                     Column {
-                        FontCycleRow(
-                            label = "阴影颜色",
-                            valueLabel = ShadowColorItems[fs.shadowColorIdx],
-                        ) {
-                            updateEventFresh {
-                                it.copy(shadowColor = ((it.shadowColor ?: 0) + 1) % ShadowColorItems.size)
-                            }
-                        }
+                        OverlayDropdownPreference(
+                            title = "阴影颜色",
+                            summary = "自定义时在下方色板中选色",
+                            items = ShadowColorItems,
+                            selectedIndex = fs.shadowColorIdx,
+                            renderInRootScaffold = false,
+                            onSelectedIndexChange = { index ->
+                                updateEventFresh { it.copy(shadowColor = index) }
+                            },
+                        )
                         AnimatedVisibility(
                             visible = fs.shadowColorIdx == 3,
                             enter = expandVertically(tween(200)) + fadeIn(tween(200)),
@@ -1371,54 +1376,6 @@ private fun BgModeRow(
                 imageVector = MiuixIcons.Ok,
                 contentDescription = null,
                 tint = MiuixTheme.colorScheme.primary,
-            )
-        }
-    }
-}
-
-/**
- * A compact settings row whose value cycles through a fixed set of options
- * on each tap (used by the font dialog for weight / text color — avoids
- * nested popups inside an OverlayDialog).
- */
-@Composable
-private fun FontCycleRow(
-    label: String,
-    valueLabel: String,
-    onClick: () -> Unit,
-) {
-    val view = LocalView.current
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .clickable(onClick = {
-                view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
-                onClick()
-            })
-            .padding(horizontal = 16.dp, vertical = 14.dp),
-    ) {
-        Text(
-            text = label,
-            color = MiuixTheme.colorScheme.onSurface,
-            style = MiuixTheme.textStyles.body1,
-            modifier = Modifier.weight(1f),
-        )
-        // Cycle value slides in from below while the old one slides up and
-        // fades — no hard text swap when tapping the row.
-        AnimatedContent(
-            targetState = valueLabel,
-            transitionSpec = {
-                (slideInVertically(tween(200)) { it / 2 } + fadeIn(tween(200))) togetherWith
-                    (slideOutVertically(tween(200)) { -it / 2 } + fadeOut(tween(200)))
-            },
-            label = "cycleValue",
-        ) { value ->
-            Text(
-                text = "$value ›",
-                color = MiuixTheme.colorScheme.primary,
-                style = MiuixTheme.textStyles.body1,
             )
         }
     }
