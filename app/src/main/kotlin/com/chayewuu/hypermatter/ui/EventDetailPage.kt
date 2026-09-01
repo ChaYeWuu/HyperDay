@@ -9,9 +9,6 @@ import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.Typeface
 import android.net.Uri
-import android.os.Build
-import android.os.Environment
-import android.provider.MediaStore
 import android.util.LruCache
 import android.view.HapticFeedbackConstants
 import android.widget.Toast
@@ -77,6 +74,7 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.FileProvider
 import com.chayewuu.hypermatter.data.CountdownEvent
 import com.chayewuu.hypermatter.data.DateUtils
 import com.chayewuu.hypermatter.ui.effect.BgEffectConfig
@@ -114,7 +112,6 @@ import top.yukonga.miuix.kmp.icon.extended.Background
 import top.yukonga.miuix.kmp.icon.extended.Image
 import top.yukonga.miuix.kmp.icon.extended.Ok
 import top.yukonga.miuix.kmp.icon.extended.Rename
-import top.yukonga.miuix.kmp.icon.extended.ScreenCapture
 import top.yukonga.miuix.kmp.icon.extended.Share
 import top.yukonga.miuix.kmp.overlay.OverlayDialog
 import top.yukonga.miuix.kmp.preference.OverlayDropdownPreference
@@ -123,7 +120,6 @@ import top.yukonga.miuix.kmp.preference.SwitchPreference
 import top.yukonga.miuix.kmp.shader.isRuntimeShaderSupported
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import java.io.File
-import java.io.FileOutputStream
 
 /** Detail-page background modes. */
 private enum class BgMode { SOLID, WALLPAPER }
@@ -351,18 +347,6 @@ fun EventDetailPage(
     }
     val glassBlend = if (isDarkTheme) GlassBlendDark else GlassBlendLight
 
-    fun shareEvent() {
-        val text = "「${event.title}」${DateUtils.describe(event)}" +
-            "（${if (repeatLabel.isNotBlank()) "$repeatLabel · " else ""}$dateStr）—— 来自 HyperDay"
-        val intent = Intent(Intent.ACTION_SEND).apply {
-            type = "text/plain"
-            putExtra(Intent.EXTRA_TEXT, text)
-        }
-        runCatching {
-            context.startActivity(Intent.createChooser(intent, "分享倒数日"))
-        }
-    }
-
     // Photo picker for the custom wallpaper.
     val wallpaperPicker = rememberLauncherForActivityResult(
         ActivityResultContracts.PickVisualMedia(),
@@ -466,19 +450,13 @@ fun EventDetailPage(
     val fontColorCustom = effFontSettings.hasExplicitTextColor
     val actionColor = effFontSettings.resolvedTextColor(bgTextColor)
 
-    fun saveCardAsImage() {
+    // Share the rendered card image directly: render the same share card
+    // as the preview, write it to the app's cache dir, expose it via
+    // FileProvider and hand it to the system share sheet as image/png
+    // (with the text as a fallback extra for apps that prefer text).
+    fun shareCardAsImage() {
         scope.launch {
             try {
-                val safeTitle = event.title.replace(Regex("[\\\\/:*?\"<>|\\s]"), "_")
-                val fileName = "HyperDay_${safeTitle}_${System.currentTimeMillis()}"
-                // Render the share card programmatically (a graphics-layer
-                // capture would bake the transparent window background to
-                // black in the saved PNG). The saved card mirrors the page's
-                // customized background: wallpaper + dim (or card-color
-                // gradient) and matching adaptive text colors.
-                // Translate the page's blur (dp, screen space) into the
-                // 1080px-wide share-card canvas so the saved background
-                // matches what the user sees.
                 val dm = context.resources.displayMetrics
                 val bgBlurCanvasPx = effBgBlur * dm.density * (1080f / dm.widthPixels)
                 val bitmap = withContext(Dispatchers.Default) {
@@ -498,16 +476,31 @@ fun EventDetailPage(
                         isDarkTheme = isDarkTheme,
                     )
                 }
-                val saved = withContext(Dispatchers.IO) {
-                    saveBitmapToGallery(context, bitmap, fileName)
+                val shareUri = withContext(Dispatchers.IO) {
+                    val dir = File(context.cacheDir, "share").apply { mkdirs() }
+                    val file = File(dir, "HyperDay_${System.currentTimeMillis()}.png")
+                    file.outputStream().use { out ->
+                        bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
+                    }
+                    FileProvider.getUriForFile(
+                        context,
+                        "${context.packageName}.fileprovider",
+                        file,
+                    )
                 }
-                if (saved != null) {
-                    Toast.makeText(context, "已保存到 $saved", Toast.LENGTH_LONG).show()
-                } else {
-                    Toast.makeText(context, "保存失败", Toast.LENGTH_SHORT).show()
+                val text = "「${event.title}」${DateUtils.describe(event)}" +
+                    "（${if (repeatLabel.isNotBlank()) "$repeatLabel · " else ""}$dateStr）—— 来自 HyperDay"
+                val intent = Intent(Intent.ACTION_SEND).apply {
+                    type = "image/png"
+                    putExtra(Intent.EXTRA_STREAM, shareUri)
+                    putExtra(Intent.EXTRA_TEXT, text)
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                }
+                runCatching {
+                    context.startActivity(Intent.createChooser(intent, "分享倒数日"))
                 }
             } catch (e: Exception) {
-                Toast.makeText(context, "保存失败：${e.message}", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, "分享失败：${e.message}", Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -817,19 +810,7 @@ fun EventDetailPage(
                         liquidTint = liquidTint,
                         fallbackContainer = btnFallbackContainer,
                         fallbackContent = btnFallbackContent,
-                    ) { shareEvent() }
-                    ActionButton(
-                        icon = MiuixIcons.ScreenCapture,
-                        label = "存为图片",
-                        onCardText = onBackgroundText,
-                        glassBackdrop = cardBackdrop,
-                        glassBlend = glassBlend,
-                        blurRadius = effCardBlur * 0.6f,
-                        liquidBackdrop = if (liquidActive) liquidBackdrop else null,
-                        liquidTint = liquidTint,
-                        fallbackContainer = btnFallbackContainer,
-                        fallbackContent = btnFallbackContent,
-                    ) { saveCardAsImage() }
+                    ) { shareCardAsImage() }
                     ActionButton(
                         icon = MiuixIcons.Background,
                         label = "自定义背景",
@@ -1820,48 +1801,4 @@ private fun renderShareCard(
     canvas.drawText("HyperDay", cx, 1520f, textPaint(44f, true, signatureColor))
 
     return bmp
-}
-
-/**
- * Save a bitmap to the system gallery on API 29+ (MediaStore, no permission needed),
- * or to the app's external pictures directory on older versions.
- * Returns a human-readable location, or null on failure.
- */
-private fun saveBitmapToGallery(
-    context: Context,
-    bitmap: Bitmap,
-    fileName: String,
-): String? {
-    return try {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            val values = ContentValues().apply {
-                put(MediaStore.Images.Media.DISPLAY_NAME, "$fileName.png")
-                put(MediaStore.Images.Media.MIME_TYPE, "image/png")
-                put(
-                    MediaStore.Images.Media.RELATIVE_PATH,
-                    Environment.DIRECTORY_PICTURES + "/HyperDay",
-                )
-            }
-            val resolver = context.contentResolver
-            val uri = resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values)
-                ?: return null
-            resolver.openOutputStream(uri)?.use { out ->
-                if (!bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)) return null
-            } ?: return null
-            "相册 Pictures/HyperDay"
-        } else {
-            val dir = File(
-                context.getExternalFilesDir(Environment.DIRECTORY_PICTURES),
-                "HyperDay",
-            )
-            dir.mkdirs()
-            val file = File(dir, "$fileName.png")
-            FileOutputStream(file).use { out ->
-                if (!bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)) return null
-            }
-            file.absolutePath
-        }
-    } catch (e: Exception) {
-        null
-    }
 }
