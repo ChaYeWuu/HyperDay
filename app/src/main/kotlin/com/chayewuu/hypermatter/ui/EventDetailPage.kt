@@ -79,12 +79,16 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.chayewuu.hypermatter.data.CountdownEvent
 import com.chayewuu.hypermatter.data.DateUtils
+import com.chayewuu.hypermatter.ui.effect.BgEffectConfig
+import com.chayewuu.hypermatter.ui.effect.DeviceType
 import com.chayewuu.hypermatter.ui.glass.liquidGlass
 import com.chayewuu.hypermatter.ui.glass.rememberGlassBackdrop
 import com.chayewuu.hypermatter.ui.theme.LocalEventViewModel
 import com.chayewuu.hypermatter.ui.theme.LocalSettingsStore
 import com.kyant.backdrop.backdrops.LayerBackdrop as LiquidBackdrop
 import com.kyant.backdrop.backdrops.layerBackdrop as liquidLayerBackdrop
+import kotlin.math.floor
+import kotlin.math.sqrt
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -491,6 +495,7 @@ fun EventDetailPage(
                         bgDim = effBgDim,
                         wallpaperLuminance = wpLum,
                         bgBlurCanvasPx = bgBlurCanvasPx,
+                        isDarkTheme = isDarkTheme,
                     )
                 }
                 val saved = withContext(Dispatchers.IO) {
@@ -1491,9 +1496,152 @@ private fun avgLuminance(bitmap: Bitmap): Float {
  *    bilinear upscale — the detail page's blur look) with the user's dim
  *    scrim; a translucent frosted card over it; text colors flipped by the
  *    wallpaper luminance exactly like the live page.
- *  - Solid mode: a vertical gradient derived from the custom card color (or
- *    HyperDay blue) with a solid card.
+ *  - Solid mode: a static snapshot of the About page's official OS3
+ *    blend-color background with a solid card.
  */
+/**
+ * Static snapshot of the official Miuix OS3 blend-color background (the
+ * About page effect). The AGSL RuntimeShader only runs inside the Compose
+ * render pipeline, so this reproduces the shader math with plain pixel
+ * work, mirroring OS3BgFrag.kt exactly:
+ *  - 4 color blobs, each premultiplied by its alpha and smoothstep-blended
+ *    by distance (smoothstep(rad, 0, d): 1 at the center, 0 at the radius);
+ *  - the blended rgb is un-premultiplied, then desaturated and lightened
+ *    by a perlin-noise mask (saturateOffset / lightOffset, t = 0 so the
+ *    noise pattern is static);
+ *  - composited (premultiplied over) on the theme surface color;
+ *  - the gradient-noise ±5/255 dither to break up banding.
+ *
+ * Colors = the OS3 preset's first palette (colors1), points = the preset's
+ * blob layout; computed at half resolution and bilinear-upscaled since
+ * everything in this effect is smooth, low-frequency color.
+ */
+private fun renderBlendBackground(w: Int, h: Int, isDarkTheme: Boolean): Bitmap {
+    val config = BgEffectConfig.get(DeviceType.PHONE, isDarkTheme, isOs3 = true)
+    val pts = config.points   // 4 blobs × (x, y, radius)
+    val cols = config.colors1 // 4 blobs × (r, g, b, a)
+    val lightOffset = config.lightOffset
+    val saturateOffset = config.saturateOffset
+    val noiseScale = 1.5f     // BgEffectPainter.U_NOISE_SCALE
+
+    val sw = w / 2
+    val sh = h / 2
+    val base = if (isDarkTheme) 0xFF242424.toInt() else 0xFFF7F7F7.toInt()
+    val baseR = ((base shr 16) and 0xFF) / 255f
+    val baseG = ((base shr 8) and 0xFF) / 255f
+    val baseB = (base and 0xFF) / 255f
+
+    fun fract(x: Float) = x - floor(x)
+
+    fun hash(x: Float, y: Float): Float {
+        val a = fract(x) * 0.13f
+        val b = fract(y) * 0.13f
+        val d = a * (b + 3.333f) + b * (a + 3.333f) + a * (a + 3.333f)
+        return fract((a + d + b + d) * (a + d))
+    }
+
+    fun perlin(x: Float, y: Float): Float {
+        val ix = floor(x)
+        val iy = floor(y)
+        val fx = x - ix
+        val fy = y - iy
+        val a = hash(ix, iy)
+        val b = hash(ix + 1f, iy)
+        val c = hash(ix, iy + 1f)
+        val d = hash(ix + 1f, iy + 1f)
+        val ux = fx * fx * (3f - 2f * fx)
+        val uy = fy * fy * (3f - 2f * fy)
+        return (a + (b - a) * ux) + (c - a) * uy * (1f - ux) + (d - b) * ux * uy
+    }
+
+    val pixels = IntArray(sw * sh)
+    for (j in 0 until sh) {
+        // The shader flips y: vUv.y = 1 - fragY / resolution.
+        val vy = 1f - j.toFloat() / sh
+        for (i in 0 until sw) {
+            val vx = i.toFloat() / sw
+
+            // Blend the 4 blobs (accumulating premultiplied mixes).
+            var cr = 0f
+            var cg = 0f
+            var cb = 0f
+            var ca = 0f
+            for (k in 0 until 4) {
+                val pa = cols[k * 4 + 3]
+                val pr = cols[k * 4] * pa
+                val pg = cols[k * 4 + 1] * pa
+                val pb = cols[k * 4 + 2] * pa
+                val dx = vx - pts[k * 3]
+                val dy = vy - pts[k * 3 + 1]
+                val t = (((pts[k * 3 + 2] - sqrt(dx * dx + dy * dy)) /
+                    pts[k * 3 + 2]).coerceIn(0f, 1f))
+                val pct = t * t * (3f - 2f * t)
+                cr += (pr - cr) * pct
+                cg += (pg - cg) * pct
+                cb += (pb - cb) * pct
+                ca += (pa - ca) * pct
+            }
+
+            // Un-premultiply.
+            if (ca > 1e-4f) {
+                cr /= ca
+                cg /= ca
+                cb /= ca
+            } else {
+                cr = 0f; cg = 0f; cb = 0f
+            }
+
+            // Perlin-noise desaturation + light offset (t = 0).
+            val n = perlin(vx * noiseScale, vy * noiseScale)
+            val on = n * n * (3f - 2f * n) // smoothstep(0, 1, n)
+            val mx = maxOf(cr, cg, cb)
+            val mn = minOf(cr, cg, cb)
+            val dlt = mx - mn
+            val v = mx
+            val s = if (mx > 1e-10f) dlt / mx else 0f
+            val hh = when {
+                dlt < 1e-10f -> 0f
+                mx == cr -> (((cg - cb) / dlt) / 6f + 1f) % 1f
+                mx == cg -> (((cb - cr) / dlt) + 2f) / 6f
+                else -> (((cr - cg) / dlt) + 4f) / 6f
+            }
+            val s2 = s * (1f - on * saturateOffset)
+            val i6 = floor(hh * 6f)
+            val f6 = hh * 6f - i6
+            val p = v * (1f - s2)
+            val q = v * (1f - s2 * f6)
+            val t2 = v * (1f - s2 * (1f - f6))
+            when (((i6.toInt() % 6) + 6) % 6) {
+                0 -> { cr = v; cg = t2; cb = p }
+                1 -> { cr = q; cg = v; cb = p }
+                2 -> { cr = p; cg = v; cb = t2 }
+                3 -> { cr = p; cg = q; cb = v }
+                4 -> { cr = t2; cg = p; cb = v }
+                else -> { cr = v; cg = p; cb = q }
+            }
+            cr += on * lightOffset
+            cg += on * lightOffset
+            cb += on * lightOffset
+
+            // Composite (premultiplied) over the theme surface.
+            val fr = (cr * ca + baseR * (1f - ca)).coerceIn(0f, 1f)
+            val fg = (cg * ca + baseG * (1f - ca)).coerceIn(0f, 1f)
+            val fb = (cb * ca + baseB * (1f - ca)).coerceIn(0f, 1f)
+
+            // Gradient-noise dither (±5/255), same hash as the shader.
+            val g = fract(52.9829189f * fract(i * 0.06711056f + j * 0.00583715f))
+            val dith = (10f / 255f) * g - 5f / 255f
+            pixels[j * sw + i] = (0xFF shl 24) or
+                (((fr + dith).coerceIn(0f, 1f) * 255f + 0.5f).toInt() shl 16) or
+                (((fg + dith).coerceIn(0f, 1f) * 255f + 0.5f).toInt() shl 8) or
+                ((fb + dith).coerceIn(0f, 1f) * 255f + 0.5f).toInt()
+        }
+    }
+    val small = Bitmap.createBitmap(sw, sh, Bitmap.Config.ARGB_8888)
+    small.setPixels(pixels, 0, sw, 0, 0, sw, sh)
+    return Bitmap.createScaledBitmap(small, w, h, true)
+}
+
 private fun renderShareCard(
     title: String,
     note: String?,
@@ -1507,6 +1655,7 @@ private fun renderShareCard(
     bgDim: Float,
     wallpaperLuminance: Float,
     bgBlurCanvasPx: Float,
+    isDarkTheme: Boolean,
 ): Bitmap {
     val w = 1080
     val h = 1620
@@ -1524,7 +1673,7 @@ private fun renderShareCard(
             if (wallpaperTextDark) 0xFF1B1B1F.toInt() else 0xFFFFFFFF.toInt()
         custom != null && custom.luminance() > 0.5f -> 0xFF1B1B1F.toInt()
         custom != null -> 0xFFFFFFFF.toInt()
-        else -> 0xFF1B1B1F.toInt()
+        else -> if (isDarkTheme) 0xFFFFFFFF.toInt() else 0xFF1B1B1F.toInt()
     }
     val onCardSummary = (onCard ushr 24 shl 24) or
         (((onCard shr 16 and 0xFF) * 200 / 255) shl 16) or
@@ -1547,7 +1696,7 @@ private fun renderShareCard(
     val cardColor = when {
         wallpaper != null ->
             if (wallpaperTextDark) 0x38000000 else 0x2EFFFFFF
-        else -> (custom ?: Color.White).toArgb()
+        else -> (custom ?: if (isDarkTheme) Color(0xFF242424) else Color.White).toArgb()
     }
 
     if (wallpaper != null) {
@@ -1591,23 +1740,16 @@ private fun renderShareCard(
             )
         }
     } else {
-        // Background gradient from the card hue (or HyperDay blue).
-        fun shade(c: Color, f: Float): Int {
-            fun ch(x: Float) = (x * f).coerceIn(0f, 1f)
-            return Color(ch(c.red), ch(c.green), ch(c.blue), 1f).toArgb()
-        }
-
-        val (bgTop, bgBottom) = if (custom != null) {
-            shade(custom, 1.15f) to shade(custom, 0.55f)
-        } else {
-            0xFF4A8DFF.toInt() to 0xFF1E5FD0.toInt()
-        }
-        val bgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            shader = android.graphics.LinearGradient(
-                0f, 0f, 0f, h.toFloat(), bgTop, bgBottom, android.graphics.Shader.TileMode.CLAMP,
-            )
-        }
-        canvas.drawRect(0f, 0f, w.toFloat(), h.toFloat(), bgPaint)
+        // Static snapshot of the About page's official OS3 blend-color
+        // background. The AGSL RuntimeShader only runs inside the Compose
+        // render pipeline, so the share card reproduces its math with
+        // plain Canvas pixel work (see renderBlendBackground).
+        val blend = renderBlendBackground(w, h, isDarkTheme)
+        canvas.drawBitmap(
+            blend, null,
+            android.graphics.RectF(0f, 0f, w.toFloat(), h.toFloat()),
+            Paint(Paint.FILTER_BITMAP_FLAG or Paint.ANTI_ALIAS_FLAG),
+        )
     }
 
     // Card
@@ -1669,7 +1811,12 @@ private fun renderShareCard(
     canvas.drawText(dateLine, cx, cardT + 880f, textPaint(46f, true, onCard))
 
     // Signature below the card, tinted for contrast with the background.
-    val signatureColor = if (wallpaperTextDark) 0xB31B1B1F.toInt() else 0xB3FFFFFF.toInt()
+    val signatureColor = when {
+        wallpaper != null ->
+            if (wallpaperTextDark) 0xB31B1B1F.toInt() else 0xB3FFFFFF.toInt()
+        isDarkTheme -> 0xB3FFFFFF.toInt()
+        else -> 0xB31B1B1F.toInt()
+    }
     canvas.drawText("HyperDay", cx, 1520f, textPaint(44f, true, signatureColor))
 
     return bmp
