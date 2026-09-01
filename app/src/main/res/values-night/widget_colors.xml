@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Widget palette (dark) — mirrors Miuix dark tokens:
+         card = surfaceContainer (#242424), text = onSurface (#F2F2F2),
+         secondary = onSurfaceVariantSummary (50% white), accent = primary. -->
+    <color name="widget_bg">#FF242424</color>
+    <color name="widget_text_primary">#FFF2F2F2</color>
+    <color name="widget_text_secondary">#80FFFFFF</color>
+    <color name="widget_accent">#FF277AF7</color>
+</resources>

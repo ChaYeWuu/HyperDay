@@ -1,5 +1,6 @@
 package com.chayewuu.hypermatter
 
+import android.content.Intent
 import android.os.Build
 import android.os.Bundle
 import android.view.HapticFeedbackConstants
@@ -17,6 +18,7 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -77,12 +79,16 @@ import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 class MainActivity : ComponentActivity() {
 
+    /** Event deep-link target set by the home-screen widgets. */
+    private val pendingEventId = mutableStateOf<String?>(null)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge(
             statusBarStyle = SystemBarStyle.auto(0, 0),
             navigationBarStyle = SystemBarStyle.auto(0, 0),
         )
+        pendingEventId.value = intent?.getStringExtra(EXTRA_EVENT_ID)
 
         val eventStore = EventStore(this)
         val settingsStore = SettingsStore(this)
@@ -126,10 +132,21 @@ class MainActivity : ComponentActivity() {
                     LocalEventViewModel provides eventViewModel,
                     LocalSettingsStore provides settingsStore,
                 ) {
-                    App()
+                    App(pendingEventId)
                 }
             }
         }
+    }
+
+    /** Warm-start deep link from widgets: singleTask relaunches via onNewIntent. */
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        pendingEventId.value = intent.getStringExtra(EXTRA_EVENT_ID)
+    }
+
+    companion object {
+        /** Widget PendingIntents use this extra to deep-link an event detail page. */
+        const val EXTRA_EVENT_ID = "hyperday.extra.EVENT_ID"
     }
 }
 
@@ -183,7 +200,7 @@ private fun rememberSystemCornerRadius(): Dp {
 }
 
 @Composable
-private fun App() {
+private fun App(pendingEventId: MutableState<String?>) {
     // Liquid Glass app style: enabled by the settings switch and only when
     // the device supports RenderEffect (API 31+); below that every glass
     // component silently falls back to its classic Miuix counterpart.
@@ -203,6 +220,15 @@ private fun App() {
 
     val backStack = rememberNavBackStack<Route>(Route.Main)
     val systemCorner = rememberSystemCornerRadius()
+
+    // Widget deep link: push the event detail page once, then consume.
+    LaunchedEffect(pendingEventId.value) {
+        val eventId = pendingEventId.value
+        if (eventId != null) {
+            backStack.add(Route.EventDetail(eventId))
+            pendingEventId.value = null
+        }
+    }
 
     CompositionLocalProvider(LocalGlassEnabled provides glassEnabled) {
         // Official Miuix navigation: NavDisplay + NavTransitions.MiuixDefault —

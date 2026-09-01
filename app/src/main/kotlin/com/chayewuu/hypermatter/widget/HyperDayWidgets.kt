@@ -1,0 +1,259 @@
+package com.chayewuu.hypermatter.widget
+
+import android.app.PendingIntent
+import android.appwidget.AppWidgetManager
+import android.appwidget.AppWidgetProvider
+import android.content.ComponentName
+import android.content.Context
+import android.content.Intent
+import android.widget.RemoteViews
+import com.chayewuu.hypermatter.MainActivity
+import com.chayewuu.hypermatter.R
+import com.chayewuu.hypermatter.data.CountdownEvent
+import com.chayewuu.hypermatter.data.DateUtils
+import com.chayewuu.hypermatter.data.EventStore
+
+/**
+ * HyperDay home-screen widgets.
+ *
+ * Miuix has no AppWidget component (widgets render via RemoteViews/XML, not
+ * Compose), so these layouts are hand-drawn in the Miuix/HyperOS design
+ * language: rounded white/#242424 cards, Miuix light/dark palette via
+ * values / values-night color resources, primary-blue accents.
+ *
+ * Three styles:
+ *  - [CardWidget]   2x2  — nearest upcoming event, big day number
+ *  - [ListWidget]   4x2  — next 4 upcoming events, one row each
+ *  - [MinimalWidget] 2x1 — day number + title on a single line
+ *
+ * Data refresh triggers:
+ *  - EventStore writes (see [updateAllWidgets])
+ *  - System periodic update (30 min) and DATE_CHANGED / TIMEZONE_CHANGED
+ *  - Manual onUpdate from the launcher
+ */
+
+/** Upcoming events (recurring always count), soonest first. */
+private fun upcomingEvents(context: Context): List<CountdownEvent> =
+    EventStore(context).events.value
+        .filter { !DateUtils.isPastEvent(it) }
+        .sortedBy { DateUtils.effectiveEpochDay(it) }
+
+/** Date line under the title: repeat rule for recurring, otherwise date + weekday. */
+private fun eventDateLine(event: CountdownEvent): String {
+    val repeat = DateUtils.repeatLabel(event)
+    if (repeat.isNotBlank()) return repeat
+    val day = DateUtils.effectiveEpochDay(event)
+    return "${DateUtils.formatDate(day)} ${DateUtils.weekdayLabel(day)}"
+}
+
+/** Shorter date for list rows: "6月15日". */
+private fun eventDateShort(event: CountdownEvent): String {
+    val day = DateUtils.effectiveEpochDay(event)
+    return java.time.LocalDate.ofEpochDay(day).let { "${it.monthValue}月${it.dayOfMonth}日" }
+}
+
+/** Open the event detail page (deep link into MainActivity). */
+private fun openEvent(context: Context, eventId: String): PendingIntent {
+    val intent = Intent(context, MainActivity::class.java).apply {
+        putExtra(MainActivity.EXTRA_EVENT_ID, eventId)
+        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+    }
+    return PendingIntent.getActivity(
+        context,
+        eventId.hashCode(),
+        intent,
+        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+    )
+}
+
+/** Open the app home. */
+private fun openApp(context: Context, requestCode: Int): PendingIntent {
+    val intent = Intent(context, MainActivity::class.java)
+    return PendingIntent.getActivity(
+        context,
+        requestCode,
+        intent,
+        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+    )
+}
+
+// ---------------------------------------------------------------------------
+// Card widget (2x2)
+// ---------------------------------------------------------------------------
+
+class CardWidget : AppWidgetProvider() {
+
+    override fun onUpdate(
+        context: Context,
+        appWidgetManager: AppWidgetManager,
+        appWidgetIds: IntArray,
+    ) {
+        appWidgetIds.forEach { updateCardWidget(context, appWidgetManager, it) }
+    }
+
+    override fun onReceive(context: Context, intent: Intent) {
+        if (intent.action == AppWidgetManager.ACTION_APPWIDGET_UPDATE) {
+            super.onReceive(context, intent)
+        } else {
+            // DATE_CHANGED / TIMEZONE_CHANGED: refresh everything.
+            push(context)
+        }
+    }
+
+    companion object {
+        fun push(context: Context) {
+            val manager = AppWidgetManager.getInstance(context)
+            val ids = manager.getAppWidgetIds(ComponentName(context, CardWidget::class.java))
+            ids.forEach { updateCardWidget(context, manager, it) }
+        }
+    }
+}
+
+private fun updateCardWidget(
+    context: Context,
+    manager: AppWidgetManager,
+    appWidgetId: Int,
+) {
+    val event = upcomingEvents(context).firstOrNull()
+    val views = RemoteViews(context.packageName, R.layout.widget_card)
+    if (event == null) {
+        views.setTextViewText(R.id.widget_title, context.getString(R.string.widget_empty_title))
+        views.setTextViewText(R.id.widget_date, "点击打开 HyperDay 添加")
+        views.setTextViewText(R.id.widget_days, "--")
+        views.setTextViewText(R.id.widget_days_unit, "")
+        views.setOnClickPendingIntent(R.id.widget_root, openApp(context, 1000 + appWidgetId))
+    } else {
+        views.setTextViewText(R.id.widget_title, event.title)
+        views.setTextViewText(R.id.widget_date, eventDateLine(event))
+        val days = DateUtils.dayNumber(event)
+        views.setTextViewText(R.id.widget_days, days.toString())
+        views.setTextViewText(R.id.widget_days_unit, "天")
+        views.setOnClickPendingIntent(R.id.widget_root, openEvent(context, event.id))
+    }
+    manager.updateAppWidget(appWidgetId, views)
+}
+
+// ---------------------------------------------------------------------------
+// List widget (4x2)
+// ---------------------------------------------------------------------------
+
+class ListWidget : AppWidgetProvider() {
+
+    override fun onUpdate(
+        context: Context,
+        appWidgetManager: AppWidgetManager,
+        appWidgetIds: IntArray,
+    ) {
+        appWidgetIds.forEach { updateListWidget(context, appWidgetManager, it) }
+    }
+
+    override fun onReceive(context: Context, intent: Intent) {
+        if (intent.action == AppWidgetManager.ACTION_APPWIDGET_UPDATE) {
+            super.onReceive(context, intent)
+        } else {
+            push(context)
+        }
+    }
+
+    companion object {
+        fun push(context: Context) {
+            val manager = AppWidgetManager.getInstance(context)
+            val ids = manager.getAppWidgetIds(ComponentName(context, ListWidget::class.java))
+            ids.forEach { updateListWidget(context, manager, it) }
+        }
+    }
+}
+
+private fun updateListWidget(
+    context: Context,
+    manager: AppWidgetManager,
+    appWidgetId: Int,
+) {
+    val events = upcomingEvents(context).take(4)
+    val views = RemoteViews(context.packageName, R.layout.widget_list)
+    views.removeAllViews(R.id.widget_rows)
+    if (events.isEmpty()) {
+        val row = RemoteViews(context.packageName, R.layout.widget_list_row)
+        row.setTextViewText(R.id.widget_row_title, context.getString(R.string.widget_empty_title))
+        row.setTextViewText(R.id.widget_row_date, "")
+        row.setTextViewText(R.id.widget_row_days, "--")
+        row.setTextViewText(R.id.widget_row_days_unit, "")
+        row.setOnClickPendingIntent(R.id.widget_row_root, openApp(context, appWidgetId))
+        views.addView(R.id.widget_rows, row)
+    } else {
+        events.forEach { event ->
+            val row = RemoteViews(context.packageName, R.layout.widget_list_row)
+            row.setTextViewText(R.id.widget_row_title, event.title)
+            row.setTextViewText(R.id.widget_row_date, eventDateShort(event))
+            row.setTextViewText(R.id.widget_row_days, DateUtils.dayNumber(event).toString())
+            row.setTextViewText(R.id.widget_row_days_unit, "天")
+            row.setOnClickPendingIntent(R.id.widget_row_root, openEvent(context, event.id))
+            views.addView(R.id.widget_rows, row)
+        }
+    }
+    // Header area (outside rows) opens the app home.
+    views.setOnClickPendingIntent(R.id.widget_root, openApp(context, 2000 + appWidgetId))
+    manager.updateAppWidget(appWidgetId, views)
+}
+
+// ---------------------------------------------------------------------------
+// Minimal widget (2x1)
+// ---------------------------------------------------------------------------
+
+class MinimalWidget : AppWidgetProvider() {
+
+    override fun onUpdate(
+        context: Context,
+        appWidgetManager: AppWidgetManager,
+        appWidgetIds: IntArray,
+    ) {
+        appWidgetIds.forEach { updateMinimalWidget(context, appWidgetManager, it) }
+    }
+
+    override fun onReceive(context: Context, intent: Intent) {
+        if (intent.action == AppWidgetManager.ACTION_APPWIDGET_UPDATE) {
+            super.onReceive(context, intent)
+        } else {
+            push(context)
+        }
+    }
+
+    companion object {
+        fun push(context: Context) {
+            val manager = AppWidgetManager.getInstance(context)
+            val ids = manager.getAppWidgetIds(ComponentName(context, MinimalWidget::class.java))
+            ids.forEach { updateMinimalWidget(context, manager, it) }
+        }
+    }
+}
+
+private fun updateMinimalWidget(
+    context: Context,
+    manager: AppWidgetManager,
+    appWidgetId: Int,
+) {
+    val event = upcomingEvents(context).firstOrNull()
+    val views = RemoteViews(context.packageName, R.layout.widget_minimal)
+    if (event == null) {
+        views.setTextViewText(R.id.widget_title, context.getString(R.string.widget_empty_title))
+        views.setTextViewText(R.id.widget_days, "--")
+        views.setTextViewText(R.id.widget_days_unit, "")
+        views.setOnClickPendingIntent(R.id.widget_root, openApp(context, 3000 + appWidgetId))
+    } else {
+        views.setTextViewText(R.id.widget_title, event.title)
+        views.setTextViewText(R.id.widget_days, DateUtils.dayNumber(event).toString())
+        views.setTextViewText(R.id.widget_days_unit, "天")
+        views.setOnClickPendingIntent(R.id.widget_root, openEvent(context, event.id))
+    }
+    manager.updateAppWidget(appWidgetId, views)
+}
+
+/**
+ * Refresh every HyperDay widget. Called by EventStore after each write so the
+ * home screen stays in sync with in-app changes.
+ */
+fun updateAllWidgets(context: Context) {
+    CardWidget.push(context)
+    ListWidget.push(context)
+    MinimalWidget.push(context)
+}

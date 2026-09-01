@@ -2,6 +2,7 @@ package com.chayewuu.hypermatter.data
 
 import android.content.Context
 import android.content.SharedPreferences
+import com.chayewuu.hypermatter.widget.updateAllWidgets
 import java.time.LocalDate
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -14,11 +15,14 @@ import kotlinx.serialization.json.Json
  *
  * Events are stored as a single JSON array under key "events".
  * The class also exposes a [StateFlow] so Compose can observe changes.
+ * Every write also refreshes the home-screen widgets.
  */
 class EventStore(context: Context) {
 
+    private val appContext = context.applicationContext
+
     private val prefs: SharedPreferences =
-        context.applicationContext.getSharedPreferences("hypermatter_events", Context.MODE_PRIVATE)
+        appContext.getSharedPreferences("hypermatter_events", Context.MODE_PRIVATE)
 
     private val json = Json {
         ignoreUnknownKeys = true
@@ -38,6 +42,8 @@ class EventStore(context: Context) {
     private fun persist(list: List<CountdownEvent>) {
         val raw = json.encodeToString(ListSerializer(CountdownEvent.serializer()), list)
         prefs.edit().putString(KEY_EVENTS, raw).apply()
+        // Keep home-screen widgets in sync with every data change.
+        runCatching { updateAllWidgets(appContext) }
     }
 
     fun add(event: CountdownEvent) {
