@@ -1,6 +1,6 @@
 # HyperDay
 
-一个基于 [Miuix](https://github.com/miuix-kotlin-ui/miuix)（HyperOS 设计语言）组件库打造的 Android 倒数日应用，拥有 HyperOS 风格的界面、液态玻璃材质、莫奈动态取色与官方动态混色背景。
+一个基于 [Miuix](https://github.com/compose-miuix-ui/miuix)（HyperOS 设计语言）组件库打造的 Android 倒数日应用，拥有 HyperOS 风格的界面、液态玻璃材质、莫奈动态取色与官方动态混色背景。
 
 ## 功能
 
@@ -22,12 +22,12 @@
 
 | 项目 | 说明 |
 | --- | --- |
-| UI 框架 | [Miuix](https://github.com/miuix-kotlin-ui/miuix) v0.9.4-rc01（HyperOS Design） |
+| UI 框架 | [Miuix](https://github.com/compose-miuix-ui/miuix) v0.9.4-rc01（HyperOS Design） |
 | 液态玻璃 | [AndroidLiquidGlass](https://github.com/Kyant0/AndroidLiquidGlass) backdrop 2.0.1（Apache-2.0） |
-| 动态取色 | [MaterialKolor](https://github.com/materialkolor/materialkolor)（经 Miuix 传递依赖） |
+| 动态取色 | [MaterialKolor](https://github.com/jordond/materialkolor)（经 Miuix 传递依赖） |
 | 语言 | Kotlin 2.4.0 |
 | 构建 | Gradle 9.4.1 + AGP 9.2.1 |
-| 最低支持 | Android 7.0（API 24），液态玻璃 / 磨砂模糊等材质效果需 Android 13+（API 33） |
+| 最低支持 | Android 7.0（API 24），液态玻璃需 Android 12+（API 31），磨砂模糊等效果需 Android 13+（API 33） |
 
 ## 构建
 
@@ -74,11 +74,14 @@ app/src/main/kotlin/com/chayewuu/hypermatter/
 │   ├── DateUtils.kt         # epochDay 日期计算
 │   ├── EventStore.kt        # SharedPreferences + JSON 持久化
 │   ├── EventViewModel.kt    # 事件 ViewModel
-│   └── SettingsStore.kt     # 外观 / 应用风格 / 莫奈取色设置
+│   ├── SettingsStore.kt     # 外观 / 应用风格 / 莫奈取色设置
+│   ├── BackupManager.kt    # 备份导出与导入（含官方 .idmbaks 解析）
+│   └── LunarCalendar.kt     # 1900–2100 农历换算（重复事件用）
 └── ui/
     ├── HomePage.kt          # 首页事件列表
     ├── AddEventBottomSheet.kt
-    ├── EventDetailPage.kt   # 详情页（自定义背景 / 玻璃材质）
+    ├── EventDetailPage.kt   # 详情页（自定义背景 / 玻璃材质 / 字体设置）
+    ├── FontSettings.kt      # 详情页字体样式渲染（大小 / 粗细 / 描边 / 阴影，带动画）
     ├── SettingsPage.kt      # 设置页
     ├── ThemePage.kt         # 主题风格页（外观三卡 / 应用风格 / 莫奈取色）
     ├── AboutPage.kt         # 关于页（动态混色背景）
@@ -93,9 +96,9 @@ app/src/main/kotlin/com/chayewuu/hypermatter/
 
 ## 致谢
 
-- [Miuix](https://github.com/miuix-kotlin-ui/miuix) — HyperOS 风格 Compose 组件库（Apache-2.0），动态混色背景与磨砂玻璃效果移植自其官方 example
+- [Miuix](https://github.com/compose-miuix-ui/miuix) — HyperOS 风格 Compose 组件库（Apache-2.0），动态混色背景与磨砂玻璃效果移植自其官方 example
 - [AndroidLiquidGlass](https://github.com/Kyant0/AndroidLiquidGlass) — 液态玻璃效果库 backdrop（Apache-2.0），可拖拽折射底栏移植自其官方 catalog 示例
-- [MaterialKolor](https://github.com/materialkolor/materialkolor) — Material You 动态取色（Miuix 莫奈取色传递依赖）
+- [MaterialKolor](https://github.com/jordond/materialkolor) — Material You 动态取色（Miuix 莫奈取色传递依赖）
 - [Jetpack Compose](https://developer.android.com/compose) — Android 声明式 UI 框架
 
 ## 许可

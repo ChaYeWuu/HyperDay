@@ -63,9 +63,9 @@ import top.yukonga.miuix.kmp.utils.scrollEndHaptic
 import androidx.compose.ui.graphics.BlendMode as ComposeBlendMode
 
 private const val REPO_URL = "https://github.com/ChaYeWuu/HyperDay"
-private const val MIUIX_URL = "https://github.com/miuix-kotlin-ui/miuix"
+private const val MIUIX_URL = "https://github.com/compose-miuix-ui/miuix"
 private const val BACKDROP_URL = "https://github.com/Kyant0/AndroidLiquidGlass"
-private const val MATERIALKOLOR_URL = "https://github.com/materialkolor/materialkolor"
+private const val MATERIALKOLOR_URL = "https://github.com/jordond/materialkolor"
 
 // Official Miuix example card-blend presets
 // (example component/blend/ColorBlendToken.kt, Apache-2.0): dark theme uses
