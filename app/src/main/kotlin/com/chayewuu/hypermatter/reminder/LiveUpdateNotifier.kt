@@ -23,6 +23,12 @@ object LiveUpdateNotifier {
     /** 与超级岛通知 id（event.id.hashCode()）错开的偏移。 */
     private const val ID_OFFSET = 1_000_000
 
+    /**
+     * 最后倒计时窗口：剩余时间进入该窗口后才切换为秒表倒数样式，
+     * 之前以普通实时通知（「还有 N 天」静态文本）常驻。
+     */
+    const val COUNTDOWN_LEAD_MS: Long = 12L * 3600 * 1000
+
     fun liveId(eventId: String): Int = eventId.hashCode() + ID_OFFSET
 
     fun ensureChannel(context: Context) {
@@ -57,7 +63,11 @@ object LiveUpdateNotifier {
     }
 
     /**
-     * 发送/刷新某事件的持续倒计时通知（同一 id 重复 notify 无痕更新）。
+     * 发送/刷新某事件的实时通知（同一 id 重复 notify 无痕更新）。
+     *
+     * 两档样式：剩余时间 > [COUNTDOWN_LEAD_MS] 时为普通实时通知
+     * （「还有 N 天」静态文本）；进入最后倒计时窗口后切换为秒表
+     * 实时倒数到目标时刻，到达时系统自动移除（setTimeoutAfter）。
      *
      * @param targetTimestamp 倒计时归零时刻（毫秒），须为未来时间。
      */
@@ -81,26 +91,35 @@ object LiveUpdateNotifier {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
 
+        val remaining = targetTimestamp - System.currentTimeMillis()
+        val finalCountdown = remaining in 1..COUNTDOWN_LEAD_MS
+
         val builder = Notification.Builder(app, CHANNEL_LIVE)
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(title)
             .setContentText(content)
             .setStyle(Notification.BigTextStyle().bigText(content))
-            .setWhen(targetTimestamp)
-            .setUsesChronometer(true)
-            .setChronometerCountDown(true)
             .setOngoing(true)
             .setOnlyAlertOnce(true)
             .setContentIntent(contentIntent)
             .setCategory(Notification.CATEGORY_REMINDER)
+
+        if (finalCountdown) {
+            // 最后倒计时：秒表实时倒数到目标时刻。
+            builder.setWhen(targetTimestamp)
+                .setUsesChronometer(true)
+                .setChronometerCountDown(true)
+        } else {
+            // 平时：普通实时通知，静态文本常驻（时间栏不显示）。
+            builder.setShowWhen(false)
+        }
 
         if (Build.VERSION.SDK_INT >= 36) {
             builder.setShortCriticalText(shortCriticalText)
             builder.setRequestPromotedOngoing(true)
         }
 
-        val timeout = targetTimestamp - System.currentTimeMillis()
-        if (timeout > 0) builder.setTimeoutAfter(timeout)
+        if (remaining > 0) builder.setTimeoutAfter(remaining)
 
         val notification = builder.build()
         notification.flags = notification.flags or Notification.FLAG_ONLY_ALERT_ONCE

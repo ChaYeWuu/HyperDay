@@ -85,6 +85,10 @@
         <receiver
             android:name=".reminder.LiveUpdateRefreshReceiver"
             android:exported="false" />
+        <!-- Final-window style switch: plain「还有 N 天」→ live 秒表倒数 -->
+        <receiver
+            android:name=".reminder.CountdownSwitchReceiver"
+            android:exported="false" />
         <receiver
             android:name=".reminder.BootReceiver"
             android:exported="false">

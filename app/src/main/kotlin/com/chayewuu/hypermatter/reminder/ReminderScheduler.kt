@@ -68,6 +68,14 @@ object ReminderScheduler {
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
             )
             alarmManager.cancel(pending)
+            // Countdown-style switch alarm for the same event.
+            val switchIntent = Intent(app, CountdownSwitchReceiver::class.java)
+                .putExtra(CountdownSwitchReceiver.EXTRA_EVENT_ID, id)
+            val switchPending = PendingIntent.getBroadcast(
+                app, LiveUpdateNotifier.liveId(id), switchIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+            )
+            alarmManager.cancel(switchPending)
         }
         return ids
     }
@@ -83,7 +91,7 @@ object ReminderScheduler {
         val store = ReminderStore(app)
         if (!store.enabled.value) {
             saveScheduled(app, emptySet())
-            oldIds.forEach { LiveUpdateNotifier.cancel(app, it) }
+            EventStore(app).events.value.forEach { LiveUpdateNotifier.cancel(app, it.id) }
             armDayRefresh(app, canExact = false, needed = false)
             return
         }
@@ -144,13 +152,22 @@ object ReminderScheduler {
         armDayRefresh(app, canExact, needed = anyInWindow && (store.islandEnabled.value || live))
 
         if (live) {
-            // Keep ongoing Live Updates notifications in sync with current
-            // data (silent same-id re-post: texts refresh after edits and
-            // day rollovers, so the countdown info never goes stale).
-            events.filter { it.id in scheduled }.forEach { ev ->
+            // Keep every selected event inside the reminder window in sync:
+            // - days < advance (reminder already fired / day-0 arrival):
+            //   silent same-id re-post refreshes the ongoing notification
+            //   (style auto-picked from the remaining time).
+            // - days == advance (today's reminder day): its own 09:00 alarm
+            //   posts the notification in plain style.
+            // Both arm the style-switch alarm: once the remaining time
+            // enters the final countdown window, the notification switches
+            // from「还有 N 天」to the live 秒表倒数 (CountdownSwitchReceiver).
+            // Filtered by selection & window (NOT `scheduled` — fired events
+            // leave the alarm bookkeeping but must keep refreshing).
+            events.filter { store.isSelected(it) }.forEach { ev ->
                 val days = ChronoUnit.DAYS.between(today, DateUtils.effectiveDate(ev))
-                if (days in 0 until advance.toLong()) {
-                    val timing = ReminderReceiver.timingFor(ev)
+                if (days !in 0..advance.toLong()) return@forEach
+                val timing = ReminderReceiver.timingFor(ev)
+                if (days < advance.toLong()) {
                     LiveUpdateNotifier.showCountdown(
                         context = app,
                         eventId = ev.id,
@@ -160,10 +177,28 @@ object ReminderScheduler {
                         targetTimestamp = timing.targetMillis,
                     )
                 }
+                val switchAt = timing.targetMillis - LiveUpdateNotifier.COUNTDOWN_LEAD_MS
+                if (switchAt > now) {
+                    val switchIntent = Intent(app, CountdownSwitchReceiver::class.java)
+                        .putExtra(CountdownSwitchReceiver.EXTRA_EVENT_ID, ev.id)
+                    val switchPending = PendingIntent.getBroadcast(
+                        app, LiveUpdateNotifier.liveId(ev.id), switchIntent,
+                        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+                    )
+                    if (canExact) {
+                        alarmManager.setExactAndAllowWhileIdle(
+                            AlarmManager.RTC_WAKEUP, switchAt, switchPending,
+                        )
+                    } else {
+                        alarmManager.setAndAllowWhileIdle(
+                            AlarmManager.RTC_WAKEUP, switchAt, switchPending,
+                        )
+                    }
+                }
             }
         } else {
             // Live Updates toggled off: cancel every ongoing notification.
-            scheduled.forEach { LiveUpdateNotifier.cancel(app, it) }
+            events.forEach { LiveUpdateNotifier.cancel(app, it.id) }
         }
     }
 
