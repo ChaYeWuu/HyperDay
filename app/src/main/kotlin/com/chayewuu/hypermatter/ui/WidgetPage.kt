@@ -260,8 +260,8 @@ private fun selectedEvent(
 
 /** Shared card surface: 24dp rounded, surfaceContainer background. */
 @Composable
-private fun Modifier.widgetPreviewSurface(): Modifier = this
-    .clip(androidx.compose.foundation.shape.RoundedCornerShape(24.dp))
+private fun Modifier.widgetPreviewSurface(radiusDp: Int = 24): Modifier = this
+    .clip(androidx.compose.foundation.shape.RoundedCornerShape(radiusDp.dp))
     .background(MiuixTheme.colorScheme.surfaceContainer)
 
 @Composable
@@ -341,7 +341,7 @@ private fun CardWidgetPreview(
 ) {
     Column(
         modifier = modifier
-            .widgetPreviewSurface()
+            .widgetPreviewSurface(radiusDp = 36)
             .padding(horizontal = 14.dp, vertical = 12.dp),
     ) {
         // Tag pill left, today's date right (matches the real widget).

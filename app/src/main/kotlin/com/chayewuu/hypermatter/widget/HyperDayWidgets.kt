@@ -187,13 +187,18 @@ class CardWidget : AppWidgetProvider() {
  * inside the transparent widget_root. Needs API 31+ RemoteViews size APIs;
  * below that the card simply fills the cell as before.
  */
-private fun squareCardBox(views: RemoteViews, manager: AppWidgetManager, appWidgetId: Int) {
+private fun squareCardBox(context: Context, views: RemoteViews, manager: AppWidgetManager, appWidgetId: Int) {
     if (Build.VERSION.SDK_INT < 31) return
     val opts = manager.getAppWidgetOptions(appWidgetId)
     val width = opts.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 0)
     val height = opts.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT, 0)
     if (width <= 0 || height <= 0) return
+    val density = context.resources.displayMetrics.density
     val side = min(width, height).toFloat()
+    android.util.Log.d(
+        "HyperDayWidget",
+        "squareCardBox id=$appWidgetId optW=$width optH=$height density=$density side=$side"
+    )
     views.setViewLayoutWidth(R.id.widget_card_box, side, TypedValue.COMPLEX_UNIT_DIP)
     views.setViewLayoutHeight(R.id.widget_card_box, side, TypedValue.COMPLEX_UNIT_DIP)
 }
@@ -205,7 +210,7 @@ private fun updateCardWidget(
 ) {
     val event = singleEvent(context)
     val views = RemoteViews(context.packageName, R.layout.widget_card)
-    squareCardBox(views, manager, appWidgetId)
+    squareCardBox(context, views, manager, appWidgetId)
     views.setTextViewText(R.id.widget_today, todayLine())
     if (event == null) {
         views.setTextViewText(R.id.widget_tag, "")

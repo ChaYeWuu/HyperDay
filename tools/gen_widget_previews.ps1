@@ -12,14 +12,14 @@ $Secondary = [System.Drawing.Color]::FromArgb(0xFF, 0x8C, 0x8C, 0x8C)
 $Accent = [System.Drawing.Color]::FromArgb(0xFF, 0x34, 0x82, 0xFF)
 $Border = [System.Drawing.Color]::FromArgb(0xFF, 0xEC, 0xEC, 0xEF)
 
-function New-Canvas([int]$w, [int]$h) {
+function New-Canvas([int]$w, [int]$h, [int]$radius = 64) {
     $bmp = New-Object System.Drawing.Bitmap($w, $h)
     $g = [System.Drawing.Graphics]::FromImage($bmp)
     $g.SmoothingMode = [System.Drawing.Drawing2D.SmoothingMode]::AntiAlias
     $g.TextRenderingHint = [System.Drawing.Text.TextRenderingHint]::AntiAlias
     $g.Clear([System.Drawing.Color]::Transparent)
     # rounded card with a hairline border so it reads on the light picker
-    $r = 64
+    $r = $radius
     $p = New-Object System.Drawing.Drawing2D.GraphicsPath
     $p.AddArc(0, 0, 2 * $r, 2 * $r, 180, 90)
     $p.AddArc($w - 2 * $r, 0, 2 * $r, 2 * $r, 270, 90)
@@ -42,7 +42,7 @@ $YaHei = 'Microsoft YaHei UI'
 # ---------------------------------------------------------------- card 2x2
 # Merged card widget: tag pill (距离/过去) top-left, title + date,
 # big centered day number.
-$bmp, $g = New-Canvas 600 600
+$bmp, $g = New-Canvas 600 600 130
 $pad = 60
 $bPrimary = New-Object System.Drawing.SolidBrush($Primary)
 $bSecondary = New-Object System.Drawing.SolidBrush($Secondary)
