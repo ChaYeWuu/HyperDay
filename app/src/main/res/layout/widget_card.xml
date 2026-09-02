@@ -18,7 +18,7 @@
         android:id="@+id/widget_card_box"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:background="@drawable/widget_card_bg"
+        android:background="@drawable/widget_bg"
         android:orientation="vertical"
         android:paddingStart="18dp"
         android:paddingTop="12dp"

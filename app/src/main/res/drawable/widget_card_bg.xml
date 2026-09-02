@@ -1,9 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!-- Card widget background: rounder than the shared widget_bg to match
-     HyperOS card language (~22% of the square side, vs 24dp on the
-     smaller list/minimal widgets). -->
-<shape xmlns:android="http://schemas.android.com/apk/res/android"
-    android:shape="rectangle">
-    <solid android:color="@color/widget_bg" />
-    <corners android:radius="36dp" />
-</shape>

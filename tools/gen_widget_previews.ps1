@@ -42,7 +42,7 @@ $YaHei = 'Microsoft YaHei UI'
 # ---------------------------------------------------------------- card 2x2
 # Merged card widget: tag pill (距离/过去) top-left, title + date,
 # big centered day number.
-$bmp, $g = New-Canvas 600 600 130
+$bmp, $g = New-Canvas 600 600 64
 $pad = 60
 $bPrimary = New-Object System.Drawing.SolidBrush($Primary)
 $bSecondary = New-Object System.Drawing.SolidBrush($Secondary)
@@ -96,7 +96,7 @@ $g.Dispose(); $bmp.Dispose()
 
 # ---------------------------------------------------------------- list 4x2
 # Header: calendar glyph + today's date; rows carry their own 距离/过去 tag pill.
-$bmp, $g = New-Canvas 1200 600
+$bmp, $g = New-Canvas 1200 600 64
 $pad = 60
 $fTag = Font $YaHei 24 ([System.Drawing.FontStyle]::Regular)
 $fHeader = Font $YaHei 28 ([System.Drawing.FontStyle]::Regular)
@@ -193,7 +193,7 @@ $g.Dispose(); $bmp.Dispose()
 # ---------------------------------------------------------------- minimal 2x1
 # Top row: tag pill (left) + today's date (right);
 # bottom row: event title and big day number on the same baseline.
-$bmp, $g = New-Canvas 600 300
+$bmp, $g = New-Canvas 600 300 64
 $pad = 50
 $fNum = Font $YaHei 76 ([System.Drawing.FontStyle]::Bold)
 $fUnit = Font $YaHei 26 ([System.Drawing.FontStyle]::Regular)
