@@ -197,7 +197,7 @@ $bmp, $g = New-Canvas 600 300
 $pad = 50
 $fNum = Font $YaHei 76 ([System.Drawing.FontStyle]::Bold)
 $fUnit = Font $YaHei 26 ([System.Drawing.FontStyle]::Regular)
-$fTitle = Font $YaHei 48 ([System.Drawing.FontStyle]::Bold)
+$fTitle = Font $YaHei 56 ([System.Drawing.FontStyle]::Bold)
 $fTag = Font $YaHei 24 ([System.Drawing.FontStyle]::Regular)
 
 $tagText = '距离'
