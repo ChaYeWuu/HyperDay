@@ -1,17 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Minimal day-count widget (2x1):
-      top row = tag pill (left) + today's date (right);
-      bottom row = event title + big day number on the same baseline,
-      vertically centered with each other.
-      MIUI cells are taller than wide, so the visible card
-      (widget_minimal_box) is sized to half of the 2x2 card square
-      (same width, half the height) and top-aligned inside the
-      transparent widget_root at update time (API 31+). -->
+<!-- Minimal day-count widget (2x1, resizable):
+       top row = tag pill (left) + today's date (right);
+       bottom row = event title + big day number on the same baseline,
+       vertically centered with each other.
+       Width fills the whole cell; the height is shrunk slightly (95%,
+       centered) at update time (API 31+) so it visually lines up with
+       the card widget above it. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/widget_root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:gravity="center_horizontal"
+    android:gravity="center"
     android:orientation="vertical">
 
     <LinearLayout
@@ -25,83 +24,83 @@
         android:paddingEnd="14dp"
         android:paddingBottom="8dp">
 
-        <LinearLayout
-            android:layout_width="match_parent"
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <TextView
+            android:id="@+id/widget_tag"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:gravity="center_vertical"
-            android:orientation="horizontal">
+            android:background="@drawable/widget_tag_bg"
+            android:paddingStart="6dp"
+            android:paddingTop="1dp"
+            android:paddingEnd="6dp"
+            android:paddingBottom="2dp"
+            android:text=""
+            android:textColor="@color/widget_text_secondary"
+            android:textSize="10sp" />
 
-            <TextView
-                android:id="@+id/widget_tag"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:background="@drawable/widget_tag_bg"
-                android:paddingStart="6dp"
-                android:paddingTop="1dp"
-                android:paddingEnd="6dp"
-                android:paddingBottom="2dp"
-                android:text=""
-                android:textColor="@color/widget_text_secondary"
-                android:textSize="10sp" />
-
-            <TextView
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="" />
-
-            <TextView
-                android:id="@+id/widget_today"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:ellipsize="end"
-                android:maxLines="1"
-                android:text=""
-                android:textColor="@color/widget_text_secondary"
-                android:textSize="10sp" />
-        </LinearLayout>
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="0dp"
-            android:layout_marginTop="2dp"
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:gravity="center_vertical"
-            android:orientation="horizontal">
+            android:text="" />
 
-            <TextView
-                android:id="@+id/widget_title"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_marginEnd="8dp"
-                android:layout_weight="1"
-                android:ellipsize="end"
-                android:fontFamily="sans-serif-medium"
-                android:maxLines="1"
-                android:text="@string/widget_empty_title"
-                android:textColor="@color/widget_text_primary"
-                android:textSize="18sp" />
+        <TextView
+            android:id="@+id/widget_today"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:text=""
+            android:textColor="@color/widget_text_secondary"
+            android:textSize="10sp" />
+    </LinearLayout>
 
-            <TextView
-                android:id="@+id/widget_days"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:fontFamily="sans-serif"
-                android:includeFontPadding="false"
-                android:text="--"
-                android:textColor="@color/widget_accent"
-                android:textSize="24sp"
-                android:textStyle="bold" />
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_marginTop="2dp"
+        android:layout_weight="1"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
 
-            <TextView
-                android:id="@+id/widget_days_unit"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="3dp"
-                android:includeFontPadding="false"
-                android:text="天"
-                android:textColor="@color/widget_text_secondary"
-                android:textSize="11sp" />
-        </LinearLayout>
+        <TextView
+            android:id="@+id/widget_title"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="8dp"
+            android:layout_weight="1"
+            android:ellipsize="end"
+            android:fontFamily="sans-serif-medium"
+            android:maxLines="1"
+            android:text="@string/widget_empty_title"
+            android:textColor="@color/widget_text_primary"
+            android:textSize="18sp" />
+
+        <TextView
+            android:id="@+id/widget_days"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:fontFamily="sans-serif"
+            android:includeFontPadding="false"
+            android:text="--"
+            android:textColor="@color/widget_accent"
+            android:textSize="24sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/widget_days_unit"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="3dp"
+            android:includeFontPadding="false"
+            android:text="天"
+            android:textColor="@color/widget_text_secondary"
+            android:textSize="11sp" />
+    </LinearLayout>
     </LinearLayout>
 </LinearLayout>

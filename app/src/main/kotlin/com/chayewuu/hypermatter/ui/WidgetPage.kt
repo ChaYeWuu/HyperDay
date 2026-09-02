@@ -155,7 +155,9 @@ fun WidgetPage(
                                     event = selectedEvent(events, selectedId),
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .aspectRatio(1f),
+                                        // Full 2x2 cell (MIUI cells are taller
+                                        // than wide, ~0.82 w/h).
+                                        .aspectRatio(0.82f),
                                 )
                                 PreviewCaption("卡片 2×2")
                             }
@@ -171,7 +173,8 @@ fun WidgetPage(
                                     event = feed.firstOrNull(),
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .aspectRatio(2f),
+                                        // Full 2x1 cell (~1.79 w/h).
+                                        .aspectRatio(1.79f),
                                 )
                                 PreviewCaption("极简 2×1")
                             }

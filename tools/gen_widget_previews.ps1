@@ -41,8 +41,8 @@ $YaHei = 'Microsoft YaHei UI'
 
 # ---------------------------------------------------------------- card 2x2
 # Merged card widget: tag pill (距离/过去) top-left, title + date,
-# big centered day number.
-$bmp, $g = New-Canvas 600 600 64
+# big centered day number. Full-cell 2x2 aspect (~0.82 w/h on MIUI).
+$bmp, $g = New-Canvas 600 734 64
 $pad = 60
 $bPrimary = New-Object System.Drawing.SolidBrush($Primary)
 $bSecondary = New-Object System.Drawing.SolidBrush($Secondary)
@@ -81,7 +81,7 @@ $unitSize = $g.MeasureString('天', $fUnit)
 $blockW = $numSize.Width + 14 + $unitSize.Width
 $bx = (600 - $blockW) / 2
 $top = 210
-$bottom = 600 - 60
+$bottom = 734 - 60
 $by = $top + ($bottom - $top - $numSize.Height) / 2
 $g.DrawString($numText, $fNum, $bAccent, $bx, $by)
 $g.DrawString('天', $fUnit, $bSecondary, ($bx + $numSize.Width + 14), ($by + $numSize.Height - $unitSize.Height))
@@ -188,7 +188,8 @@ $g.Dispose(); $bmp.Dispose()
 # ---------------------------------------------------------------- minimal 2x1
 # Top row: tag pill (left) + today's date (right);
 # bottom row: event title and big day number on the same baseline.
-$bmp, $g = New-Canvas 600 300 64
+# Full-cell 2x1 aspect (~1.79 w/h on MIUI).
+$bmp, $g = New-Canvas 600 336 64
 $pad = 50
 $fNum = Font $YaHei 76 ([System.Drawing.FontStyle]::Bold)
 $fUnit = Font $YaHei 26 ([System.Drawing.FontStyle]::Regular)
@@ -219,7 +220,7 @@ $g.DrawString($todayText, $fTag, $bSecondary, ($rightEdge - $todaySize.Width), (
 
 # bottom row: title (left) + day number + unit (right), each vertically
 # centered on the same row line so they read flush
-$rowCy = (($topY + $tagH) + (300 - 44)) / 2
+$rowCy = (($topY + $tagH) + (336 - 44)) / 2
 $ts = $g.MeasureString('去上海', $fTitle)
 $g.DrawString('去上海', $fTitle, $bPrimary, $pad, ($rowCy - $ts.Height / 2))
 $numText = '12'

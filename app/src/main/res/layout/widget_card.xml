@@ -3,15 +3,14 @@
      Settings > 小部件 (WidgetPrefs), falls back to the nearest event.
      Top-left tag pill shows 距离 (upcoming/recurring) or 过去 (past);
      day number is vertically centered, 42sp.
-     MIUI 2x2 cells are taller than wide, so the visible card
-     (widget_card_box) is shrunk to a true square and top-aligned
-     inside the transparent widget_root at update time (API 31+),
-     so its top edge lines up with neighbouring widgets. -->
+     Width fills the whole cell; the height is shrunk slightly (90%,
+     centered) at update time (API 31+) so the card visually lines up
+     with the icon rows around it. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/widget_root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:gravity="center_horizontal"
+    android:gravity="center"
     android:orientation="vertical">
 
     <LinearLayout
