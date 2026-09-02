@@ -33,14 +33,19 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.chayewuu.hypermatter.data.CategoryStore
 import com.chayewuu.hypermatter.data.EventStore
 import com.chayewuu.hypermatter.data.EventViewModel
+import com.chayewuu.hypermatter.data.ReminderStore
 import com.chayewuu.hypermatter.data.SettingsStore
+import com.chayewuu.hypermatter.reminder.ReminderScheduler
 import com.chayewuu.hypermatter.ui.AboutPage
 import com.chayewuu.hypermatter.ui.AddEventBottomSheet
 import com.chayewuu.hypermatter.ui.BlurredBar
+import com.chayewuu.hypermatter.ui.CategoryPage
 import com.chayewuu.hypermatter.ui.EventDetailPage
 import com.chayewuu.hypermatter.ui.HomePage
+import com.chayewuu.hypermatter.ui.ReminderPage
 import com.chayewuu.hypermatter.ui.SettingsPage
 import com.chayewuu.hypermatter.ui.ThemePage
 import com.chayewuu.hypermatter.ui.WidgetPage
@@ -53,7 +58,9 @@ import com.chayewuu.hypermatter.ui.glass.LocalGlassBackdrop
 import com.chayewuu.hypermatter.ui.glass.LocalGlassEnabled
 import com.chayewuu.hypermatter.ui.glass.rememberContentGlassBackdrop
 import com.chayewuu.hypermatter.ui.glass.rememberGlassBackdrop
+import com.chayewuu.hypermatter.ui.theme.LocalCategoryStore
 import com.chayewuu.hypermatter.ui.theme.LocalEventViewModel
+import com.chayewuu.hypermatter.ui.theme.LocalReminderStore
 import com.chayewuu.hypermatter.ui.theme.LocalSettingsStore
 import com.chayewuu.hypermatter.ui.theme.MiuixAppTheme
 import com.kyant.backdrop.backdrops.layerBackdrop as liquidLayerBackdrop
@@ -93,6 +100,8 @@ class MainActivity : ComponentActivity() {
 
         val eventStore = EventStore(this)
         val settingsStore = SettingsStore(this)
+        val categoryStore = CategoryStore(this)
+        val reminderStore = ReminderStore(this)
         val eventViewModel = EventViewModel(eventStore)
 
         setContent {
@@ -132,6 +141,8 @@ class MainActivity : ComponentActivity() {
                 CompositionLocalProvider(
                     LocalEventViewModel provides eventViewModel,
                     LocalSettingsStore provides settingsStore,
+                    LocalCategoryStore provides categoryStore,
+                    LocalReminderStore provides reminderStore,
                 ) {
                     App(pendingEventId)
                 }
@@ -165,6 +176,12 @@ private sealed interface Route : NavKey {
 
     @Serializable
     data object Widget : Route
+
+    @Serializable
+    data object Category : Route
+
+    @Serializable
+    data object Reminder : Route
 
     @Serializable
     data class EventDetail(val id: String) : Route
@@ -225,6 +242,12 @@ private fun App(pendingEventId: MutableState<String?>) {
     val backStack = rememberNavBackStack<Route>(Route.Main)
     val systemCorner = rememberSystemCornerRadius()
 
+    // Re-plan reminder alarms on start and whenever the event list changes
+    // (added events with a reminded category immediately get an alarm).
+    LaunchedEffect(events) {
+        runCatching { ReminderScheduler.reschedule(context) }
+    }
+
     // Widget deep link: push the event detail page once, then consume.
     LaunchedEffect(pendingEventId.value) {
         val eventId = pendingEventId.value
@@ -265,6 +288,8 @@ private fun App(pendingEventId: MutableState<String?>) {
                     onOpenAbout = { backStack.add(Route.About) },
                     onOpenTheme = { backStack.add(Route.Theme) },
                     onOpenWidget = { backStack.add(Route.Widget) },
+                    onOpenCategory = { backStack.add(Route.Category) },
+                    onOpenReminder = { backStack.add(Route.Reminder) },
                 )
             }
             entry<Route.About>(swipeDismiss = NavSwipeDirection.LeftToRight) {
@@ -275,6 +300,12 @@ private fun App(pendingEventId: MutableState<String?>) {
             }
             entry<Route.Widget>(swipeDismiss = NavSwipeDirection.LeftToRight) {
                 WidgetPage(onBack = { backStack.removeLastOrNull() })
+            }
+            entry<Route.Category>(swipeDismiss = NavSwipeDirection.LeftToRight) {
+                CategoryPage(onBack = { backStack.removeLastOrNull() })
+            }
+            entry<Route.Reminder>(swipeDismiss = NavSwipeDirection.LeftToRight) {
+                ReminderPage(onBack = { backStack.removeLastOrNull() })
             }
             entry<Route.EventDetail>(swipeDismiss = NavSwipeDirection.LeftToRight) { route ->
                 EventDetailPage(
@@ -292,6 +323,8 @@ private fun MainTabs(
     onOpenAbout: () -> Unit,
     onOpenTheme: () -> Unit,
     onOpenWidget: () -> Unit,
+    onOpenCategory: () -> Unit,
+    onOpenReminder: () -> Unit,
 ) {
     val pagerState = rememberPagerState { 2 }
     val scope = rememberCoroutineScope()
@@ -430,6 +463,8 @@ private fun MainTabs(
                             onOpenAbout = onOpenAbout,
                             onOpenTheme = onOpenTheme,
                             onOpenWidget = onOpenWidget,
+                            onOpenCategory = onOpenCategory,
+                            onOpenReminder = onOpenReminder,
                         )
                     }
                 }
@@ -444,10 +479,12 @@ private fun MainTabs(
                     show = showAddSheet,
                     onDismiss = { showAddSheet = false },
                     onConfirm = { title, epochDay, note, repeatType, lunarMonth, lunarDay,
-                                  repeatWeekday, repeatMonthDay, repeatYearMonth, timeHour, timeMinute ->
+                                  repeatWeekday, repeatMonthDay, repeatYearMonth, timeHour, timeMinute,
+                                  category ->
                         viewModel.addEvent(
                             title, epochDay, note, repeatType, lunarMonth, lunarDay,
                             repeatWeekday, repeatMonthDay, repeatYearMonth, timeHour, timeMinute,
+                            category,
                         )
                         showAddSheet = false
                     },

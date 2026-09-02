@@ -55,6 +55,8 @@ data class CountdownEvent(
     val epochDay: Long,
     val note: String? = null,
     val isPast: Boolean? = null,
+    /** Category id (CategoryStore); null = uncategorized. */
+    val category: String? = null,
     val repeatType: Int? = null,
     val lunarMonth: Int? = null,
     val lunarDay: Int? = null,

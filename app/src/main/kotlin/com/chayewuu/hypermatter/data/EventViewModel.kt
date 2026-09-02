@@ -37,6 +37,7 @@ class EventViewModel(
         repeatYearMonth: Int? = null,
         timeHour: Int? = null,
         timeMinute: Int? = null,
+        category: String? = null,
     ) {
         store.add(
             CountdownEvent(
@@ -52,6 +53,7 @@ class EventViewModel(
                 repeatYearMonth = repeatYearMonth,
                 timeHour = timeHour,
                 timeMinute = timeMinute,
+                category = category,
             )
         )
     }

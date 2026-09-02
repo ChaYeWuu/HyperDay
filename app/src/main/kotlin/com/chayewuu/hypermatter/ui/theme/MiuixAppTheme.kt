@@ -14,7 +14,9 @@ import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.theme.ThemeColorSpec
 import top.yukonga.miuix.kmp.theme.ThemeController
 import top.yukonga.miuix.kmp.theme.ThemePaletteStyle
+import com.chayewuu.hypermatter.data.CategoryStore
 import com.chayewuu.hypermatter.data.EventViewModel
+import com.chayewuu.hypermatter.data.ReminderStore
 import com.chayewuu.hypermatter.data.SettingsStore
 
 /** Provides the [EventViewModel] to all pages. */
@@ -25,6 +27,16 @@ val LocalEventViewModel = compositionLocalOf<EventViewModel> {
 /** Provides the [SettingsStore] to all pages. */
 val LocalSettingsStore = compositionLocalOf<SettingsStore> {
     error("SettingsStore not provided")
+}
+
+/** Provides the [CategoryStore] to all pages. */
+val LocalCategoryStore = compositionLocalOf<CategoryStore> {
+    error("CategoryStore not provided")
+}
+
+/** Provides the [ReminderStore] to all pages. */
+val LocalReminderStore = compositionLocalOf<ReminderStore> {
+    error("ReminderStore not provided")
 }
 
 /** Order must match the palette-style option list shown on the theme page. */

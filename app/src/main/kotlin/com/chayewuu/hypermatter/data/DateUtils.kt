@@ -176,6 +176,24 @@ object DateUtils {
     }
 
     /**
+     * Year/month/day span between today and the event's effective date,
+     * e.g. "3年2月15天" (leading zero parts omitted, "0天" collapses to
+     * the non-empty parts only). Used by the tap-to-convert day number.
+     */
+    fun periodSpan(event: CountdownEvent): String {
+        val today = today()
+        val target = LocalDate.ofEpochDay(effectiveEpochDay(event))
+        val start = if (target.isBefore(today)) target else today
+        val end = if (target.isBefore(today)) today else target
+        val period = java.time.Period.between(start, end)
+        val parts = mutableListOf<String>()
+        if (period.years > 0) parts.add("${period.years}年")
+        if (period.months > 0) parts.add("${period.months}月")
+        if (period.days > 0 || parts.isEmpty()) parts.add("${period.days}天")
+        return parts.joinToString("")
+    }
+
+    /**
      * Number of years between the event and today (for anniversary display).
      */
     fun yearSpan(event: CountdownEvent): Long {

@@ -1,7 +1,9 @@
 package com.chayewuu.hypermatter.ui
 
 import android.view.HapticFeedbackConstants
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,12 +18,14 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -29,12 +33,14 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.chayewuu.hypermatter.data.CountdownEvent
 import com.chayewuu.hypermatter.data.DateUtils
 import com.chayewuu.hypermatter.ui.glass.GlassFab
 import com.chayewuu.hypermatter.ui.glass.LiquidGlassCard
+import com.chayewuu.hypermatter.ui.theme.LocalCategoryStore
 import com.chayewuu.hypermatter.ui.theme.LocalEventViewModel
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.ListPopupColumn
@@ -63,15 +69,29 @@ fun HomePage(
     val viewModel = LocalEventViewModel.current
     val events by viewModel.events.collectAsState()
     val view = LocalView.current
+    val categoryStore = LocalCategoryStore.current
+    val categories by categoryStore.categories.collectAsState()
 
-    val upcoming = remember(events) {
+    // null = 全部 (no category filter).
+    var selectedCategory by rememberSaveable { mutableStateOf<String?>(null) }
+
+    val upcoming = remember(events, selectedCategory) {
         // Recurring events always target their next occurrence and never
         // fall into the "past" bucket; sorting uses the effective date.
-        events.filter { !DateUtils.isPastEvent(it) }.sortedBy { DateUtils.effectiveEpochDay(it) }
+        events
+            .filter { !DateUtils.isPastEvent(it) }
+            .filter { selectedCategory == null || it.category == selectedCategory }
+            .sortedBy { DateUtils.effectiveEpochDay(it) }
     }
-    val past = remember(events) {
-        events.filter { DateUtils.isPastEvent(it) }.sortedByDescending { it.epochDay }
+    val past = remember(events, selectedCategory) {
+        events
+            .filter { DateUtils.isPastEvent(it) }
+            .filter { selectedCategory == null || it.category == selectedCategory }
+            .sortedByDescending { it.epochDay }
     }
+
+    /** Category display name for a card pill (null = uncategorized). */
+    fun categoryName(id: String?): String? = categoryStore.byId(id)?.name
 
     // Pending deletion: set by the card's long-press menu, consumed by the
     // confirmation dialog below.
@@ -101,6 +121,39 @@ fun HomePage(
                 bottom = contentPadding.calculateBottomPadding() + 96.dp,
             ),
         ) {
+            // Category filter chips (全部 + every category), HyperOS pill
+            // style; only shown once events exist.
+            if (events.isNotEmpty()) {
+                item {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState())
+                            .padding(horizontal = 12.dp, vertical = 4.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        CategoryChip(
+                            label = "全部",
+                            selected = selectedCategory == null,
+                            onClick = {
+                                view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                                selectedCategory = null
+                            },
+                        )
+                        categories.forEach { category ->
+                            CategoryChip(
+                                label = category.name,
+                                selected = selectedCategory == category.id,
+                                onClick = {
+                                    view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                                    selectedCategory = category.id
+                                },
+                            )
+                        }
+                    }
+                }
+            }
+
             if (upcoming.isEmpty() && past.isEmpty()) {
                 item {
                     Box(
@@ -138,6 +191,7 @@ fun HomePage(
                 items(upcoming, key = { it.id }) { event ->
                     EventCard(
                         event = event,
+                        categoryName = categoryName(event.category),
                         onEdit = { editTarget = event },
                         onDelete = { requestDelete(event) },
                         onOpen = {
@@ -157,6 +211,7 @@ fun HomePage(
                 items(past, key = { it.id }) { event ->
                     EventCard(
                         event = event,
+                        categoryName = categoryName(event.category),
                         onEdit = { editTarget = event },
                         onDelete = { requestDelete(event) },
                         onOpen = {
@@ -237,7 +292,7 @@ fun HomePage(
             onDismiss = { editTarget = null },
             onConfirm = { title, epochDay, note, repeatType,
                           lunarMonth, lunarDay, repeatWeekday, repeatMonthDay,
-                          repeatYearMonth, timeHour, timeMinute ->
+                          repeatYearMonth, timeHour, timeMinute, category ->
                 val fresh = viewModel.events.value.firstOrNull { it.id == target.id } ?: target
                 viewModel.updateEvent(
                     fresh.copy(
@@ -252,6 +307,7 @@ fun HomePage(
                         repeatYearMonth = repeatYearMonth,
                         timeHour = timeHour,
                         timeMinute = timeMinute,
+                        category = category,
                     )
                 )
                 editTarget = null
@@ -267,6 +323,7 @@ private fun EventCard(
     onDelete: () -> Unit,
     onOpen: () -> Unit,
     modifier: Modifier = Modifier,
+    categoryName: String? = null,
 ) {
     val dayNum = DateUtils.dayNumber(event)
     val isPast = DateUtils.isPastEvent(event)
@@ -279,6 +336,12 @@ private fun EventCard(
 
     val view = LocalView.current
     var showMenu by remember { mutableStateOf(false) }
+    // Tap the day number to toggle 天数 ↔ 年月天 conversion.
+    var showPeriod by remember { mutableStateOf(false) }
+    val dayColor = if (isPast)
+        MiuixTheme.colorScheme.onSurfaceVariantSummary
+    else
+        MiuixTheme.colorScheme.primary
 
     Box(modifier = modifier) {
         LiquidGlassCard(
@@ -295,16 +358,25 @@ private fun EventCard(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                // Left: title + date + note + countdown description
+                // Left: title + category pill + date + note + countdown description
                 Column(
                     modifier = Modifier.weight(1f),
                 ) {
-                    Text(
-                        text = event.title,
-                        color = MiuixTheme.colorScheme.onSurface,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Medium,
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            text = event.title,
+                            color = MiuixTheme.colorScheme.onSurface,
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Medium,
+                            modifier = Modifier.weight(1f, fill = false),
+                        )
+                        if (categoryName != null) {
+                            Spacer(Modifier.width(6.dp))
+                            CategoryPill(name = categoryName)
+                        }
+                    }
                     Spacer(Modifier.height(4.dp))
                     Text(
                         text = dateLine,
@@ -330,28 +402,40 @@ private fun EventCard(
                     )
                 }
 
-                // Right: big day number.
+                // Right: big day number. Tap toggles the 天数 ↔ 年月天
+                // conversion (e.g. 400 天 ↔ 1年1月5天).
                 Row(
                     verticalAlignment = Alignment.Bottom,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(10.dp))
+                        .clickable {
+                            view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                            showPeriod = !showPeriod
+                        }
+                        .padding(horizontal = 4.dp, vertical = 2.dp),
                 ) {
-                    Text(
-                        text = dayNum.toString(),
-                        color = if (isPast)
-                            MiuixTheme.colorScheme.onSurfaceVariantSummary
-                        else
-                            MiuixTheme.colorScheme.primary,
-                        fontSize = 36.sp,
-                        fontWeight = FontWeight.Bold,
-                    )
-                    Spacer(Modifier.width(4.dp))
-                    Text(
-                        text = "天",
-                        color = if (isPast)
-                            MiuixTheme.colorScheme.onSurfaceVariantSummary
-                        else
-                            MiuixTheme.colorScheme.primary,
-                        fontSize = 14.sp,
-                    )
+                    if (showPeriod) {
+                        Text(
+                            text = DateUtils.periodSpan(event),
+                            color = dayColor,
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                        )
+                    } else {
+                        Text(
+                            text = dayNum.toString(),
+                            color = dayColor,
+                            fontSize = 36.sp,
+                            fontWeight = FontWeight.Bold,
+                        )
+                        Spacer(Modifier.width(4.dp))
+                        Text(
+                            text = "天",
+                            color = dayColor,
+                            fontSize = 14.sp,
+                        )
+                    }
                 }
             }
         }
@@ -381,6 +465,50 @@ private fun EventCard(
                 )
             }
         }
+    }
+}
+
+/** HyperOS-style filter pill for the category row. */
+@Composable
+private fun CategoryChip(
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(50))
+            .background(
+                if (selected) MiuixTheme.colorScheme.primary
+                else MiuixTheme.colorScheme.surfaceContainer,
+            )
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 7.dp),
+    ) {
+        Text(
+            text = label,
+            color = if (selected) Color.White else MiuixTheme.colorScheme.onSurface,
+            style = MiuixTheme.textStyles.body2,
+            fontWeight = if (selected) FontWeight.Medium else FontWeight.Normal,
+        )
+    }
+}
+
+/** Small category tag shown next to an event card's title. */
+@Composable
+private fun CategoryPill(name: String, modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(8.dp))
+            .background(MiuixTheme.colorScheme.onSurface.copy(alpha = 0.08f))
+            .padding(horizontal = 6.dp, vertical = 2.dp),
+    ) {
+        Text(
+            text = name,
+            fontSize = 10.sp,
+            color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+        )
     }
 }
 

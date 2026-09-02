@@ -43,6 +43,8 @@ fun SettingsPage(
     onOpenAbout: () -> Unit,
     onOpenTheme: () -> Unit,
     onOpenWidget: () -> Unit,
+    onOpenCategory: () -> Unit,
+    onOpenReminder: () -> Unit,
 ) {
     val settingsStore = LocalSettingsStore.current
     val viewModel = LocalEventViewModel.current
@@ -135,6 +137,27 @@ fun SettingsPage(
                     title = "小部件",
                     summary = "预览桌面小部件，为单个事件小部件选择绑定",
                     onClick = onOpenWidget,
+                )
+            }
+        }
+
+        item {
+            Spacer(Modifier.height(12.dp))
+            SmallTitle(text = "分类与提醒")
+            LiquidGlassCard(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp),
+            ) {
+                ArrowPreference(
+                    title = "分类管理",
+                    summary = "管理事件的分类，内置纪念日、生活、工作，支持自定义",
+                    onClick = onOpenCategory,
+                )
+                ArrowPreference(
+                    title = "日程提醒",
+                    summary = "自由选择要提醒的分组与倒数日，支持 HyperOS 焦点通知",
+                    onClick = onOpenReminder,
                 )
             }
         }

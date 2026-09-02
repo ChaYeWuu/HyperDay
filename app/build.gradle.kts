@@ -67,6 +67,8 @@ android {
 
     buildFeatures {
         compose = true
+        // Shizuku UserService IPC (IPrivilegedService.aidl).
+        aidl = true
     }
 }
 
@@ -88,6 +90,10 @@ dependencies {
     implementation(libs.miuix.blur)
     implementation(libs.miuix.nav)
     implementation(libs.kyant.backdrop)
+
+    // Shizuku: privileged UserService + Sui support (超级岛 XMSF bypass).
+    implementation(libs.shizuku.api)
+    implementation(libs.shizuku.provider)
 
     coreLibraryDesugaring(libs.desugar.jdk.libs)
 }

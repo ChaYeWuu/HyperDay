@@ -20,6 +20,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -36,6 +37,7 @@ import androidx.compose.ui.platform.LocalView
 import com.chayewuu.hypermatter.data.CountdownEvent
 import com.chayewuu.hypermatter.data.DateUtils
 import com.chayewuu.hypermatter.data.LunarCalendar
+import com.chayewuu.hypermatter.ui.theme.LocalCategoryStore
 import java.time.LocalDate
 import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.Icon
@@ -117,10 +119,13 @@ fun AddEventBottomSheet(
         repeatYearMonth: Int?,
         timeHour: Int?,
         timeMinute: Int?,
+        category: String?,
     ) -> Unit,
 ) {
     val today = DateUtils.today()
     val view = LocalView.current
+    val categoryStore = LocalCategoryStore.current
+    val categories by categoryStore.categories.collectAsState()
 
     // Edit mode: the sheet is freshly composed for each edit target, so a
     // plain remember{} seeded from the event gives the prefilled draft.
@@ -140,6 +145,8 @@ fun AddEventBottomSheet(
     var hour by remember { mutableIntStateOf(editEvent?.timeHour ?: 9) }
     var minute by remember { mutableIntStateOf(editEvent?.timeMinute ?: 0) }
     var page by remember { mutableStateOf(AddSheetPage.FORM) }
+    // Category draft: null = uncategorized.
+    var category by remember { mutableStateOf(editEvent?.category) }
 
     /** Shared "go back one level" used by the back gesture and × button. */
     fun pageBack() {
@@ -289,6 +296,7 @@ fun AddEventBottomSheet(
                                     if (repeatType == 4) yearMonth else null,
                                     if (repeatType == 1) hour else null,
                                     if (repeatType == 1) minute else null,
+                                    category,
                                 )
                             }
                         }
@@ -372,6 +380,22 @@ fun AddEventBottomSheet(
                             showValue = false,
                             renderInRootScaffold = false,
                             onSelectedIndexChange = { selectRepeat(it) },
+                        )
+                        // Category: 未分类 + every category (built-in & custom).
+                        val categoryItems = listOf("未分类") + categories.map { it.name }
+                        val categoryIndex = if (category == null) 0
+                        else categories.indexOfFirst { it.id == category } + 1
+                        OverlayDropdownPreference(
+                            title = "分类",
+                            summary = if (categoryIndex in categoryItems.indices) categoryItems[categoryIndex] else "未分类",
+                            items = categoryItems,
+                            selectedIndex = categoryIndex,
+                            showValue = false,
+                            renderInRootScaffold = false,
+                            onSelectedIndexChange = { index ->
+                                view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                                category = if (index == 0) null else categories.getOrNull(index - 1)?.id
+                            },
                         )
                         OverlayDropdownPreference(
                             title = "节假日",

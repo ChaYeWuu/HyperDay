@@ -256,6 +256,8 @@ fun EventDetailPage(
 
     var showBackgroundDialog by remember { mutableStateOf(false) }
     var showFontDialog by remember { mutableStateOf(false) }
+    // Tap the big day number to toggle 天数 ↔ 年月天 conversion.
+    var showPeriod by remember { mutableStateOf(false) }
 
     val isPast = DateUtils.isPastEvent(event)
     val dayNum = DateUtils.dayNumber(event)
@@ -690,27 +692,42 @@ fun EventDetailPage(
                         Spacer(Modifier.height(4.dp))
                         Row(
                             verticalAlignment = Alignment.Bottom,
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(12.dp))
+                                .clickable { showPeriod = !showPeriod },
                         ) {
-                            // The day number stays fully fixed: at 88sp it
-                            // is the dominant glyph on the card and a visual
-                            // 1.6× would overflow the card's width.
-                            FancyText(
-                                text = dayNum.toString(),
-                                autoColor = accent,
-                                settings = effFontSettings,
-                                fontSize = 88.sp,
-                                defaultWeight = FontWeight.Bold,
-                                applyScale = false,
-                            )
-                            Spacer(Modifier.width(6.dp))
-                            FancyText(
-                                text = "天",
-                                autoColor = accent,
-                                settings = effFontSettings,
-                                fontSize = 20.sp,
-                                modifier = Modifier.padding(bottom = 18.dp),
-                                applyScale = false,
-                            )
+                            if (showPeriod) {
+                                // 年月天 conversion (e.g. 400 天 ↔ 1年1月5天).
+                                FancyText(
+                                    text = DateUtils.periodSpan(event),
+                                    autoColor = accent,
+                                    settings = effFontSettings,
+                                    fontSize = 36.sp,
+                                    defaultWeight = FontWeight.Bold,
+                                    applyScale = false,
+                                )
+                            } else {
+                                // The day number stays fully fixed: at 88sp it
+                                // is the dominant glyph on the card and a visual
+                                // 1.6× would overflow the card's width.
+                                FancyText(
+                                    text = dayNum.toString(),
+                                    autoColor = accent,
+                                    settings = effFontSettings,
+                                    fontSize = 88.sp,
+                                    defaultWeight = FontWeight.Bold,
+                                    applyScale = false,
+                                )
+                                Spacer(Modifier.width(6.dp))
+                                FancyText(
+                                    text = "天",
+                                    autoColor = accent,
+                                    settings = effFontSettings,
+                                    fontSize = 20.sp,
+                                    modifier = Modifier.padding(bottom = 18.dp),
+                                    applyScale = false,
+                                )
+                            }
                         }
                         Spacer(Modifier.height(30.dp))
                         // Hairline divider above the start date block
