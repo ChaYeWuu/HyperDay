@@ -12,6 +12,32 @@
     android:paddingEnd="16dp"
     android:paddingBottom="14dp">
 
+    <!-- Header: calendar glyph + today's date (set from code). -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingBottom="4dp">
+
+        <ImageView
+            android:id="@+id/widget_calendar_icon"
+            android:layout_width="13dp"
+            android:layout_height="13dp"
+            android:contentDescription="@null"
+            android:src="@drawable/widget_calendar_icon" />
+
+        <TextView
+            android:id="@+id/widget_header_date"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="5dp"
+            android:letterSpacing="0.02"
+            android:text=""
+            android:textColor="@color/widget_text_secondary"
+            android:textSize="11sp" />
+    </LinearLayout>
+
     <LinearLayout
         android:id="@+id/widget_rows"
         android:layout_width="match_parent"

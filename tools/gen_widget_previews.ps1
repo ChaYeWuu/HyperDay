@@ -90,24 +90,42 @@ $bmp.Save("$outDir\widget_card_preview.png", [System.Drawing.Imaging.ImageFormat
 $g.Dispose(); $bmp.Dispose()
 
 # ---------------------------------------------------------------- list 4x2
-# Rows carry their own 距离/过去 tag pill (no header).
+# Header: calendar glyph + today's date; rows carry their own 距离/过去 tag pill.
 $bmp, $g = New-Canvas 1200 600
 $pad = 60
 $fTag = Font $YaHei 24 ([System.Drawing.FontStyle]::Regular)
+$fHeader = Font $YaHei 28 ([System.Drawing.FontStyle]::Regular)
 $fRowTitle = Font $YaHei 38 ([System.Drawing.FontStyle]::Bold)
 $fRowDate = Font $YaHei 30 ([System.Drawing.FontStyle]::Regular)
 $fRowNum = Font $YaHei 48 ([System.Drawing.FontStyle]::Bold)
 $fRowUnit = Font $YaHei 28 ([System.Drawing.FontStyle]::Regular)
 
+# header: small calendar glyph (outline + top band + center square) + today
+$hdrY = 50
+$iconS = 38
+$iconPen = New-Object System.Drawing.Pen($Secondary, 4)
+$iconPath = New-Object System.Drawing.Drawing2D.GraphicsPath
+$ir = 8
+$iconPath.AddArc($pad, $hdrY, 2 * $ir, 2 * $ir, 180, 90)
+$iconPath.AddArc(($pad + $iconS - 2 * $ir), $hdrY, 2 * $ir, 2 * $ir, 270, 90)
+$iconPath.AddArc(($pad + $iconS - 2 * $ir), ($hdrY + $iconS - 2 * $ir), 2 * $ir, 2 * $ir, 0, 90)
+$iconPath.AddArc($pad, ($hdrY + $iconS - 2 * $ir), 2 * $ir, 2 * $ir, 90, 90)
+$iconPath.CloseFigure()
+$g.DrawPath($iconPen, $iconPath)
+$bandBrush = New-Object System.Drawing.SolidBrush($Secondary)
+$g.FillRectangle($bandBrush, ($pad + 2), ($hdrY + 8), ($iconS - 4), 7)
+$g.FillRectangle($bandBrush, ($pad + $iconS / 2 - 5), ($hdrY + $iconS / 2 - 2), 10, 10)
+$g.DrawString('今日 · 12月25日 周四', $fHeader, $bSecondary, ($pad + $iconS + 14), ($hdrY - 1))
+
 # rows: title, date, days, tag (距离/过去)
 $rows = @(
     @('发工资', '每月15日', '12', '距离'),
-    @('春节', '2月17日', '45', '距离'),
-    @('生日', '2月14日', '89', '距离'),
-    @('高考', '6月7日', '123', '过去')
+    @('春节', '2026年2月17日 周二', '45', '距离'),
+    @('生日', '2026年2月14日 周六', '89', '距离'),
+    @('高考', '2025年6月7日 周六', '123', '过去')
 )
-$y = 60
-$rowH = 135
+$y = 122
+$rowH = 113
 foreach ($row in $rows) {
     $cy = $y + $rowH / 2
     # tag pill (rounded 14px, 8% black)
@@ -179,9 +197,10 @@ $availEnd = $rightEdge - $numBlockW - 20
 $tx = $pad + (($availEnd - $pad - $ts.Width) / 2)
 $g.DrawString('去上海', $fTitle, $bPrimary, $tx, ((300 - $ts.Height) / 2))
 
-# day number on the right, vertically centered
+# day number on the right, vertically centered; unit centered too (aligned
+# with the title's vertical center, not the number's bottom)
 $ny = (300 - $ns.Height) / 2
-$g.DrawString('天', $fUnit, $bSecondary, ($rightEdge - $us.Width), ($ny + $ns.Height - $us.Height))
+$g.DrawString('天', $fUnit, $bSecondary, ($rightEdge - $us.Width), ((300 - $us.Height) / 2))
 $g.DrawString($numText, $fNum, $bAccent, ($rightEdge - $us.Width - 10 - $ns.Width), $ny)
 
 $bmp.Save("$outDir\widget_minimal_preview.png", [System.Drawing.Imaging.ImageFormat]::Png)

@@ -103,12 +103,6 @@ internal fun eventDateLine(event: CountdownEvent): String {
     return "${DateUtils.formatDate(day)} ${DateUtils.weekdayLabel(day)}"
 }
 
-/** Shorter date for list rows: "6月15日". */
-private fun eventDateShort(event: CountdownEvent): String {
-    val day = DateUtils.effectiveEpochDay(event)
-    return java.time.LocalDate.ofEpochDay(day).let { "${it.monthValue}月${it.dayOfMonth}日" }
-}
-
 /** Open the event detail page (deep link into MainActivity). */
 private fun openEvent(context: Context, eventId: String): PendingIntent {
     val intent = Intent(context, MainActivity::class.java).apply {
@@ -231,6 +225,11 @@ private fun updateListWidget(
 ) {
     val events = feedEvents(context).take(4)
     val views = RemoteViews(context.packageName, R.layout.widget_list)
+    val today = java.time.LocalDate.now()
+    views.setTextViewText(
+        R.id.widget_header_date,
+        "今日 · ${today.monthValue}月${today.dayOfMonth}日 ${DateUtils.weekdayLabel(today.toEpochDay())}",
+    )
     views.removeAllViews(R.id.widget_rows)
     if (events.isEmpty()) {
         val row = RemoteViews(context.packageName, R.layout.widget_list_row)
@@ -249,7 +248,7 @@ private fun updateListWidget(
                 if (DateUtils.isPastEvent(event)) "过去" else "距离",
             )
             row.setTextViewText(R.id.widget_row_title, event.title)
-            row.setTextViewText(R.id.widget_row_date, eventDateShort(event))
+            row.setTextViewText(R.id.widget_row_date, eventDateLine(event))
             row.setTextViewText(R.id.widget_row_days, DateUtils.dayNumber(event).toString())
             row.setTextViewText(R.id.widget_row_days_unit, "天")
             row.setOnClickPendingIntent(R.id.widget_row_root, openEvent(context, event.id))

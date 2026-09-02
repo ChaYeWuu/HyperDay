@@ -1,5 +1,6 @@
 package com.chayewuu.hypermatter.ui
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -13,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.runtime.Composable
@@ -26,7 +28,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -34,6 +38,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.chayewuu.hypermatter.data.CountdownEvent
 import com.chayewuu.hypermatter.data.DateUtils
+import com.chayewuu.hypermatter.R
 import com.chayewuu.hypermatter.ui.glass.GlassCanvasRecorder
 import com.chayewuu.hypermatter.ui.glass.LiquidGlassCard
 import com.chayewuu.hypermatter.ui.glass.LocalGlassBackdrop
@@ -377,6 +382,25 @@ private fun ListWidgetPreview(
             .widgetPreviewSurface()
             .padding(horizontal = 14.dp, vertical = 12.dp),
     ) {
+        // Header: calendar glyph + today's date (matches the real widget).
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Image(
+                painter = painterResource(R.drawable.widget_calendar_icon),
+                contentDescription = null,
+                modifier = Modifier.size(13.dp),
+                colorFilter = ColorFilter.tint(MiuixTheme.colorScheme.onSurfaceVariantSummary),
+            )
+            Text(
+                text = remember {
+                    val today = java.time.LocalDate.now()
+                    "今日 · ${today.monthValue}月${today.dayOfMonth}日 ${DateUtils.weekdayLabel(today.toEpochDay())}"
+                },
+                color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                fontSize = 11.sp,
+                modifier = Modifier.padding(start = 5.dp),
+            )
+        }
+        Spacer(Modifier.height(6.dp))
         if (events.isEmpty()) {
             Text(
                 text = "还没有倒数日",
@@ -404,7 +428,7 @@ private fun ListWidgetPreview(
                                 .padding(start = 6.dp),
                         )
                         Text(
-                            text = shortDate(event),
+                            text = eventDateLine(event),
                             color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                             fontSize = 12.sp,
                             modifier = Modifier
@@ -432,13 +456,6 @@ private fun ListWidgetPreview(
             }
         }
     }
-}
-
-/** "6月15日" — matches the widget list row date format. */
-private fun shortDate(event: CountdownEvent): String {
-    val day = DateUtils.effectiveEpochDay(event)
-    val date = java.time.LocalDate.ofEpochDay(day)
-    return "${date.monthValue}月${date.dayOfMonth}日"
 }
 
 @Composable
@@ -480,7 +497,7 @@ private fun MinimalWidgetPreview(
                 text = "天",
                 color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                 fontSize = 12.sp,
-                modifier = Modifier.padding(start = 4.dp, bottom = 3.dp),
+                modifier = Modifier.padding(start = 4.dp),
             )
         }
     }
