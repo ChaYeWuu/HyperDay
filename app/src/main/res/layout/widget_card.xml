@@ -3,22 +3,23 @@
      Settings > 小部件 (WidgetPrefs), falls back to the nearest event.
      Top-left tag pill shows 距离 (upcoming/recurring) or 过去 (past);
      day number is vertically centered, 42sp.
-     Width fills the whole cell; the height is shrunk slightly (95%,
-     centered) at update time (API 31+) so the card visually lines up
-     with the icon rows around it. The centered offset (~11dp) is
-     mirrored by the minimal widget's top margin so widgets side by
-     side keep their top edges aligned. -->
+     Width fills the whole cell; the box is anchored 7dp below the cell
+     top (margin) and its height is set to the full reported height at
+     update time (API 31+), so only the bottom edge extends — the top
+     edge stays put. The minimal widget mirrors the same 7dp top margin
+     so widgets side by side keep their top edges aligned. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/widget_root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:gravity="center"
+    android:gravity="center_horizontal"
     android:orientation="vertical">
 
     <LinearLayout
         android:id="@+id/widget_card_box"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
+        android:layout_marginTop="7dp"
         android:background="@drawable/widget_bg"
         android:orientation="vertical"
         android:paddingStart="18dp"

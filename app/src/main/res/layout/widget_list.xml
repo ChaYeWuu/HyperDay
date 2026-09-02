@@ -1,55 +1,67 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Events list widget (4x2, resizable). Rows are injected in code; each
-      row carries its own 距离/过去 tag pill. -->
+      row carries its own 距离/过去 tag pill. Mirrors the card widget's
+      top anchoring: transparent widget_root, visible box 7dp below the
+      cell top whose height is set at update time (API 31+), so widgets
+      stacked in the same rows keep their top and bottom edges aligned. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/widget_root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@drawable/widget_bg"
-    android:orientation="vertical"
-    android:paddingStart="16dp"
-    android:paddingTop="14dp"
-    android:paddingEnd="16dp"
-    android:paddingBottom="14dp">
+    android:gravity="center_horizontal"
+    android:orientation="vertical">
 
-    <!-- Header: calendar glyph + today's date (set from code). -->
     <LinearLayout
+        android:id="@+id/widget_list_box"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:gravity="center_vertical"
-        android:orientation="horizontal"
-        android:paddingBottom="4dp">
+        android:layout_height="match_parent"
+        android:layout_marginTop="7dp"
+        android:background="@drawable/widget_bg"
+        android:orientation="vertical"
+        android:paddingStart="16dp"
+        android:paddingTop="14dp"
+        android:paddingEnd="16dp"
+        android:paddingBottom="14dp">
 
-        <ImageView
-            android:id="@+id/widget_calendar_icon"
-            android:layout_width="13dp"
-            android:layout_height="13dp"
-            android:contentDescription="@null"
-            android:src="@drawable/widget_calendar_icon" />
-
-        <TextView
-            android:id="@+id/widget_header_date"
-            android:layout_width="wrap_content"
+        <!-- Header: calendar glyph + today's date (set from code). -->
+        <LinearLayout
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginStart="5dp"
-            android:letterSpacing="0.02"
-            android:text=""
-            android:textColor="@color/widget_text_secondary"
-            android:textSize="11sp" />
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingBottom="4dp">
+
+            <ImageView
+                android:id="@+id/widget_calendar_icon"
+                android:layout_width="13dp"
+                android:layout_height="13dp"
+                android:contentDescription="@null"
+                android:src="@drawable/widget_calendar_icon" />
+
+            <TextView
+                android:id="@+id/widget_header_date"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="5dp"
+                android:letterSpacing="0.02"
+                android:text=""
+                android:textColor="@color/widget_text_secondary"
+                android:textSize="11sp" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/widget_rows"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical" />
+
+        <!-- RemoteViews only whitelists specific view classes: Space is not
+             allowed and makes the host fail to inflate. Weighted empty
+             TextView is the standard flexible spacer. -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:text="" />
     </LinearLayout>
-
-    <LinearLayout
-        android:id="@+id/widget_rows"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical" />
-
-    <!-- RemoteViews only whitelists specific view classes: Space is not
-         allowed and makes the host fail to inflate. Weighted empty
-         TextView is the standard flexible spacer. -->
-    <TextView
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1"
-        android:text="" />
 </LinearLayout>
