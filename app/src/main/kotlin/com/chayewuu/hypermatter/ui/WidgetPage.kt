@@ -162,8 +162,8 @@ fun WidgetPage(
                                     event = selectedEvent(events, selectedId),
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        // Real 2x2 cell proportions (~164 x 186 dp).
-                                        .aspectRatio(0.88f),
+                                        // Real 2x2 cell proportions (~185 x 200 dp).
+                                        .aspectRatio(0.925f),
                                 )
                                 PreviewCaption("卡片 2×2")
                             }
@@ -392,9 +392,9 @@ private fun CardWidgetPreview(
     event: CountdownEvent?,
     modifier: Modifier = Modifier,
 ) {
-    // Design space = the real 2x2 cell (~164 x 186 dp on the device grid);
+    // Design space = the real 2x2 cell (~185 x 200 dp on the 4-column grid);
     // the layout mirrors widget_card.xml 1:1 and is scaled as a whole.
-    ScaledWidgetBox(designWidth = 164.dp, designHeight = 186.dp, modifier = modifier) {
+    ScaledWidgetBox(designWidth = 185.dp, designHeight = 200.dp, modifier = modifier) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -424,23 +424,25 @@ private fun TodayLabel() {
 /** Title + date line shared by the card preview. */
 @Composable
 private fun PreviewHeader(event: CountdownEvent?) {
-    Text(
-        text = event?.title ?: "还没有倒数日",
-        color = MiuixTheme.colorScheme.onSurface,
-        fontSize = 18.sp,
-        fontWeight = FontWeight.Medium,
-        maxLines = 1,
-        overflow = TextOverflow.Ellipsis,
-    )
-    Text(
-        text = if (event == null) "点击打开 HyperDay 添加"
-        else eventDateLine(event),
-        color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-        fontSize = 12.sp,
-        maxLines = 1,
-        overflow = TextOverflow.Ellipsis,
-        modifier = Modifier.padding(top = 2.dp),
-    )
+    Column {
+        Text(
+            text = event?.title ?: "还没有倒数日",
+            color = MiuixTheme.colorScheme.onSurface,
+            fontSize = 18.sp,
+            fontWeight = FontWeight.Medium,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        Text(
+            text = if (event == null) "点击打开 HyperDay 添加"
+            else eventDateLine(event),
+            color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+            fontSize = 12.sp,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.padding(top = 2.dp),
+        )
+    }
 }
 
 @Composable
