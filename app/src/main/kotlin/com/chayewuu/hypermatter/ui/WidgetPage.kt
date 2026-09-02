@@ -81,6 +81,12 @@ fun WidgetPage(
         .filter { !DateUtils.isPastEvent(it) }
         .sortedBy { DateUtils.effectiveEpochDay(it) }
 
+    // Widget feed: upcoming soonest first, then past most-recent (matches
+    // the list/minimal widget providers).
+    val feed = upcoming + events
+        .filter { DateUtils.isPastEvent(it) }
+        .sortedByDescending { DateUtils.effectiveEpochDay(it) }
+
     val barBackdrop = rememberBlurBackdrop()
     val glassBackdrop = rememberGlassBackdrop()
     Scaffold(
@@ -150,7 +156,7 @@ fun WidgetPage(
                             Spacer(Modifier.width(10.dp))
                             Column(modifier = Modifier.weight(1f)) {
                                 MinimalWidgetPreview(
-                                    event = upcoming.firstOrNull(),
+                                    event = feed.firstOrNull(),
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .aspectRatio(2f),
@@ -163,7 +169,7 @@ fun WidgetPage(
                     item {
                         Spacer(Modifier.height(10.dp))
                         ListWidgetPreview(
-                            events = upcoming.take(4),
+                            events = feed.take(4),
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(horizontal = 12.dp)
@@ -265,6 +271,24 @@ private fun PreviewCaption(text: String) {
     )
 }
 
+/** 距离/过去 tag pill shared by all widget previews. */
+@Composable
+private fun WidgetTagPill(event: CountdownEvent?) {
+    Box(
+        modifier = Modifier
+            .clip(androidx.compose.foundation.shape.RoundedCornerShape(8.dp))
+            .background(MiuixTheme.colorScheme.onSurface.copy(alpha = 0.08f))
+            .padding(horizontal = 6.dp, vertical = 2.dp),
+    ) {
+        Text(
+            text = if (event == null) "距离"
+            else if (DateUtils.isPastEvent(event)) "过去" else "距离",
+            color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+            fontSize = 10.sp,
+        )
+    }
+}
+
 /** Big centered day number used by the card & single previews. */
 @Composable
 private fun CenteredDayNumber(
@@ -314,20 +338,7 @@ private fun CardWidgetPreview(
             .widgetPreviewSurface()
             .padding(horizontal = 14.dp, vertical = 12.dp),
     ) {
-        // Tag pill: 距离 / 过去
-        Box(
-            modifier = Modifier
-                .clip(androidx.compose.foundation.shape.RoundedCornerShape(8.dp))
-                .background(MiuixTheme.colorScheme.onSurface.copy(alpha = 0.08f))
-                .padding(horizontal = 6.dp, vertical = 2.dp),
-        ) {
-            Text(
-                text = if (event == null) "距离"
-                else if (DateUtils.isPastEvent(event)) "过去" else "距离",
-                color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                fontSize = 10.sp,
-            )
-        }
+        WidgetTagPill(event)
         Spacer(Modifier.height(5.dp))
         PreviewHeader(event)
         CenteredDayNumber(event, modifier = Modifier.weight(1f).fillMaxWidth())
@@ -366,12 +377,6 @@ private fun ListWidgetPreview(
             .widgetPreviewSurface()
             .padding(horizontal = 14.dp, vertical = 12.dp),
     ) {
-        Text(
-            text = "即将到来",
-            color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-            fontSize = 11.sp,
-        )
-        Spacer(Modifier.height(6.dp))
         if (events.isEmpty()) {
             Text(
                 text = "还没有倒数日",
@@ -386,6 +391,7 @@ private fun ListWidgetPreview(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
+                        WidgetTagPill(event)
                         Text(
                             text = event.title,
                             color = MiuixTheme.colorScheme.onSurface,
@@ -393,7 +399,9 @@ private fun ListWidgetPreview(
                             fontWeight = FontWeight.Medium,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.weight(1f, fill = false),
+                            modifier = Modifier
+                                .weight(1f, fill = false)
+                                .padding(start = 6.dp),
                         )
                         Text(
                             text = shortDate(event),
@@ -444,6 +452,7 @@ private fun MinimalWidgetPreview(
             .padding(horizontal = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        WidgetTagPill(event)
         Text(
             text = event?.title ?: "还没有倒数日",
             color = MiuixTheme.colorScheme.onSurface,
@@ -451,7 +460,9 @@ private fun MinimalWidgetPreview(
             fontWeight = FontWeight.Medium,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.weight(1f),
+            modifier = Modifier
+                .weight(1f)
+                .padding(start = 6.dp),
         )
         Row(verticalAlignment = Alignment.Bottom) {
             Text(

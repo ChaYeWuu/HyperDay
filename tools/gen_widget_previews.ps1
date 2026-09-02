@@ -90,30 +90,46 @@ $bmp.Save("$outDir\widget_card_preview.png", [System.Drawing.Imaging.ImageFormat
 $g.Dispose(); $bmp.Dispose()
 
 # ---------------------------------------------------------------- list 4x2
+# Rows carry their own 距离/过去 tag pill (no header).
 $bmp, $g = New-Canvas 1200 600
 $pad = 60
-$fHeader = Font $YaHei 27 ([System.Drawing.FontStyle]::Bold)
+$fTag = Font $YaHei 24 ([System.Drawing.FontStyle]::Regular)
 $fRowTitle = Font $YaHei 38 ([System.Drawing.FontStyle]::Bold)
 $fRowDate = Font $YaHei 30 ([System.Drawing.FontStyle]::Regular)
 $fRowNum = Font $YaHei 48 ([System.Drawing.FontStyle]::Bold)
 $fRowUnit = Font $YaHei 28 ([System.Drawing.FontStyle]::Regular)
 
-$g.DrawString('即将到来', $fHeader, $bSecondary, $pad, 54)
-
+# rows: title, date, days, tag (距离/过去)
 $rows = @(
-    @('发工资', '每月15日', '12'),
-    @('春节', '2月17日', '45'),
-    @('生日', '2月14日', '89'),
-    @('去上海', '10月1日', '123')
+    @('发工资', '每月15日', '12', '距离'),
+    @('春节', '2月17日', '45', '距离'),
+    @('生日', '2月14日', '89', '距离'),
+    @('高考', '6月7日', '123', '过去')
 )
-$y = 116
-$rowH = 108
+$y = 60
+$rowH = 135
 foreach ($row in $rows) {
     $cy = $y + $rowH / 2
+    # tag pill (rounded 14px, 8% black)
+    $tagSize = $g.MeasureString($row[3], $fTag)
+    $tagW = $tagSize.Width + 24
+    $tagH = $tagSize.Height + 14
+    $tagPath = New-Object System.Drawing.Drawing2D.GraphicsPath
+    $r = 14
+    $tagPath.AddArc($pad, ($cy - $tagH / 2), 2 * $r, 2 * $r, 180, 90)
+    $tagPath.AddArc(($pad + $tagW - 2 * $r), ($cy - $tagH / 2), 2 * $r, 2 * $r, 270, 90)
+    $tagPath.AddArc(($pad + $tagW - 2 * $r), ($cy + $tagH / 2 - 2 * $r), 2 * $r, 2 * $r, 0, 90)
+    $tagPath.AddArc($pad, ($cy + $tagH / 2 - 2 * $r), 2 * $r, 2 * $r, 90, 90)
+    $tagPath.CloseFigure()
+    $tagBg = New-Object System.Drawing.SolidBrush([System.Drawing.Color]::FromArgb(0x14, 0x00, 0x00, 0x00))
+    $g.FillPath($tagBg, $tagPath)
+    $g.DrawString($row[3], $fTag, $bSecondary, ($pad + 12), ($cy - $tagSize.Height / 2))
+    # title after the pill, then date
+    $tx = $pad + $tagW + 14
     $ts = $g.MeasureString($row[0], $fRowTitle)
-    $g.DrawString($row[0], $fRowTitle, $bPrimary, $pad, ($cy - $ts.Height / 2))
+    $g.DrawString($row[0], $fRowTitle, $bPrimary, $tx, ($cy - $ts.Height / 2))
     $ds = $g.MeasureString($row[1], $fRowDate)
-    $g.DrawString($row[1], $fRowDate, $bSecondary, ($pad + $ts.Width + 16), ($cy - $ds.Height / 2))
+    $g.DrawString($row[1], $fRowDate, $bSecondary, ($tx + $ts.Width + 16), ($cy - $ds.Height / 2))
     # right-aligned "N 天"
     $us = $g.MeasureString('天', $fRowUnit)
     $ns = $g.MeasureString($row[2], $fRowNum)
@@ -127,18 +143,38 @@ $bmp.Save("$outDir\widget_list_preview.png", [System.Drawing.Imaging.ImageFormat
 $g.Dispose(); $bmp.Dispose()
 
 # ---------------------------------------------------------------- minimal 2x1
+# 距离/过去 tag pill on the left, then title, day number hugging the right.
 $bmp, $g = New-Canvas 600 300
-$pad = 60
-$fNum = Font $YaHei 100 ([System.Drawing.FontStyle]::Bold)
-$fUnit = Font $YaHei 31 ([System.Drawing.FontStyle]::Regular)
+$pad = 50
+$fNum = Font $YaHei 96 ([System.Drawing.FontStyle]::Bold)
+$fUnit = Font $YaHei 30 ([System.Drawing.FontStyle]::Regular)
 $fTitle = Font $YaHei 36 ([System.Drawing.FontStyle]::Bold)
+$fTag = Font $YaHei 24 ([System.Drawing.FontStyle]::Regular)
 
 $numText = '12'
 $ns = $g.MeasureString($numText, $fNum)
 $us = $g.MeasureString('天', $fUnit)
 $ts = $g.MeasureString('去上海', $fTitle)
-# Title on the left, day number hugging the right edge.
-$g.DrawString('去上海', $fTitle, $bPrimary, $pad, ((300 - $ts.Height) / 2))
+
+# tag pill (rounded 14px, 8% black), vertically centered
+$tagText = '距离'
+$tagSize = $g.MeasureString($tagText, $fTag)
+$tagW = $tagSize.Width + 24
+$tagH = $tagSize.Height + 14
+$tagPath = New-Object System.Drawing.Drawing2D.GraphicsPath
+$r = 14
+$tagPath.AddArc($pad, ((300 - $tagH) / 2), 2 * $r, 2 * $r, 180, 90)
+$tagPath.AddArc(($pad + $tagW - 2 * $r), ((300 - $tagH) / 2), 2 * $r, 2 * $r, 270, 90)
+$tagPath.AddArc(($pad + $tagW - 2 * $r), ((300 + $tagH) / 2 - 2 * $r), 2 * $r, 2 * $r, 0, 90)
+$tagPath.AddArc($pad, ((300 + $tagH) / 2 - 2 * $r), 2 * $r, 2 * $r, 90, 90)
+$tagPath.CloseFigure()
+$tagBg = New-Object System.Drawing.SolidBrush([System.Drawing.Color]::FromArgb(0x14, 0x00, 0x00, 0x00))
+$g.FillPath($tagBg, $tagPath)
+$g.DrawString($tagText, $fTag, $bSecondary, ($pad + 12), ((300 - $tagSize.Height) / 2))
+
+# title after the pill
+$g.DrawString('去上海', $fTitle, $bPrimary, ($pad + $tagW + 16), ((300 - $ts.Height) / 2))
+# day number hugging the right edge
 $rightEdge = 600 - $pad
 $ny = (300 - $ns.Height) / 2
 $g.DrawString('天', $fUnit, $bSecondary, ($rightEdge - $us.Width), ($ny + $ns.Height - $us.Height))

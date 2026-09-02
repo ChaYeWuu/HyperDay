@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Upcoming events list widget (4x2, resizable). Rows are injected in code. -->
+<!-- Events list widget (4x2, resizable). Rows are injected in code; each
+      row carries its own 距离/过去 tag pill. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/widget_root"
     android:layout_width="match_parent"
@@ -11,16 +12,11 @@
     android:paddingEnd="16dp"
     android:paddingBottom="14dp">
 
-    <TextView
-        android:id="@+id/widget_header"
+    <LinearLayout
+        android:id="@+id/widget_rows"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:letterSpacing="0.05"
-        android:text="@string/widget_upcoming"
-        android:textAllCaps="false"
-        android:textColor="@color/widget_text_secondary"
-        android:textSize="11sp"
-        android:textStyle="bold" />
+        android:orientation="vertical" />
 
     <!-- RemoteViews only whitelists specific view classes: Space is not
          allowed and makes the host fail to inflate. Weighted empty
@@ -30,10 +26,4 @@
         android:layout_height="0dp"
         android:layout_weight="1"
         android:text="" />
-
-    <LinearLayout
-        android:id="@+id/widget_rows"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical" />
 </LinearLayout>

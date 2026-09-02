@@ -24,8 +24,10 @@ import com.chayewuu.hypermatter.data.EventStore
  * Three styles:
  *  - [CardWidget]   2x2  — one event (user-picked via WidgetPrefs, else auto
  *                          nearest upcoming/past), 距离/过去 tag top-left
- *  - [ListWidget]   4x2  — next 4 upcoming events, one row each
- *  - [MinimalWidget] 2x1 — day number + title on a single line
+ *  - [ListWidget]   4x2  — nearest 4 events (upcoming first, then past),
+ *                          one row each with its own 距离/过去 tag
+ *  - [MinimalWidget] 2x1 — auto nearest event (upcoming, else past) with
+ *                          距离/过去 tag + day number + title on one line
  *
  * Data refresh triggers:
  *  - EventStore writes (see [updateAllWidgets])
@@ -38,6 +40,22 @@ private fun upcomingEvents(context: Context): List<CountdownEvent> =
     EventStore(context).events.value
         .filter { !DateUtils.isPastEvent(it) }
         .sortedBy { DateUtils.effectiveEpochDay(it) }
+
+/**
+ * Nearest events regardless of direction: upcoming soonest first, then past
+ * most-recent first. Used by the list widget (rows carry 距离/过去 tags) and
+ * the minimal widget (auto: nearest upcoming, else nearest past).
+ */
+private fun feedEvents(context: Context): List<CountdownEvent> {
+    val all = EventStore(context).events.value
+    val upcoming = all
+        .filter { !DateUtils.isPastEvent(it) }
+        .sortedBy { DateUtils.effectiveEpochDay(it) }
+    val past = all
+        .filter { DateUtils.isPastEvent(it) }
+        .sortedByDescending { DateUtils.effectiveEpochDay(it) }
+    return upcoming + past
+}
 
 /**
  * Per-app widget configuration: which event the single-event widget is
@@ -211,11 +229,12 @@ private fun updateListWidget(
     manager: AppWidgetManager,
     appWidgetId: Int,
 ) {
-    val events = upcomingEvents(context).take(4)
+    val events = feedEvents(context).take(4)
     val views = RemoteViews(context.packageName, R.layout.widget_list)
     views.removeAllViews(R.id.widget_rows)
     if (events.isEmpty()) {
         val row = RemoteViews(context.packageName, R.layout.widget_list_row)
+        row.setTextViewText(R.id.widget_row_tag, "")
         row.setTextViewText(R.id.widget_row_title, context.getString(R.string.widget_empty_title))
         row.setTextViewText(R.id.widget_row_date, "")
         row.setTextViewText(R.id.widget_row_days, "--")
@@ -225,6 +244,10 @@ private fun updateListWidget(
     } else {
         events.forEach { event ->
             val row = RemoteViews(context.packageName, R.layout.widget_list_row)
+            row.setTextViewText(
+                R.id.widget_row_tag,
+                if (DateUtils.isPastEvent(event)) "过去" else "距离",
+            )
             row.setTextViewText(R.id.widget_row_title, event.title)
             row.setTextViewText(R.id.widget_row_date, eventDateShort(event))
             row.setTextViewText(R.id.widget_row_days, DateUtils.dayNumber(event).toString())
@@ -274,14 +297,19 @@ private fun updateMinimalWidget(
     manager: AppWidgetManager,
     appWidgetId: Int,
 ) {
-    val event = upcomingEvents(context).firstOrNull()
+    val event = feedEvents(context).firstOrNull()
     val views = RemoteViews(context.packageName, R.layout.widget_minimal)
     if (event == null) {
+        views.setTextViewText(R.id.widget_tag, "")
         views.setTextViewText(R.id.widget_title, context.getString(R.string.widget_empty_title))
         views.setTextViewText(R.id.widget_days, "--")
         views.setTextViewText(R.id.widget_days_unit, "")
         views.setOnClickPendingIntent(R.id.widget_root, openApp(context, 3000 + appWidgetId))
     } else {
+        views.setTextViewText(
+            R.id.widget_tag,
+            if (DateUtils.isPastEvent(event)) "过去" else "距离",
+        )
         views.setTextViewText(R.id.widget_title, event.title)
         views.setTextViewText(R.id.widget_days, DateUtils.dayNumber(event).toString())
         views.setTextViewText(R.id.widget_days_unit, "天")
