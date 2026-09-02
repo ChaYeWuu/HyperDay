@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -358,9 +357,9 @@ private fun CardWidgetPreview(
             .padding(horizontal = 14.dp, vertical = 12.dp),
     ) {
         // Tag pill only (matches the real widget — no today label).
-        WidgetTagPill(event, Modifier.offset(x = (-4).dp))
+        WidgetTagPill(event)
         Spacer(Modifier.height(5.dp))
-        PreviewHeader(event)
+        Box(Modifier.padding(start = 4.dp)) { PreviewHeader(event) }
         CenteredDayNumber(event, modifier = Modifier.weight(1f).fillMaxWidth())
     }
 }

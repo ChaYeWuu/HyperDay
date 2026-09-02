@@ -229,6 +229,10 @@ private fun App(pendingEventId: MutableState<String?>) {
     LaunchedEffect(pendingEventId.value) {
         val eventId = pendingEventId.value
         if (eventId != null) {
+            // miuix-nav requires a unique contentKey per back stack entry —
+            // drop any stale duplicate (e.g. detail already open when the
+            // widget is tapped again) before pushing the deep-linked page.
+            backStack.removeAll { it is Route.EventDetail && it.id == eventId }
             backStack.add(Route.EventDetail(eventId))
             pendingEventId.value = null
         }
