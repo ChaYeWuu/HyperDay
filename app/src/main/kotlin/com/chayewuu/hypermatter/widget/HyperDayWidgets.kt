@@ -224,16 +224,18 @@ private fun shrinkMinimalHeight(views: RemoteViews, manager: AppWidgetManager, a
 
 /**
  * Same top-anchored sizing as the card for the list widget (4x2): the box
- * sits 7dp below the cell top (layout XML margin) and its height is set to
- * the full reported height (+1dp), so its side edges line up with the card
- * widget when both span the same grid rows.
+ * sits 7dp below the cell top (layout XML margin) and its height tracks the
+ * reported cell height. Sits ~4px (device density 3.25) lower than the card
+ * box so the two look equal when side by side.
  */
+private const val LIST_HEIGHT_EXTRA_DP = -0.25f
+
 private fun shrinkListHeight(views: RemoteViews, manager: AppWidgetManager, appWidgetId: Int) {
     if (Build.VERSION.SDK_INT < 31) return
     val opts = manager.getAppWidgetOptions(appWidgetId)
     val height = opts.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT, 0)
     if (height <= 0) return
-    val boxH = height * CARD_HEIGHT_FACTOR + CARD_HEIGHT_EXTRA_DP
+    val boxH = height * CARD_HEIGHT_FACTOR + LIST_HEIGHT_EXTRA_DP
     android.util.Log.d("HyperDayWidget", "shrinkListHeight id=$appWidgetId optH=$height boxH=$boxH")
     views.setViewLayoutHeight(R.id.widget_list_box, boxH, TypedValue.COMPLEX_UNIT_DIP)
 }
