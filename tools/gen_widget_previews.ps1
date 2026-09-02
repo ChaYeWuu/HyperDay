@@ -149,7 +149,7 @@ $bmp, $g = New-Canvas 600 300
 $pad = 50
 $fNum = Font $YaHei 88 ([System.Drawing.FontStyle]::Bold)
 $fUnit = Font $YaHei 28 ([System.Drawing.FontStyle]::Regular)
-$fTitle = Font $YaHei 52 ([System.Drawing.FontStyle]::Bold)
+$fTitle = Font $YaHei 72 ([System.Drawing.FontStyle]::Bold)
 $fTag = Font $YaHei 24 ([System.Drawing.FontStyle]::Regular)
 
 $tagText = '距离'
@@ -168,15 +168,18 @@ $tagBg = New-Object System.Drawing.SolidBrush([System.Drawing.Color]::FromArgb(0
 $g.FillPath($tagBg, $tagPath)
 $g.DrawString($tagText, $fTag, $bSecondary, ($pad + 12), ($tagY + 7))
 
-# title vertically centered on the left
+# title centered in the space left of the day number, vertically centered
 $ts = $g.MeasureString('去上海', $fTitle)
-$g.DrawString('去上海', $fTitle, $bPrimary, $pad, ((300 - $ts.Height) / 2))
-
-# day number on the right, vertically centered
 $numText = '12'
 $ns = $g.MeasureString($numText, $fNum)
 $us = $g.MeasureString('天', $fUnit)
 $rightEdge = 600 - $pad
+$numBlockW = $us.Width + 10 + $ns.Width
+$availEnd = $rightEdge - $numBlockW - 20
+$tx = $pad + (($availEnd - $pad - $ts.Width) / 2)
+$g.DrawString('去上海', $fTitle, $bPrimary, $tx, ((300 - $ts.Height) / 2))
+
+# day number on the right, vertically centered
 $ny = (300 - $ns.Height) / 2
 $g.DrawString('天', $fUnit, $bSecondary, ($rightEdge - $us.Width), ($ny + $ns.Height - $us.Height))
 $g.DrawString($numText, $fNum, $bAccent, ($rightEdge - $us.Width - 10 - $ns.Width), $ny)
