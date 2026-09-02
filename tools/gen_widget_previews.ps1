@@ -143,42 +143,42 @@ $bmp.Save("$outDir\widget_list_preview.png", [System.Drawing.Imaging.ImageFormat
 $g.Dispose(); $bmp.Dispose()
 
 # ---------------------------------------------------------------- minimal 2x1
-# 距离/过去 tag pill on the left, then title, day number hugging the right.
+# 距离/过去 tag pill top-left with title beside it; day number bottom-right.
 $bmp, $g = New-Canvas 600 300
 $pad = 50
-$fNum = Font $YaHei 96 ([System.Drawing.FontStyle]::Bold)
-$fUnit = Font $YaHei 30 ([System.Drawing.FontStyle]::Regular)
+$fNum = Font $YaHei 88 ([System.Drawing.FontStyle]::Bold)
+$fUnit = Font $YaHei 28 ([System.Drawing.FontStyle]::Regular)
 $fTitle = Font $YaHei 36 ([System.Drawing.FontStyle]::Bold)
 $fTag = Font $YaHei 24 ([System.Drawing.FontStyle]::Regular)
 
-$numText = '12'
-$ns = $g.MeasureString($numText, $fNum)
-$us = $g.MeasureString('天', $fUnit)
-$ts = $g.MeasureString('去上海', $fTitle)
-
-# tag pill (rounded 14px, 8% black), vertically centered
 $tagText = '距离'
 $tagSize = $g.MeasureString($tagText, $fTag)
 $tagW = $tagSize.Width + 24
 $tagH = $tagSize.Height + 14
+$tagY = 56
 $tagPath = New-Object System.Drawing.Drawing2D.GraphicsPath
 $r = 14
-$tagPath.AddArc($pad, ((300 - $tagH) / 2), 2 * $r, 2 * $r, 180, 90)
-$tagPath.AddArc(($pad + $tagW - 2 * $r), ((300 - $tagH) / 2), 2 * $r, 2 * $r, 270, 90)
-$tagPath.AddArc(($pad + $tagW - 2 * $r), ((300 + $tagH) / 2 - 2 * $r), 2 * $r, 2 * $r, 0, 90)
-$tagPath.AddArc($pad, ((300 + $tagH) / 2 - 2 * $r), 2 * $r, 2 * $r, 90, 90)
+$tagPath.AddArc($pad, $tagY, 2 * $r, 2 * $r, 180, 90)
+$tagPath.AddArc(($pad + $tagW - 2 * $r), $tagY, 2 * $r, 2 * $r, 270, 90)
+$tagPath.AddArc(($pad + $tagW - 2 * $r), ($tagY + $tagH - 2 * $r), 2 * $r, 2 * $r, 0, 90)
+$tagPath.AddArc($pad, ($tagY + $tagH - 2 * $r), 2 * $r, 2 * $r, 90, 90)
 $tagPath.CloseFigure()
 $tagBg = New-Object System.Drawing.SolidBrush([System.Drawing.Color]::FromArgb(0x14, 0x00, 0x00, 0x00))
 $g.FillPath($tagBg, $tagPath)
-$g.DrawString($tagText, $fTag, $bSecondary, ($pad + 12), ((300 - $tagSize.Height) / 2))
+$g.DrawString($tagText, $fTag, $bSecondary, ($pad + 12), ($tagY + 7))
 
-# title after the pill
-$g.DrawString('去上海', $fTitle, $bPrimary, ($pad + $tagW + 16), ((300 - $ts.Height) / 2))
-# day number hugging the right edge
+# title beside the pill, vertically centered with it
+$ts = $g.MeasureString('去上海', $fTitle)
+$g.DrawString('去上海', $fTitle, $bPrimary, ($pad + $tagW + 16), ($tagY + ($tagH - $ts.Height) / 2))
+
+# day number bottom-right
+$numText = '12'
+$ns = $g.MeasureString($numText, $fNum)
+$us = $g.MeasureString('天', $fUnit)
 $rightEdge = 600 - $pad
-$ny = (300 - $ns.Height) / 2
-$g.DrawString('天', $fUnit, $bSecondary, ($rightEdge - $us.Width), ($ny + $ns.Height - $us.Height))
-$g.DrawString($numText, $fNum, $bAccent, ($rightEdge - $us.Width - 10 - $ns.Width), $ny)
+$by = 300 - 44 - $ns.Height
+$g.DrawString('天', $fUnit, $bSecondary, ($rightEdge - $us.Width), ($by + $ns.Height - $us.Height))
+$g.DrawString($numText, $fNum, $bAccent, ($rightEdge - $us.Width - 10 - $ns.Width), $by)
 
 $bmp.Save("$outDir\widget_minimal_preview.png", [System.Drawing.Imaging.ImageFormat]::Png)
 $g.Dispose(); $bmp.Dispose()

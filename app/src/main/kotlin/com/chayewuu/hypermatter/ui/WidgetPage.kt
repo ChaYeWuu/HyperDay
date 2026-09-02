@@ -446,36 +446,45 @@ private fun MinimalWidgetPreview(
     event: CountdownEvent?,
     modifier: Modifier = Modifier,
 ) {
-    Row(
+    Column(
         modifier = modifier
             .widgetPreviewSurface()
-            .padding(horizontal = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
+            .padding(horizontal = 12.dp, vertical = 8.dp),
     ) {
-        WidgetTagPill(event)
-        Text(
-            text = event?.title ?: "还没有倒数日",
-            color = MiuixTheme.colorScheme.onSurface,
-            fontSize = 14.sp,
-            fontWeight = FontWeight.Medium,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
+        // Tag pill top-left, title beside it.
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            WidgetTagPill(event)
+            Text(
+                text = event?.title ?: "还没有倒数日",
+                color = MiuixTheme.colorScheme.onSurface,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Medium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(start = 6.dp),
+            )
+        }
+        // Day number bottom-right.
+        Row(
             modifier = Modifier
-                .weight(1f)
-                .padding(start = 6.dp),
-        )
-        Row(verticalAlignment = Alignment.Bottom) {
+                .fillMaxWidth()
+                .padding(top = 2.dp),
+            horizontalArrangement = Arrangement.End,
+            verticalAlignment = Alignment.Bottom,
+        ) {
             Text(
                 text = event?.let { DateUtils.dayNumber(it).toString() } ?: "--",
                 color = MiuixTheme.colorScheme.primary,
-                fontSize = 30.sp,
+                fontSize = 28.sp,
                 fontWeight = FontWeight.Bold,
             )
             Text(
                 text = "天",
                 color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                 fontSize = 12.sp,
-                modifier = Modifier.padding(start = 4.dp, bottom = 4.dp),
+                modifier = Modifier.padding(start = 4.dp, bottom = 3.dp),
             )
         }
     }
