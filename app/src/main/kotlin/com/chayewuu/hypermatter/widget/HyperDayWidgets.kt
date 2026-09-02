@@ -196,15 +196,23 @@ private fun shrinkCardHeight(views: RemoteViews, manager: AppWidgetManager, appW
     views.setViewLayoutHeight(R.id.widget_card_box, boxH, TypedValue.COMPLEX_UNIT_DIP)
 }
 
-/** Same visual treatment for the minimal widget (2x1) as the card above. */
+/**
+ * Same visual treatment for the minimal widget (2x1) as the card above,
+ * plus a top margin (set in the layout XML) that mirrors the card's
+ * centered offset, so both boxes' top edges line up when they sit in the
+ * same grid row. The margin is subtracted from the box height so the
+ * total footprint stays inside the cell.
+ */
 private const val MINIMAL_HEIGHT_FACTOR = 0.95f
+private const val MINIMAL_TOP_MARGIN_DP = 11f
 
 private fun shrinkMinimalHeight(views: RemoteViews, manager: AppWidgetManager, appWidgetId: Int) {
     if (Build.VERSION.SDK_INT < 31) return
     val opts = manager.getAppWidgetOptions(appWidgetId)
     val height = opts.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT, 0)
     if (height <= 0) return
-    val boxH = height * MINIMAL_HEIGHT_FACTOR
+    val boxH = height * MINIMAL_HEIGHT_FACTOR - MINIMAL_TOP_MARGIN_DP
+    if (boxH <= 0) return
     android.util.Log.d("HyperDayWidget", "shrinkMinimalHeight id=$appWidgetId optH=$height boxH=$boxH")
     views.setViewLayoutHeight(R.id.widget_minimal_box, boxH, TypedValue.COMPLEX_UNIT_DIP)
 }
