@@ -463,7 +463,7 @@ private fun MinimalWidgetPreview(
             Text(
                 text = event?.title ?: "还没有倒数日",
                 color = MiuixTheme.colorScheme.onSurface,
-                fontSize = 14.sp,
+                fontSize = 20.sp,
                 fontWeight = FontWeight.Medium,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
