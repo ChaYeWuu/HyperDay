@@ -37,9 +37,7 @@ import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import com.chayewuu.hypermatter.data.DateUtils
-import com.chayewuu.hypermatter.reminder.FocusNotification
 import com.chayewuu.hypermatter.reminder.IslandNotifier
-import com.chayewuu.hypermatter.reminder.LiveUpdateNotifier
 import com.chayewuu.hypermatter.reminder.ReminderScheduler
 import com.chayewuu.hypermatter.shizuku.ShizukuManager
 import com.chayewuu.hypermatter.ui.glass.LiquidGlassCard
@@ -82,6 +80,8 @@ fun ReminderPage(onBack: () -> Unit) {
     val advanceDays by reminderStore.advanceDays.collectAsState()
     val selectedCategories by reminderStore.categoryIds.collectAsState()
     val selectedEvents by reminderStore.eventIds.collectAsState()
+    val islandEnabled by reminderStore.islandEnabled.collectAsState()
+    val liveUpdatesEnabled by reminderStore.liveUpdatesEnabled.collectAsState()
     val context = LocalContext.current
     val barBackdrop = rememberBlurBackdrop()
 
@@ -89,8 +89,6 @@ fun ReminderPage(onBack: () -> Unit) {
         ActivityResultContracts.RequestPermission(),
     ) { }
 
-    val focusVersion = remember { FocusNotification.focusProtocolVersion(context) }
-    val promotedSupported = remember { LiveUpdateNotifier.canPostPromoted(context) }
     val shizukuRunning = remember {
         ShizukuManager.init(context)
         ShizukuManager.isShizukuRunning()
@@ -205,12 +203,28 @@ fun ReminderPage(onBack: () -> Unit) {
 
                 item {
                     Spacer(Modifier.height(12.dp))
-                    SmallTitle(text = "超级岛与实况通知")
+                    SmallTitle(text = "小米超级岛与 Live Updates")
                     LiquidGlassCard(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 12.dp),
                     ) {
+                        SwitchPreference(
+                            title = "小米超级岛",
+                            summary = "提醒以小米超级岛样式弹出，关闭后以普通通知提醒",
+                            checked = islandEnabled,
+                            onCheckedChange = { on ->
+                                apply { reminderStore.setIslandEnabled(on) }
+                            },
+                        )
+                        SwitchPreference(
+                            title = "Live Updates",
+                            summary = "提醒附带实时倒计时通知（Android 16+）",
+                            checked = liveUpdatesEnabled,
+                            onCheckedChange = { on ->
+                                apply { reminderStore.setLiveUpdatesEnabled(on) }
+                            },
+                        )
                         ArrowPreference(
                             title = "Shizuku 授权",
                             summary = when {
@@ -309,32 +323,6 @@ fun ReminderPage(onBack: () -> Unit) {
                                 )
                             }
                         }
-                    }
-                }
-
-                if (enabled) {
-                    item {
-                        val focusLine = when {
-                            focusVersion >= 3 ->
-                                "本机支持小米超级岛与焦点通知，提醒将以超级岛样式显示"
-                            focusVersion >= 1 ->
-                                "本机支持 HyperOS 焦点通知，提醒通知将以焦点通知样式显示"
-                            else ->
-                                "本机不支持焦点通知，提醒将以普通通知样式显示"
-                        }
-                        val liveLine = if (promotedSupported) {
-                            "本机支持 Android 16 持续通知，提醒将附带实时倒计时通知"
-                        } else {
-                            "本机不支持 Android 16 持续通知，倒计时通知将以普通样式显示"
-                        }
-                        Text(
-                            text = "$focusLine\n$liveLine",
-                            color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                            style = MiuixTheme.textStyles.footnote1,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 28.dp, vertical = 8.dp),
-                        )
                     }
                 }
             }

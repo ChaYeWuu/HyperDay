@@ -9,6 +9,7 @@ import com.chayewuu.hypermatter.MainActivity
 import com.chayewuu.hypermatter.R
 import com.chayewuu.hypermatter.data.DateUtils
 import com.chayewuu.hypermatter.data.EventStore
+import com.chayewuu.hypermatter.data.ReminderStore
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.ZoneId
@@ -16,9 +17,10 @@ import java.time.temporal.ChronoUnit
 
 /**
  * Fires when a scheduled reminder alarm goes off: posts the event's
- * notification — 小米超级岛 (with Shizuku XMSF bypass) / HyperOS 焦点通知
- * on supported ROMs, plus an Android 16 持续通知 (Live Updates) countdown —
- * then re-arms the next occurrence for recurring events.
+ * notification — 小米超级岛 (= HyperOS 焦点通知, with Shizuku XMSF bypass)
+ * and/or an Android 16 Live Updates countdown, each gated by its own
+ * ReminderStore switch — then re-arms the next occurrence for recurring
+ * events.
  *
  * goAsync + coroutine: the Shizuku bypass (bindUserService → notify →
  * restore) can take a few seconds, beyond the synchronous onReceive window.
@@ -64,8 +66,10 @@ class ReminderReceiver : BroadcastReceiver() {
         val hintContent = if (days > 0) "还有 $days 天" else "就是今天"
         val hintTitle = if (days > 0) "" else "已到期"
 
-        if (FocusNotification.focusProtocolVersion(app) >= 1) {
-            // 超级岛/焦点通知（Shizuku bypass 内部自动降级）。
+        val store = ReminderStore(app)
+
+        if (store.islandEnabled.value && FocusNotification.focusProtocolVersion(app) >= 1) {
+            // 小米超级岛（= HyperOS 焦点通知，Shizuku bypass 内部自动降级）。
             IslandNotifier.sendEventIsland(
                 context = app,
                 eventId = event.id,
@@ -76,19 +80,21 @@ class ReminderReceiver : BroadcastReceiver() {
                 hintTitle = hintTitle,
             )
         } else {
-            // Plain reminder notification (no focus-notification support).
+            // Plain reminder notification (island off or no focus-notification support).
             postPlain(app, event, title, text)
         }
 
-        // Android 16 持续通知：实时倒数到目标时刻，到期自动移除。
-        LiveUpdateNotifier.showCountdown(
-            context = app,
-            eventId = event.id,
-            title = "$title · 倒计时",
-            content = text,
-            shortCriticalText = hintContent,
-            targetTimestamp = targetMillis,
-        )
+        // Android 16 Live Updates：实时倒数到目标时刻，到期自动移除。
+        if (store.liveUpdatesEnabled.value) {
+            LiveUpdateNotifier.showCountdown(
+                context = app,
+                eventId = event.id,
+                title = "$title · 倒计时",
+                content = text,
+                shortCriticalText = hintContent,
+                targetTimestamp = targetMillis,
+            )
+        }
     }
 
     private fun postPlain(

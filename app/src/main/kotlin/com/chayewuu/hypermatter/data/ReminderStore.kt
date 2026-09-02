@@ -24,6 +24,12 @@ class ReminderStore(context: Context) {
     val categoryIds = MutableStateFlow(prefs.getStringSet(KEY_CATEGORIES, emptySet()) ?: emptySet())
     val eventIds = MutableStateFlow(prefs.getStringSet(KEY_EVENTS, emptySet()) ?: emptySet())
 
+    /** 小米超级岛（= HyperOS 焦点通知）开关，默认开。 */
+    val islandEnabled = MutableStateFlow(prefs.getBoolean(KEY_ISLAND, true))
+
+    /** Android 16 Live Updates（持续通知）开关，默认开。 */
+    val liveUpdatesEnabled = MutableStateFlow(prefs.getBoolean(KEY_LIVE, true))
+
     fun setEnabled(value: Boolean) {
         prefs.edit().putBoolean(KEY_ENABLED, value).apply()
         enabled.value = value
@@ -44,6 +50,16 @@ class ReminderStore(context: Context) {
         eventIds.value = ids
     }
 
+    fun setIslandEnabled(value: Boolean) {
+        prefs.edit().putBoolean(KEY_ISLAND, value).apply()
+        islandEnabled.value = value
+    }
+
+    fun setLiveUpdatesEnabled(value: Boolean) {
+        prefs.edit().putBoolean(KEY_LIVE, value).apply()
+        liveUpdatesEnabled.value = value
+    }
+
     /**
      * Whether [event] falls inside the current reminder selection.
      * Empty selection (no categories, no events) means "remind all".
@@ -60,5 +76,7 @@ class ReminderStore(context: Context) {
         private const val KEY_ADVANCE = "advance_days"
         private const val KEY_CATEGORIES = "category_ids"
         private const val KEY_EVENTS = "event_ids"
+        private const val KEY_ISLAND = "island_enabled"
+        private const val KEY_LIVE = "live_updates_enabled"
     }
 }
