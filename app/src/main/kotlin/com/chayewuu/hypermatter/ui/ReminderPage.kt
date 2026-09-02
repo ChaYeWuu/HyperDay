@@ -38,6 +38,7 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import com.chayewuu.hypermatter.data.DateUtils
 import com.chayewuu.hypermatter.reminder.IslandNotifier
+import com.chayewuu.hypermatter.reminder.LiveUpdateNotifier
 import com.chayewuu.hypermatter.reminder.ReminderScheduler
 import com.chayewuu.hypermatter.shizuku.ShizukuManager
 import com.chayewuu.hypermatter.ui.glass.LiquidGlassCard
@@ -217,12 +218,39 @@ fun ReminderPage(onBack: () -> Unit) {
                                 apply { reminderStore.setIslandEnabled(on) }
                             },
                         )
+                        // Real system state: promoted style needs the user's
+                        // per-app grant (no request API — toggle lives in the
+                        // system notification settings, if the ROM exposes it).
+                        val promoted = LiveUpdateNotifier.canPostPromoted(context)
                         SwitchPreference(
                             title = "Live Updates",
-                            summary = "提醒附带实时倒计时通知（Android 16+）",
+                            summary = when {
+                                Build.VERSION.SDK_INT < 36 ->
+                                    "当前系统不支持 Live Updates 样式，将以带实时倒计时的普通通知显示"
+                                promoted ->
+                                    "系统已允许实时更新样式，提醒将以 Live Updates 持续通知展示"
+                                else ->
+                                    "系统未开启实时更新样式，将以带实时倒计时的普通通知显示"
+                            },
                             checked = liveUpdatesEnabled,
                             onCheckedChange = { on ->
                                 apply { reminderStore.setLiveUpdatesEnabled(on) }
+                            },
+                        )
+                        ArrowPreference(
+                            title = "系统通知设置",
+                            summary = "查看通知权限与「实时更新 / Live Updates」开关",
+                            onClick = {
+                                runCatching {
+                                    context.startActivity(
+                                        Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+                                            .putExtra(
+                                                Settings.EXTRA_APP_PACKAGE,
+                                                context.packageName,
+                                            )
+                                            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                                    )
+                                }
                             },
                         )
                         ArrowPreference(

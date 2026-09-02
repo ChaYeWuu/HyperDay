@@ -176,6 +176,10 @@ object IslandNotifier {
             .setContentText(content)
             .setContentIntent(contentIntent)
             .setAutoCancel(true)
+            // Same-id re-posts (day-0 island re-pop) must not re-alert while
+            // the notification is still active; the island re-expansion is
+            // driven by the focus `reopen` param, not the alert.
+            .setOnlyAlertOnce(true)
 
         // 超级岛/焦点通知 payload + 引用图标。
         val pics = Bundle().apply {

@@ -11,6 +11,7 @@ import com.chayewuu.hypermatter.data.DateUtils
 import com.chayewuu.hypermatter.data.EventStore
 import com.chayewuu.hypermatter.data.ReminderStore
 import java.time.ZoneId
+import java.time.temporal.ChronoUnit
 
 /**
  * Schedules one exact alarm per selected event via [AlarmManager].
@@ -34,6 +35,9 @@ object ReminderScheduler {
     private const val KEY_SCHEDULED = "scheduled_event_ids"
     private const val PREFS_FIRED = "hypermatter_reminder_fired"
     private const val KEY_FIRED = "fired_reminders"
+
+    /** Distinct request code of the daily live-refresh alarm. */
+    private const val REQUEST_REFRESH = 0x11FE_0129
 
     fun ensureChannel(context: Context) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
@@ -80,6 +84,7 @@ object ReminderScheduler {
         if (!store.enabled.value) {
             saveScheduled(app, emptySet())
             oldIds.forEach { LiveUpdateNotifier.cancel(app, it) }
+            armDayRefresh(app, canExact = false, needed = false)
             return
         }
 
@@ -126,6 +131,69 @@ object ReminderScheduler {
         saveScheduled(app, scheduled)
         // Drop stale 持续通知 (Live Updates) of events no longer scheduled.
         oldIds.filter { it !in scheduled }.forEach { LiveUpdateNotifier.cancel(app, it) }
+
+        // Daily live-refresh chain: keep countdown texts / island state in
+        // sync as days roll over. Armed while any selected event sits in the
+        // reminder window [0, advance] (reminder-day events arm it for their
+        // following days).
+        val live = store.liveUpdatesEnabled.value
+        val anyInWindow = events.filter { store.isSelected(it) }.any { ev ->
+            val days = ChronoUnit.DAYS.between(today, DateUtils.effectiveDate(ev))
+            days in 0..advance.toLong()
+        }
+        armDayRefresh(app, canExact, needed = anyInWindow && (store.islandEnabled.value || live))
+
+        if (live) {
+            // Keep ongoing Live Updates notifications in sync with current
+            // data (silent same-id re-post: texts refresh after edits and
+            // day rollovers, so the countdown info never goes stale).
+            events.filter { it.id in scheduled }.forEach { ev ->
+                val days = ChronoUnit.DAYS.between(today, DateUtils.effectiveDate(ev))
+                if (days in 0 until advance.toLong()) {
+                    val timing = ReminderReceiver.timingFor(ev)
+                    LiveUpdateNotifier.showCountdown(
+                        context = app,
+                        eventId = ev.id,
+                        title = "${ev.title} · 倒计时",
+                        content = DateUtils.describe(ev),
+                        shortCriticalText = timing.hintContent,
+                        targetTimestamp = timing.targetMillis,
+                    )
+                }
+            }
+        } else {
+            // Live Updates toggled off: cancel every ongoing notification.
+            scheduled.forEach { LiveUpdateNotifier.cancel(app, it) }
+        }
+    }
+
+    /**
+     * Arm the daily 09:00:30 [LiveUpdateRefreshReceiver] alarm (or cancel it
+     * when not needed).
+     */
+    private fun armDayRefresh(context: Context, canExact: Boolean, needed: Boolean) {
+        val app = context.applicationContext
+        val alarmManager = app.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+        val intent = Intent(app, LiveUpdateRefreshReceiver::class.java)
+        val pending = PendingIntent.getBroadcast(
+            app, REQUEST_REFRESH, intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+        if (!needed) {
+            alarmManager.cancel(pending)
+            return
+        }
+        val zone = ZoneId.systemDefault()
+        var trigger = DateUtils.today().atTime(REMINDER_HOUR, 0, 30)
+            .atZone(zone).toInstant().toEpochMilli()
+        val now = System.currentTimeMillis()
+        if (trigger <= now) trigger = DateUtils.today().plusDays(1)
+            .atTime(REMINDER_HOUR, 0, 30).atZone(zone).toInstant().toEpochMilli()
+        if (canExact) {
+            alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, trigger, pending)
+        } else {
+            alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, trigger, pending)
+        }
     }
 
     /**
