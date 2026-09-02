@@ -6,12 +6,16 @@ import android.appwidget.AppWidgetProvider
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.os.Build
+import android.os.Bundle
+import android.util.TypedValue
 import android.widget.RemoteViews
 import com.chayewuu.hypermatter.MainActivity
 import com.chayewuu.hypermatter.R
 import com.chayewuu.hypermatter.data.CountdownEvent
 import com.chayewuu.hypermatter.data.DateUtils
 import com.chayewuu.hypermatter.data.EventStore
+import kotlin.math.min
 
 /**
  * HyperDay home-screen widgets.
@@ -157,6 +161,16 @@ class CardWidget : AppWidgetProvider() {
         }
     }
 
+    /** The launcher resized the widget — recompute the square card. */
+    override fun onAppWidgetOptionsChanged(
+        context: Context,
+        appWidgetManager: AppWidgetManager,
+        appWidgetId: Int,
+        newOptions: Bundle?,
+    ) {
+        updateCardWidget(context, appWidgetManager, appWidgetId)
+    }
+
     companion object {
         fun push(context: Context) {
             val manager = AppWidgetManager.getInstance(context)
@@ -166,6 +180,24 @@ class CardWidget : AppWidgetProvider() {
     }
 }
 
+/**
+ * MIUI 2x2 cells are taller than wide, so the whole-cell card looked
+ * non-square. Instead, the visible card (widget_card_box) is sized to a true
+ * square (min of the widget's portrait width/height in dp) and centered
+ * inside the transparent widget_root. Needs API 31+ RemoteViews size APIs;
+ * below that the card simply fills the cell as before.
+ */
+private fun squareCardBox(views: RemoteViews, manager: AppWidgetManager, appWidgetId: Int) {
+    if (Build.VERSION.SDK_INT < 31) return
+    val opts = manager.getAppWidgetOptions(appWidgetId)
+    val width = opts.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 0)
+    val height = opts.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT, 0)
+    if (width <= 0 || height <= 0) return
+    val side = min(width, height).toFloat()
+    views.setViewLayoutWidth(R.id.widget_card_box, side, TypedValue.COMPLEX_UNIT_DIP)
+    views.setViewLayoutHeight(R.id.widget_card_box, side, TypedValue.COMPLEX_UNIT_DIP)
+}
+
 private fun updateCardWidget(
     context: Context,
     manager: AppWidgetManager,
@@ -173,6 +205,7 @@ private fun updateCardWidget(
 ) {
     val event = singleEvent(context)
     val views = RemoteViews(context.packageName, R.layout.widget_card)
+    squareCardBox(views, manager, appWidgetId)
     views.setTextViewText(R.id.widget_today, todayLine())
     if (event == null) {
         views.setTextViewText(R.id.widget_tag, "")
