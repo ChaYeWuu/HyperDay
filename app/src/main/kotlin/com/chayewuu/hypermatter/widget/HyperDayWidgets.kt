@@ -322,6 +322,16 @@ class MinimalWidget : AppWidgetProvider() {
         }
     }
 
+    /** The launcher resized the widget — recompute the half-card box. */
+    override fun onAppWidgetOptionsChanged(
+        context: Context,
+        appWidgetManager: AppWidgetManager,
+        appWidgetId: Int,
+        newOptions: Bundle?,
+    ) {
+        updateMinimalWidget(context, appWidgetManager, appWidgetId)
+    }
+
     companion object {
         fun push(context: Context) {
             val manager = AppWidgetManager.getInstance(context)
@@ -331,6 +341,29 @@ class MinimalWidget : AppWidgetProvider() {
     }
 }
 
+/**
+ * MIUI cells are taller than wide, so a full-cell 2x1 minimal widget looked
+ * bigger than half of the 2x2 card square. The visible box
+ * (widget_minimal_box) is sized to half of that square: same width (the
+ * widget's portrait min width in dp, which spans the same 2 columns as the
+ * card) and half the height. Top-aligned + horizontally centered inside the
+ * transparent widget_root, mirroring the card. Needs API 31+ RemoteViews
+ * size APIs; below that the box fills the cell as before.
+ */
+private fun sizeMinimalBox(context: Context, views: RemoteViews, manager: AppWidgetManager, appWidgetId: Int) {
+    if (Build.VERSION.SDK_INT < 31) return
+    val opts = manager.getAppWidgetOptions(appWidgetId)
+    val width = opts.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 0)
+    if (width <= 0) return
+    val half = width / 2f
+    android.util.Log.d(
+        "HyperDayWidget",
+        "sizeMinimalBox id=$appWidgetId optW=$width half=$half"
+    )
+    views.setViewLayoutWidth(R.id.widget_minimal_box, width.toFloat(), TypedValue.COMPLEX_UNIT_DIP)
+    views.setViewLayoutHeight(R.id.widget_minimal_box, half, TypedValue.COMPLEX_UNIT_DIP)
+}
+
 private fun updateMinimalWidget(
     context: Context,
     manager: AppWidgetManager,
@@ -338,6 +371,7 @@ private fun updateMinimalWidget(
 ) {
     val event = feedEvents(context).firstOrNull()
     val views = RemoteViews(context.packageName, R.layout.widget_minimal)
+    sizeMinimalBox(context, views, manager, appWidgetId)
     views.setTextViewText(R.id.widget_today, todayLine())
     if (event == null) {
         views.setTextViewText(R.id.widget_tag, "")
