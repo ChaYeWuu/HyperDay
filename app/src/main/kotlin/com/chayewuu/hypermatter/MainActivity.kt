@@ -45,6 +45,7 @@ import com.chayewuu.hypermatter.ui.BlurredBar
 import com.chayewuu.hypermatter.ui.CategoryPage
 import com.chayewuu.hypermatter.ui.EventDetailPage
 import com.chayewuu.hypermatter.ui.HomePage
+import com.chayewuu.hypermatter.ui.IslandPage
 import com.chayewuu.hypermatter.ui.ReminderPage
 import com.chayewuu.hypermatter.ui.SettingsPage
 import com.chayewuu.hypermatter.ui.ThemePage
@@ -184,6 +185,9 @@ private sealed interface Route : NavKey {
     data object Reminder : Route
 
     @Serializable
+    data object Island : Route
+
+    @Serializable
     data class EventDetail(val id: String) : Route
 }
 
@@ -305,7 +309,13 @@ private fun App(pendingEventId: MutableState<String?>) {
                 CategoryPage(onBack = { backStack.removeLastOrNull() })
             }
             entry<Route.Reminder>(swipeDismiss = NavSwipeDirection.LeftToRight) {
-                ReminderPage(onBack = { backStack.removeLastOrNull() })
+                ReminderPage(
+                    onBack = { backStack.removeLastOrNull() },
+                    onOpenIsland = { backStack.add(Route.Island) },
+                )
+            }
+            entry<Route.Island>(swipeDismiss = NavSwipeDirection.LeftToRight) {
+                IslandPage(onBack = { backStack.removeLastOrNull() })
             }
             entry<Route.EventDetail>(swipeDismiss = NavSwipeDirection.LeftToRight) { route ->
                 EventDetailPage(
