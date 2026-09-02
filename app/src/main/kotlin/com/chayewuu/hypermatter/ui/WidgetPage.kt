@@ -47,6 +47,7 @@ import com.chayewuu.hypermatter.ui.theme.LocalEventViewModel
 import com.chayewuu.hypermatter.widget.CardWidget
 import com.chayewuu.hypermatter.widget.WidgetPrefs
 import com.chayewuu.hypermatter.widget.eventDateLine
+import com.chayewuu.hypermatter.widget.todayLine
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
 import top.yukonga.miuix.kmp.basic.Scaffold
@@ -343,11 +344,28 @@ private fun CardWidgetPreview(
             .widgetPreviewSurface()
             .padding(horizontal = 14.dp, vertical = 12.dp),
     ) {
-        WidgetTagPill(event)
+        // Tag pill left, today's date right (matches the real widget).
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            WidgetTagPill(event)
+            Spacer(Modifier.weight(1f))
+            TodayLabel()
+        }
         Spacer(Modifier.height(5.dp))
         PreviewHeader(event)
         CenteredDayNumber(event, modifier = Modifier.weight(1f).fillMaxWidth())
     }
+}
+
+/** "今日 · M月d日 周X" right-aligned label shared by card/minimal previews. */
+@Composable
+private fun TodayLabel() {
+    Text(
+        text = remember { todayLine() },
+        color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+        fontSize = 10.sp,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+    )
 }
 
 /** Title + date line shared by the card preview. */
@@ -391,10 +409,7 @@ private fun ListWidgetPreview(
                 colorFilter = ColorFilter.tint(MiuixTheme.colorScheme.onSurfaceVariantSummary),
             )
             Text(
-                text = remember {
-                    val today = java.time.LocalDate.now()
-                    "今日 · ${today.monthValue}月${today.dayOfMonth}日 ${DateUtils.weekdayLabel(today.toEpochDay())}"
-                },
+                text = remember { todayLine() },
                 color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                 fontSize = 11.sp,
                 modifier = Modifier.padding(start = 5.dp),
@@ -468,39 +483,41 @@ private fun MinimalWidgetPreview(
             .widgetPreviewSurface()
             .padding(horizontal = 12.dp, vertical = 8.dp),
     ) {
-        // Top row: tag pill + event title, left aligned.
+        // Top row: tag pill (left) + today's date (right).
         Row(verticalAlignment = Alignment.CenterVertically) {
             WidgetTagPill(event)
+            Spacer(Modifier.weight(1f))
+            TodayLabel()
+        }
+        Spacer(modifier = Modifier.weight(1f))
+        // Bottom row: event title and day number share the same line,
+        // vertically centered with each other.
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
             Text(
                 text = event?.title ?: "还没有倒数日",
                 color = MiuixTheme.colorScheme.onSurface,
-                fontSize = 18.sp,
+                fontSize = 15.sp,
                 fontWeight = FontWeight.Medium,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier
                     .weight(1f)
-                    .padding(start = 6.dp),
+                    .padding(end = 6.dp),
             )
-        }
-        Spacer(modifier = Modifier.weight(1f))
-        // Bottom row: big day number + unit, right aligned.
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.End,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
             Text(
                 text = event?.let { DateUtils.dayNumber(it).toString() } ?: "--",
                 color = MiuixTheme.colorScheme.primary,
-                fontSize = 30.sp,
+                fontSize = 28.sp,
                 fontWeight = FontWeight.Bold,
             )
             Text(
                 text = "天",
                 color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                 fontSize = 12.sp,
-                modifier = Modifier.padding(start = 4.dp),
+                modifier = Modifier.padding(start = 3.dp),
             )
         }
     }

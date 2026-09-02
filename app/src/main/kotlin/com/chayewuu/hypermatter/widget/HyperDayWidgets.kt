@@ -103,6 +103,12 @@ internal fun eventDateLine(event: CountdownEvent): String {
     return "${DateUtils.formatDate(day)} ${DateUtils.weekdayLabel(day)}"
 }
 
+/** "今日 · M月d日 周X" line shown next to the tag pill on card/minimal widgets. */
+internal fun todayLine(): String {
+    val today = java.time.LocalDate.now()
+    return "今日 · ${today.monthValue}月${today.dayOfMonth}日 ${DateUtils.weekdayLabel(today.toEpochDay())}"
+}
+
 /** Open the event detail page (deep link into MainActivity). */
 private fun openEvent(context: Context, eventId: String): PendingIntent {
     val intent = Intent(context, MainActivity::class.java).apply {
@@ -167,6 +173,7 @@ private fun updateCardWidget(
 ) {
     val event = singleEvent(context)
     val views = RemoteViews(context.packageName, R.layout.widget_card)
+    views.setTextViewText(R.id.widget_today, todayLine())
     if (event == null) {
         views.setTextViewText(R.id.widget_tag, "")
         views.setTextViewText(R.id.widget_title, context.getString(R.string.widget_empty_title))
@@ -225,11 +232,7 @@ private fun updateListWidget(
 ) {
     val events = feedEvents(context).take(4)
     val views = RemoteViews(context.packageName, R.layout.widget_list)
-    val today = java.time.LocalDate.now()
-    views.setTextViewText(
-        R.id.widget_header_date,
-        "今日 · ${today.monthValue}月${today.dayOfMonth}日 ${DateUtils.weekdayLabel(today.toEpochDay())}",
-    )
+    views.setTextViewText(R.id.widget_header_date, todayLine())
     views.removeAllViews(R.id.widget_rows)
     if (events.isEmpty()) {
         val row = RemoteViews(context.packageName, R.layout.widget_list_row)
@@ -298,6 +301,7 @@ private fun updateMinimalWidget(
 ) {
     val event = feedEvents(context).firstOrNull()
     val views = RemoteViews(context.packageName, R.layout.widget_minimal)
+    views.setTextViewText(R.id.widget_today, todayLine())
     if (event == null) {
         views.setTextViewText(R.id.widget_tag, "")
         views.setTextViewText(R.id.widget_title, context.getString(R.string.widget_empty_title))

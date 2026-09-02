@@ -72,6 +72,11 @@ $tagBg = New-Object System.Drawing.SolidBrush([System.Drawing.Color]::FromArgb(0
 $g.FillPath($tagBg, $tagPath)
 $g.DrawString($tagText, $fTag, $bSecondary, ($tagX + 16), ($tagY + 9))
 
+# today's date, right-aligned on the tag row
+$todayText = '今日 · 12月25日 周四'
+$todaySize = $g.MeasureString($todayText, $fTag)
+$g.DrawString($todayText, $fTag, $bSecondary, (600 - $pad - $todaySize.Width), ($tagY + ($tagH - $todaySize.Height) / 2))
+
 $g.DrawString('生日', $fTitle, $bPrimary, $pad, ($tagY + $tagH + 22))
 $g.DrawString('2月14日 周五', $fDate, $bSecondary, $pad, ($tagY + $tagH + 84))
 
@@ -186,20 +191,20 @@ $bmp.Save("$outDir\widget_list_preview.png", [System.Drawing.Imaging.ImageFormat
 $g.Dispose(); $bmp.Dispose()
 
 # ---------------------------------------------------------------- minimal 2x1
-# Restructured HyperOS style: top row = tag pill + title (left aligned);
-# bottom row = big day number + unit, right aligned.
+# Top row: tag pill (left) + today's date (right);
+# bottom row: event title and big day number on the same baseline.
 $bmp, $g = New-Canvas 600 300
 $pad = 50
-$fNum = Font $YaHei 92 ([System.Drawing.FontStyle]::Bold)
-$fUnit = Font $YaHei 30 ([System.Drawing.FontStyle]::Regular)
-$fTitle = Font $YaHei 46 ([System.Drawing.FontStyle]::Bold)
+$fNum = Font $YaHei 76 ([System.Drawing.FontStyle]::Bold)
+$fUnit = Font $YaHei 26 ([System.Drawing.FontStyle]::Regular)
+$fTitle = Font $YaHei 42 ([System.Drawing.FontStyle]::Bold)
 $fTag = Font $YaHei 24 ([System.Drawing.FontStyle]::Regular)
 
 $tagText = '距离'
 $tagSize = $g.MeasureString($tagText, $fTag)
 $tagW = $tagSize.Width + 24
 $tagH = $tagSize.Height + 14
-$topY = 40
+$topY = 44
 $tagPath = New-Object System.Drawing.Drawing2D.GraphicsPath
 $r = 14
 $tagPath.AddArc($pad, $topY, 2 * $r, 2 * $r, 180, 90)
@@ -211,20 +216,22 @@ $tagBg = New-Object System.Drawing.SolidBrush([System.Drawing.Color]::FromArgb(0
 $g.FillPath($tagBg, $tagPath)
 $g.DrawString($tagText, $fTag, $bSecondary, ($pad + 12), ($topY + 7))
 
-# title next to the pill, vertically centered on the pill, left aligned
-$ts = $g.MeasureString('去上海', $fTitle)
-$ty = $topY + ($tagH - $ts.Height) / 2
-$g.DrawString('去上海', $fTitle, $bPrimary, ($pad + $tagW + 16), $ty)
+# today's date, right-aligned on the tag row
+$todayText = '今日 · 12月25日 周四'
+$todaySize = $g.MeasureString($todayText, $fTag)
+$rightEdge = 600 - $pad
+$g.DrawString($todayText, $fTag, $bSecondary, ($rightEdge - $todaySize.Width), ($topY + ($tagH - $todaySize.Height) / 2))
 
-# big day number + unit in the bottom-right corner
+# bottom row: title (left) + day number + unit (right), each vertically
+# centered on the same row line so they read flush
+$rowCy = (($topY + $tagH) + (300 - 44)) / 2
+$ts = $g.MeasureString('去上海', $fTitle)
+$g.DrawString('去上海', $fTitle, $bPrimary, $pad, ($rowCy - $ts.Height / 2))
 $numText = '12'
 $ns = $g.MeasureString($numText, $fNum)
 $us = $g.MeasureString('天', $fUnit)
-$rightEdge = 600 - $pad
-$bottom = 300 - 40
-$ny = $bottom - $ns.Height
-$g.DrawString($numText, $fNum, $bAccent, ($rightEdge - $us.Width - 12 - $ns.Width), $ny)
-$g.DrawString('天', $fUnit, $bSecondary, ($rightEdge - $us.Width), ($bottom - $us.Height))
+$g.DrawString('天', $fUnit, $bSecondary, ($rightEdge - $us.Width), ($rowCy - $us.Height / 2))
+$g.DrawString($numText, $fNum, $bAccent, ($rightEdge - $us.Width - 10 - $ns.Width), ($rowCy - $ns.Height / 2))
 
 $bmp.Save("$outDir\widget_minimal_preview.png", [System.Drawing.Imaging.ImageFormat]::Png)
 $g.Dispose(); $bmp.Dispose()
