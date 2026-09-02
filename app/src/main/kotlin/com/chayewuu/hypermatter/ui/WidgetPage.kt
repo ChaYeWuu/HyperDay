@@ -451,9 +451,15 @@ private fun MinimalWidgetPreview(
             .widgetPreviewSurface()
             .padding(horizontal = 12.dp, vertical = 8.dp),
     ) {
-        // Tag pill top-left, title beside it.
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            WidgetTagPill(event)
+        // Tag pill alone in the top-left corner.
+        WidgetTagPill(event)
+        // Title vertically centered on the left, day number on the right.
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
             Text(
                 text = event?.title ?: "还没有倒数日",
                 color = MiuixTheme.colorScheme.onSurface,
@@ -461,19 +467,8 @@ private fun MinimalWidgetPreview(
                 fontWeight = FontWeight.Medium,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(start = 6.dp),
+                modifier = Modifier.weight(1f),
             )
-        }
-        // Day number bottom-right.
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 2.dp),
-            horizontalArrangement = Arrangement.End,
-            verticalAlignment = Alignment.Bottom,
-        ) {
             Text(
                 text = event?.let { DateUtils.dayNumber(it).toString() } ?: "--",
                 color = MiuixTheme.colorScheme.primary,

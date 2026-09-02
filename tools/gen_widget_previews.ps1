@@ -143,7 +143,8 @@ $bmp.Save("$outDir\widget_list_preview.png", [System.Drawing.Imaging.ImageFormat
 $g.Dispose(); $bmp.Dispose()
 
 # ---------------------------------------------------------------- minimal 2x1
-# 距离/过去 tag pill top-left with title beside it; day number bottom-right.
+# 距离/过去 tag pill alone top-left; title vertically centered on the left;
+# day number on the right, vertically centered.
 $bmp, $g = New-Canvas 600 300
 $pad = 50
 $fNum = Font $YaHei 88 ([System.Drawing.FontStyle]::Bold)
@@ -155,7 +156,7 @@ $tagText = '距离'
 $tagSize = $g.MeasureString($tagText, $fTag)
 $tagW = $tagSize.Width + 24
 $tagH = $tagSize.Height + 14
-$tagY = 56
+$tagY = 44
 $tagPath = New-Object System.Drawing.Drawing2D.GraphicsPath
 $r = 14
 $tagPath.AddArc($pad, $tagY, 2 * $r, 2 * $r, 180, 90)
@@ -167,18 +168,18 @@ $tagBg = New-Object System.Drawing.SolidBrush([System.Drawing.Color]::FromArgb(0
 $g.FillPath($tagBg, $tagPath)
 $g.DrawString($tagText, $fTag, $bSecondary, ($pad + 12), ($tagY + 7))
 
-# title beside the pill, vertically centered with it
+# title vertically centered on the left
 $ts = $g.MeasureString('去上海', $fTitle)
-$g.DrawString('去上海', $fTitle, $bPrimary, ($pad + $tagW + 16), ($tagY + ($tagH - $ts.Height) / 2))
+$g.DrawString('去上海', $fTitle, $bPrimary, $pad, ((300 - $ts.Height) / 2))
 
-# day number bottom-right
+# day number on the right, vertically centered
 $numText = '12'
 $ns = $g.MeasureString($numText, $fNum)
 $us = $g.MeasureString('天', $fUnit)
 $rightEdge = 600 - $pad
-$by = 300 - 44 - $ns.Height
-$g.DrawString('天', $fUnit, $bSecondary, ($rightEdge - $us.Width), ($by + $ns.Height - $us.Height))
-$g.DrawString($numText, $fNum, $bAccent, ($rightEdge - $us.Width - 10 - $ns.Width), $by)
+$ny = (300 - $ns.Height) / 2
+$g.DrawString('天', $fUnit, $bSecondary, ($rightEdge - $us.Width), ($ny + $ns.Height - $us.Height))
+$g.DrawString($numText, $fNum, $bAccent, ($rightEdge - $us.Width - 10 - $ns.Width), $ny)
 
 $bmp.Save("$outDir\widget_minimal_preview.png", [System.Drawing.Imaging.ImageFormat]::Png)
 $g.Dispose(); $bmp.Dispose()
