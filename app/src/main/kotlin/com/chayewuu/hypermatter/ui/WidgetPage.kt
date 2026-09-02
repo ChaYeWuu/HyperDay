@@ -6,6 +6,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -29,12 +30,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.sp
@@ -157,9 +162,8 @@ fun WidgetPage(
                                     event = selectedEvent(events, selectedId),
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        // Full 2x2 cell (MIUI cells are taller
-                                        // than wide, ~0.82 w/h).
-                                        .aspectRatio(0.82f),
+                                        // Real 2x2 cell proportions (~164 x 186 dp).
+                                        .aspectRatio(0.88f),
                                 )
                                 PreviewCaption("卡片 2×2")
                             }
@@ -175,8 +179,8 @@ fun WidgetPage(
                                     event = feed.firstOrNull(),
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        // Full 2x1 cell (~1.79 w/h).
-                                        .aspectRatio(1.79f),
+                                        // Real 2x1 cell proportions (~164 x 85 dp).
+                                        .aspectRatio(1.93f),
                                 )
                                 PreviewCaption("极简 2×1")
                             }
@@ -190,7 +194,8 @@ fun WidgetPage(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(horizontal = 12.dp)
-                                .aspectRatio(2f),
+                                // Real 4x2 cell proportions (~350 x 186 dp).
+                                .aspectRatio(1.88f),
                         )
                         PreviewCaption("列表 4×2")
                     }
@@ -269,11 +274,40 @@ private fun selectedEvent(
 // with Miuix tokens (surfaceContainer card, primary numbers, secondary text).
 // ---------------------------------------------------------------------------
 
-/** Shared card surface: 24dp rounded, surfaceContainer background. */
+/** Uniformly scales a fixed design-space drawing of a widget (dp/sp values
+ *  copied 1:1 from the real RemoteViews layouts, sized to the real MIUI
+ *  grid cell) to fit whatever size the preview box receives. Font scale is
+ *  neutralized inside so a large system font setting can never squeeze or
+ *  overlap the drawing — the preview always shows the exact real proportions. */
 @Composable
-private fun Modifier.widgetPreviewSurface(): Modifier = this
-    .clip(androidx.compose.foundation.shape.RoundedCornerShape(24.dp))
-    .background(MiuixTheme.colorScheme.surfaceContainer)
+private fun ScaledWidgetBox(
+    designWidth: Dp,
+    designHeight: Dp,
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit,
+) {
+    BoxWithConstraints(modifier = modifier) {
+        val scale = minOf(maxWidth / designWidth, maxHeight / designHeight)
+        val density = LocalDensity.current
+        Box(
+            modifier = Modifier
+                .graphicsLayer {
+                    scaleX = scale
+                    scaleY = scale
+                    transformOrigin = TransformOrigin(0f, 0f)
+                }
+                .size(designWidth, designHeight)
+                .clip(androidx.compose.foundation.shape.RoundedCornerShape(24.dp))
+                .background(MiuixTheme.colorScheme.surfaceContainer),
+        ) {
+            CompositionLocalProvider(
+                LocalDensity provides Density(density.density, fontScale = 1f),
+            ) {
+                content()
+            }
+        }
+    }
+}
 
 @Composable
 private fun PreviewCaption(text: String) {
@@ -358,16 +392,20 @@ private fun CardWidgetPreview(
     event: CountdownEvent?,
     modifier: Modifier = Modifier,
 ) {
-    Column(
-        modifier = modifier
-            .widgetPreviewSurface()
-            .padding(start = 14.dp, top = 12.dp, end = 18.dp, bottom = 10.dp),
-    ) {
-        // Mirrors widget_card.xml: 11sp pill (8/3dp), 18sp title,
-        // 12sp date, 42sp day number centered in the remaining space.
-        WidgetTagPill(event, fontSize = 11.sp, horizontal = 8.dp, vertical = 3.dp)
-        Box(Modifier.padding(start = 4.dp, top = 6.dp)) { PreviewHeader(event) }
-        CenteredDayNumber(event, modifier = Modifier.weight(1f).fillMaxWidth())
+    // Design space = the real 2x2 cell (~164 x 186 dp on the device grid);
+    // the layout mirrors widget_card.xml 1:1 and is scaled as a whole.
+    ScaledWidgetBox(designWidth = 164.dp, designHeight = 186.dp, modifier = modifier) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(start = 14.dp, top = 12.dp, end = 18.dp, bottom = 10.dp),
+        ) {
+            // Mirrors widget_card.xml: 11sp pill (8/3dp), 18sp title,
+            // 12sp date, 42sp day number centered in the remaining space.
+            WidgetTagPill(event, fontSize = 11.sp, horizontal = 8.dp, vertical = 3.dp)
+            Box(Modifier.padding(start = 4.dp, top = 6.dp)) { PreviewHeader(event) }
+            CenteredDayNumber(event, modifier = Modifier.weight(1f).fillMaxWidth())
+        }
     }
 }
 
@@ -410,11 +448,14 @@ private fun ListWidgetPreview(
     events: List<CountdownEvent>,
     modifier: Modifier = Modifier,
 ) {
-    Column(
-        modifier = modifier
-            .widgetPreviewSurface()
-            .padding(horizontal = 16.dp, vertical = 14.dp),
-    ) {
+    // Design space = the real 4x2 cell (~350 x 186 dp); mirrors
+    // widget_list.xml / widget_list_row.xml 1:1 and scales as a whole.
+    ScaledWidgetBox(designWidth = 350.dp, designHeight = 186.dp, modifier = modifier) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 16.dp, vertical = 14.dp),
+        ) {
         // Header: calendar glyph + today's date (matches the real widget).
         Row(
             modifier = Modifier.padding(bottom = 4.dp),
@@ -489,6 +530,7 @@ private fun ListWidgetPreview(
                     }
                 }
             }
+            }
         }
     }
 }
@@ -498,50 +540,54 @@ private fun MinimalWidgetPreview(
     event: CountdownEvent?,
     modifier: Modifier = Modifier,
 ) {
-    Column(
-        modifier = modifier
-            .widgetPreviewSurface()
-            .padding(horizontal = 14.dp, vertical = 8.dp),
-    ) {
-        // Top row: tag pill (left) + today's date (right).
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            WidgetTagPill(event)
-            Spacer(Modifier.weight(1f))
-            TodayLabel()
-        }
-        // Mirrors widget_minimal.xml: the bottom row fills the remaining
-        // space with its contents vertically centered; 18sp title,
-        // 24sp day number, 11sp unit.
-        Row(
+    // Design space = the real 2x1 cell (~164 x 85 dp); mirrors
+    // widget_minimal.xml 1:1 and scales as a whole.
+    ScaledWidgetBox(designWidth = 164.dp, designHeight = 85.dp, modifier = modifier) {
+        Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f)
-                .padding(top = 2.dp),
-            verticalAlignment = Alignment.CenterVertically,
+                .fillMaxSize()
+                .padding(horizontal = 14.dp, vertical = 8.dp),
         ) {
-            Text(
-                text = event?.title ?: "还没有倒数日",
-                color = MiuixTheme.colorScheme.onSurface,
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Medium,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
+            // Top row: tag pill (left) + today's date (right).
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                WidgetTagPill(event)
+                Spacer(Modifier.weight(1f))
+                TodayLabel()
+            }
+            // Mirrors widget_minimal.xml: the bottom row fills the remaining
+            // space with its contents vertically centered; 18sp title,
+            // 24sp day number, 11sp unit.
+            Row(
                 modifier = Modifier
+                    .fillMaxWidth()
                     .weight(1f)
-                    .padding(end = 8.dp),
-            )
-            Text(
-                text = event?.let { DateUtils.dayNumber(it).toString() } ?: "--",
-                color = MiuixTheme.colorScheme.primary,
-                fontSize = 24.sp,
-                fontWeight = FontWeight.Bold,
-            )
-            Text(
-                text = "天",
-                color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                fontSize = 11.sp,
-                modifier = Modifier.padding(start = 3.dp),
-            )
+                    .padding(top = 2.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = event?.title ?: "还没有倒数日",
+                    color = MiuixTheme.colorScheme.onSurface,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(end = 8.dp),
+                )
+                Text(
+                    text = event?.let { DateUtils.dayNumber(it).toString() } ?: "--",
+                    color = MiuixTheme.colorScheme.primary,
+                    fontSize = 24.sp,
+                    fontWeight = FontWeight.Bold,
+                )
+                Text(
+                    text = "天",
+                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                    fontSize = 11.sp,
+                    modifier = Modifier.padding(start = 3.dp),
+                )
+            }
         }
     }
 }
