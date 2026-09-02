@@ -3,14 +3,15 @@
      Settings > 小部件 (WidgetPrefs), falls back to the nearest event.
      Top-left tag pill shows 距离 (upcoming/recurring) or 过去 (past);
      day number is vertically centered, 42sp.
-     Width fills the whole cell; the height is shrunk slightly (90%,
-     centered) at update time (API 31+) so the card visually lines up
-     with the icon rows around it. -->
+     Width fills the whole cell; the height is shrunk slightly (95%)
+     and the box is TOP-anchored at update time (API 31+), so widgets
+     sharing the same grid row (e.g. the minimal widget beside this
+     card) have their top edges line up exactly. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/widget_root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:gravity="center"
+    android:gravity="center_horizontal"
     android:orientation="vertical">
 
     <LinearLayout

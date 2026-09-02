@@ -3,14 +3,15 @@
        top row = tag pill (left) + today's date (right);
        bottom row = event title + big day number on the same baseline,
        vertically centered with each other.
-       Width fills the whole cell; the height is shrunk slightly (95%,
-       centered) at update time (API 31+) so it visually lines up with
-       the card widget above it. -->
+       Width fills the whole cell; the height is shrunk slightly (95%)
+       and the box is TOP-anchored at update time (API 31+), so its top
+       edge lines up exactly with the card widget beside it when they
+       share the same grid row. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/widget_root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:gravity="center"
+    android:gravity="center_horizontal"
     android:orientation="vertical">
 
     <LinearLayout
