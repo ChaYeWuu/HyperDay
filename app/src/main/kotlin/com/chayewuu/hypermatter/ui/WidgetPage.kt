@@ -34,7 +34,9 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.sp
 import com.chayewuu.hypermatter.data.CountdownEvent
 import com.chayewuu.hypermatter.data.DateUtils
@@ -286,23 +288,28 @@ private fun PreviewCaption(text: String) {
     )
 }
 
-/** 距离/过去 tag pill shared by all widget previews. */
+/** 距离/过去 tag pill shared by all widget previews.
+ *  Defaults mirror the small row pill (10sp, 6/2dp); the card widget's
+ *  pill is bigger (11sp, 8/3dp) — see widget_card.xml vs widget_list_row.xml. */
 @Composable
 private fun WidgetTagPill(
     event: CountdownEvent?,
     modifier: Modifier = Modifier,
+    fontSize: TextUnit = 10.sp,
+    horizontal: Dp = 6.dp,
+    vertical: Dp = 2.dp,
 ) {
     Box(
         modifier = modifier
             .clip(androidx.compose.foundation.shape.RoundedCornerShape(8.dp))
             .background(MiuixTheme.colorScheme.onSurface.copy(alpha = 0.08f))
-            .padding(horizontal = 6.dp, vertical = 2.dp),
+            .padding(horizontal = horizontal, vertical = vertical),
     ) {
         Text(
             text = if (event == null) "距离"
             else if (DateUtils.isPastEvent(event)) "过去" else "距离",
             color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-            fontSize = 10.sp,
+            fontSize = fontSize,
         )
     }
 }
@@ -318,7 +325,7 @@ private fun CenteredDayNumber(
             Text(
                 text = "--",
                 color = MiuixTheme.colorScheme.primary,
-                fontSize = 36.sp,
+                fontSize = 42.sp,
                 fontWeight = FontWeight.Bold,
             )
         }
@@ -332,14 +339,14 @@ private fun CenteredDayNumber(
                 Text(
                     text = DateUtils.dayNumber(event).toString(),
                     color = MiuixTheme.colorScheme.primary,
-                    fontSize = 36.sp,
+                    fontSize = 42.sp,
                     fontWeight = FontWeight.Bold,
                 )
                 Text(
                     text = "天",
                     color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                    fontSize = 11.sp,
-                    modifier = Modifier.padding(start = 3.dp, bottom = 6.dp),
+                    fontSize = 14.sp,
+                    modifier = Modifier.padding(start = 6.dp, bottom = 6.dp),
                 )
             }
         }
@@ -354,12 +361,12 @@ private fun CardWidgetPreview(
     Column(
         modifier = modifier
             .widgetPreviewSurface()
-            .padding(horizontal = 14.dp, vertical = 12.dp),
+            .padding(start = 14.dp, top = 12.dp, end = 18.dp, bottom = 10.dp),
     ) {
-        // Tag pill only (matches the real widget — no today label).
-        WidgetTagPill(event)
-        Spacer(Modifier.height(5.dp))
-        Box(Modifier.padding(start = 4.dp)) { PreviewHeader(event) }
+        // Mirrors widget_card.xml: 11sp pill (8/3dp), 18sp title,
+        // 12sp date, 42sp day number centered in the remaining space.
+        WidgetTagPill(event, fontSize = 11.sp, horizontal = 8.dp, vertical = 3.dp)
+        Box(Modifier.padding(start = 4.dp, top = 6.dp)) { PreviewHeader(event) }
         CenteredDayNumber(event, modifier = Modifier.weight(1f).fillMaxWidth())
     }
 }
@@ -382,7 +389,7 @@ private fun PreviewHeader(event: CountdownEvent?) {
     Text(
         text = event?.title ?: "还没有倒数日",
         color = MiuixTheme.colorScheme.onSurface,
-        fontSize = 13.sp,
+        fontSize = 18.sp,
         fontWeight = FontWeight.Medium,
         maxLines = 1,
         overflow = TextOverflow.Ellipsis,
@@ -391,7 +398,7 @@ private fun PreviewHeader(event: CountdownEvent?) {
         text = if (event == null) "点击打开 HyperDay 添加"
         else eventDateLine(event),
         color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-        fontSize = 11.sp,
+        fontSize = 12.sp,
         maxLines = 1,
         overflow = TextOverflow.Ellipsis,
         modifier = Modifier.padding(top = 2.dp),
@@ -406,10 +413,13 @@ private fun ListWidgetPreview(
     Column(
         modifier = modifier
             .widgetPreviewSurface()
-            .padding(horizontal = 14.dp, vertical = 12.dp),
+            .padding(horizontal = 16.dp, vertical = 14.dp),
     ) {
         // Header: calendar glyph + today's date (matches the real widget).
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            modifier = Modifier.padding(bottom = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
             Image(
                 painter = painterResource(R.drawable.widget_calendar_icon),
                 contentDescription = null,
@@ -423,7 +433,6 @@ private fun ListWidgetPreview(
                 modifier = Modifier.padding(start = 5.dp),
             )
         }
-        Spacer(Modifier.height(6.dp))
         if (events.isEmpty()) {
             Text(
                 text = "还没有倒数日",
@@ -432,10 +441,14 @@ private fun ListWidgetPreview(
                 fontWeight = FontWeight.Medium,
             )
         } else {
-            Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
+            // Mirrors widget_list_row.xml: each row carries 8dp vertical
+            // padding, title weight(1f) fills, date wraps, 20sp day number.
+            Column {
                 events.forEach { event ->
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 8.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         WidgetTagPill(event)
@@ -447,18 +460,16 @@ private fun ListWidgetPreview(
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                             modifier = Modifier
-                                .weight(1f, fill = false)
+                                .weight(1f)
                                 .padding(start = 6.dp),
                         )
                         Text(
                             text = eventDateLine(event),
                             color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                             fontSize = 12.sp,
-                            modifier = Modifier
-                                .weight(1f)
-                                .padding(start = 8.dp),
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.padding(start = 8.dp),
                         )
                         Row(verticalAlignment = Alignment.Bottom) {
                             Text(
@@ -466,6 +477,7 @@ private fun ListWidgetPreview(
                                 color = MiuixTheme.colorScheme.primary,
                                 fontSize = 20.sp,
                                 fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(start = 12.dp),
                             )
                             Text(
                                 text = "天",
@@ -489,7 +501,7 @@ private fun MinimalWidgetPreview(
     Column(
         modifier = modifier
             .widgetPreviewSurface()
-            .padding(horizontal = 12.dp, vertical = 8.dp),
+            .padding(horizontal = 14.dp, vertical = 8.dp),
     ) {
         // Top row: tag pill (left) + today's date (right).
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -497,34 +509,37 @@ private fun MinimalWidgetPreview(
             Spacer(Modifier.weight(1f))
             TodayLabel()
         }
-        Spacer(modifier = Modifier.weight(1f))
-        // Bottom row: event title and day number share the same line,
-        // vertically centered with each other.
+        // Mirrors widget_minimal.xml: the bottom row fills the remaining
+        // space with its contents vertically centered; 18sp title,
+        // 24sp day number, 11sp unit.
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f)
+                .padding(top = 2.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
                 text = event?.title ?: "还没有倒数日",
                 color = MiuixTheme.colorScheme.onSurface,
-                fontSize = 20.sp,
+                fontSize = 18.sp,
                 fontWeight = FontWeight.Medium,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier
                     .weight(1f)
-                    .padding(end = 6.dp),
+                    .padding(end = 8.dp),
             )
             Text(
                 text = event?.let { DateUtils.dayNumber(it).toString() } ?: "--",
                 color = MiuixTheme.colorScheme.primary,
-                fontSize = 28.sp,
+                fontSize = 24.sp,
                 fontWeight = FontWeight.Bold,
             )
             Text(
                 text = "天",
                 color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                fontSize = 12.sp,
+                fontSize = 11.sp,
                 modifier = Modifier.padding(start = 3.dp),
             )
         }
