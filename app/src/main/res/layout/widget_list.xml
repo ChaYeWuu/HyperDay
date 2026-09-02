@@ -2,8 +2,8 @@
 <!-- Events list widget (4x2, resizable). Rows are injected in code; each
       row carries its own 距离/过去 tag pill. Mirrors the card widget's
       top anchoring: transparent widget_root, visible box 7dp below the
-      cell top whose height is set at update time (API 31+), so widgets
-      stacked in the same rows keep their top and bottom edges aligned. -->
+      cell top that fills the host's actual drawable area (match_parent —
+      never computed from the reported options). -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/widget_root"
     android:layout_width="match_parent"

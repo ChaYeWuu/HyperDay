@@ -3,11 +3,9 @@
      Settings > 小部件 (WidgetPrefs), falls back to the nearest event.
      Top-left tag pill shows 距离 (upcoming/recurring) or 过去 (past);
      day number is vertically centered, 42sp.
-     Width fills the whole cell; the box is anchored 7dp below the cell
-     top (margin) and its height is set to the full reported height at
-     update time (API 31+), so only the bottom edge extends — the top
-     edge stays put. The minimal widget mirrors the same 7dp top margin
-     so widgets side by side keep their top edges aligned. -->
+     The box fills whatever drawable area the host actually gives it
+     (match_parent — never computed from the reported options, which do
+     not match the real bounds), anchored 7dp below the cell top. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/widget_root"
     android:layout_width="match_parent"

@@ -6,8 +6,6 @@ import android.appwidget.AppWidgetProvider
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
-import android.os.Build
-import android.util.TypedValue
 import android.widget.RemoteViews
 import com.chayewuu.hypermatter.MainActivity
 import com.chayewuu.hypermatter.R
@@ -178,68 +176,6 @@ class CardWidget : AppWidgetProvider() {
     }
 }
 
-/**
- * Shrinks the card's visible height to [heightFactor] of the cell height,
- * centered vertically inside the transparent widget_root (width still fills
- * the cell). Needs API 31+ RemoteViews size APIs; below that the card fills
- * the cell as before. Tune [heightFactor] to taste.
- */
-private const val CARD_HEIGHT_FACTOR = 1.0f
-
-/** Extra dp beyond the reported height — MIUI's reported height omits
- *  part of the cell (row gap), so the box can safely grow a bit more
- *  while staying inside the actual host bounds. */
-private const val CARD_HEIGHT_EXTRA_DP = 1f
-
-private fun shrinkCardHeight(views: RemoteViews, manager: AppWidgetManager, appWidgetId: Int) {
-    if (Build.VERSION.SDK_INT < 31) return
-    val opts = manager.getAppWidgetOptions(appWidgetId)
-    val height = opts.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT, 0)
-    if (height <= 0) return
-    val boxH = height * CARD_HEIGHT_FACTOR + CARD_HEIGHT_EXTRA_DP
-    android.util.Log.d("HyperDayWidget", "shrinkCardHeight id=$appWidgetId optH=$height boxH=$boxH")
-    views.setViewLayoutHeight(R.id.widget_card_box, boxH, TypedValue.COMPLEX_UNIT_DIP)
-}
-
-/**
- * Same visual treatment for the minimal widget (2x1) as the card above,
- * plus a top margin (set in the layout XML) that mirrors the card's
- * centered offset, so both boxes' top edges line up when they sit in the
- * same grid row. The margin is subtracted from the box height so the
- * total footprint stays inside the cell.
- */
-private const val MINIMAL_HEIGHT_FACTOR = 0.95f
-private const val MINIMAL_TOP_MARGIN_DP = 7f
-
-private fun shrinkMinimalHeight(views: RemoteViews, manager: AppWidgetManager, appWidgetId: Int) {
-    if (Build.VERSION.SDK_INT < 31) return
-    val opts = manager.getAppWidgetOptions(appWidgetId)
-    val height = opts.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT, 0)
-    if (height <= 0) return
-    val boxH = height * MINIMAL_HEIGHT_FACTOR - MINIMAL_TOP_MARGIN_DP
-    if (boxH <= 0) return
-    android.util.Log.d("HyperDayWidget", "shrinkMinimalHeight id=$appWidgetId optH=$height boxH=$boxH")
-    views.setViewLayoutHeight(R.id.widget_minimal_box, boxH, TypedValue.COMPLEX_UNIT_DIP)
-}
-
-/**
- * Same top-anchored sizing as the card for the list widget (4x2): the box
- * sits 7dp below the cell top (layout XML margin) and its height tracks the
- * reported cell height. Sits ~4px (device density 3.25) lower than the card
- * box so the two look equal when side by side.
- */
-private const val LIST_HEIGHT_EXTRA_DP = -0.25f
-
-private fun shrinkListHeight(views: RemoteViews, manager: AppWidgetManager, appWidgetId: Int) {
-    if (Build.VERSION.SDK_INT < 31) return
-    val opts = manager.getAppWidgetOptions(appWidgetId)
-    val height = opts.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT, 0)
-    if (height <= 0) return
-    val boxH = height * CARD_HEIGHT_FACTOR + LIST_HEIGHT_EXTRA_DP
-    android.util.Log.d("HyperDayWidget", "shrinkListHeight id=$appWidgetId optH=$height boxH=$boxH")
-    views.setViewLayoutHeight(R.id.widget_list_box, boxH, TypedValue.COMPLEX_UNIT_DIP)
-}
-
 private fun updateCardWidget(
     context: Context,
     manager: AppWidgetManager,
@@ -247,7 +183,6 @@ private fun updateCardWidget(
 ) {
     val event = singleEvent(context)
     val views = RemoteViews(context.packageName, R.layout.widget_card)
-    shrinkCardHeight(views, manager, appWidgetId)
     if (event == null) {
         views.setTextViewText(R.id.widget_tag, "")
         views.setTextViewText(R.id.widget_title, context.getString(R.string.widget_empty_title))
@@ -316,7 +251,6 @@ private fun updateListWidget(
 ) {
     val events = feedEvents(context).take(4)
     val views = RemoteViews(context.packageName, R.layout.widget_list)
-    shrinkListHeight(views, manager, appWidgetId)
     views.setTextViewText(R.id.widget_header_date, todayLine())
     views.removeAllViews(R.id.widget_rows)
     if (events.isEmpty()) {
@@ -396,7 +330,6 @@ private fun updateMinimalWidget(
 ) {
     val event = feedEvents(context).firstOrNull()
     val views = RemoteViews(context.packageName, R.layout.widget_minimal)
-    shrinkMinimalHeight(views, manager, appWidgetId)
     views.setTextViewText(R.id.widget_today, todayLine())
     if (event == null) {
         views.setTextViewText(R.id.widget_tag, "")
