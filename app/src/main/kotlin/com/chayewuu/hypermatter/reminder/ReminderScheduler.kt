@@ -32,6 +32,8 @@ object ReminderScheduler {
 
     private const val PREFS = "hypermatter_reminder_alarms"
     private const val KEY_SCHEDULED = "scheduled_event_ids"
+    private const val PREFS_FIRED = "hypermatter_reminder_fired"
+    private const val KEY_FIRED = "fired_reminders"
 
     fun ensureChannel(context: Context) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
@@ -92,13 +94,21 @@ object ReminderScheduler {
             alarmManager.canScheduleExactAlarms()
 
         val scheduled = mutableSetOf<String>()
+        val fired = firedToday(app, today.toEpochDay())
         events.filter { store.isSelected(it) }.forEach { event ->
             val target = DateUtils.effectiveDate(event)
             val reminderDay = target.minusDays(advance.toLong())
             if (reminderDay.isBefore(today)) return@forEach
-            val trigger = reminderDay.atTime(REMINDER_HOUR, 0)
+            var trigger = reminderDay.atTime(REMINDER_HOUR, 0)
                 .atZone(zone).toInstant().toEpochMilli()
-            if (trigger <= now) return@forEach
+            if (trigger <= now) {
+                // The 09:00 reminder moment already passed (e.g. reminder was
+                // enabled after 09:00 today): late-fire right away, but only
+                // once per day — later re-schedules skip via the marker.
+                if (reminderDay > today) return@forEach
+                if (event.id in fired) return@forEach
+                trigger = now + 3_000
+            }
 
             val intent = Intent(app, ReminderReceiver::class.java)
                 .putExtra(ReminderReceiver.EXTRA_EVENT_ID, event.id)
@@ -116,6 +126,30 @@ object ReminderScheduler {
         saveScheduled(app, scheduled)
         // Drop stale 持续通知 (Live Updates) of events no longer scheduled.
         oldIds.filter { it !in scheduled }.forEach { LiveUpdateNotifier.cancel(app, it) }
+    }
+
+    /**
+     * Record that [eventId]'s notification fired today ("eventId:epochDay"
+     * markers). Used to late-fire a reminder whose 09:00 moment already
+     * passed exactly once, without re-firing on every re-schedule.
+     */
+    fun markFired(context: Context, eventId: String) {
+        val app = context.applicationContext
+        val today = DateUtils.today().toEpochDay()
+        val prefs = app.getSharedPreferences(PREFS_FIRED, Context.MODE_PRIVATE)
+        val current = prefs.getStringSet(KEY_FIRED, emptySet()) ?: emptySet()
+        // Keep only today's markers — older days are irrelevant.
+        val next = current.filter { it.endsWith(":$today") }.toSet() + "$eventId:$today"
+        prefs.edit().putStringSet(KEY_FIRED, next).apply()
+    }
+
+    /** Event ids whose notification already fired today. */
+    private fun firedToday(context: Context, todayEpoch: Long): Set<String> {
+        val all = context.applicationContext
+            .getSharedPreferences(PREFS_FIRED, Context.MODE_PRIVATE)
+            .getStringSet(KEY_FIRED, emptySet()) ?: emptySet()
+        return all.filterTo(mutableSetOf()) { it.endsWith(":$todayEpoch") }
+            .mapTo(mutableSetOf()) { it.substringBeforeLast(":") }
     }
 
     private fun saveScheduled(context: Context, ids: Set<String>) {

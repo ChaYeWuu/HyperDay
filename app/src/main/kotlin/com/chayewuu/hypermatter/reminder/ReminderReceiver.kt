@@ -95,6 +95,9 @@ class ReminderReceiver : BroadcastReceiver() {
                 targetTimestamp = targetMillis,
             )
         }
+
+        // Late-fire dedupe: mark today as notified so re-schedules don't repeat.
+        ReminderScheduler.markFired(app, event.id)
     }
 
     private fun postPlain(
