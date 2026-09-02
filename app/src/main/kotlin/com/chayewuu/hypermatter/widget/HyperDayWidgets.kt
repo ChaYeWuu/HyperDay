@@ -69,6 +69,7 @@ private fun feedEvents(context: Context): List<CountdownEvent> {
 object WidgetPrefs {
     private const val PREFS = "hypermatter_widgets"
     private const val KEY_SINGLE_EVENT = "single_event_id"
+    private const val KEY_CARD_SIDE = "card_side_dp"
 
     fun getSingleEventId(context: Context): String? =
         context.applicationContext
@@ -80,6 +81,26 @@ object WidgetPrefs {
             .getSharedPreferences(PREFS, Context.MODE_PRIVATE)
             .edit()
             .putString(KEY_SINGLE_EVENT, eventId)
+            .apply()
+    }
+
+    /**
+     * The card widget publishes its computed square side here so the minimal
+     * widget can size itself to exactly half of it — MIUI reports different
+     * OPTION_APPWIDGET_MIN_WIDTH values for the two widgets (151 vs 167 dp
+     * observed), so each widget sizing from its own options leaves their
+     * left/right edges misaligned on the home screen.
+     */
+    fun getCardSide(context: Context): Float =
+        context.applicationContext
+            .getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .getFloat(KEY_CARD_SIDE, 0f)
+
+    fun setCardSide(context: Context, sideDp: Float) {
+        context.applicationContext
+            .getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .edit()
+            .putFloat(KEY_CARD_SIDE, sideDp)
             .apply()
     }
 }
@@ -195,6 +216,7 @@ private fun squareCardBox(context: Context, views: RemoteViews, manager: AppWidg
     if (width <= 0 || height <= 0) return
     val density = context.resources.displayMetrics.density
     val side = min(width, height).toFloat()
+    WidgetPrefs.setCardSide(context, side)
     android.util.Log.d(
         "HyperDayWidget",
         "squareCardBox id=$appWidgetId optW=$width optH=$height density=$density side=$side"
@@ -344,24 +366,36 @@ class MinimalWidget : AppWidgetProvider() {
 /**
  * MIUI cells are taller than wide, so a full-cell 2x1 minimal widget looked
  * bigger than half of the 2x2 card square. The visible box
- * (widget_minimal_box) is sized to half of that square: same width (the
- * widget's portrait min width in dp, which spans the same 2 columns as the
- * card) and half the height. Top-aligned + horizontally centered inside the
+ * (widget_minimal_box) is sized to exactly half of the card square when the
+ * card widget has published its side via WidgetPrefs (MIUI reports different
+ * option widths for the two widgets, so deriving from our own options would
+ * leave the edges misaligned); otherwise it falls back to our own portrait
+ * width and half of it. Top-aligned + horizontally centered inside the
  * transparent widget_root, mirroring the card. Needs API 31+ RemoteViews
  * size APIs; below that the box fills the cell as before.
  */
 private fun sizeMinimalBox(context: Context, views: RemoteViews, manager: AppWidgetManager, appWidgetId: Int) {
     if (Build.VERSION.SDK_INT < 31) return
     val opts = manager.getAppWidgetOptions(appWidgetId)
-    val width = opts.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 0)
-    if (width <= 0) return
-    val half = width / 2f
+    val optW = opts.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 0)
+    val optH = opts.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT, 0)
+    if (optW <= 0) return
+    val cardSide = WidgetPrefs.getCardSide(context)
+    val boxW: Float
+    val boxH: Float
+    if (cardSide > 0f) {
+        boxW = min(cardSide, optW.toFloat())
+        boxH = if (optH > 0) min(cardSide / 2f, optH.toFloat()) else cardSide / 2f
+    } else {
+        boxW = optW.toFloat()
+        boxH = optW / 2f
+    }
     android.util.Log.d(
         "HyperDayWidget",
-        "sizeMinimalBox id=$appWidgetId optW=$width half=$half"
+        "sizeMinimalBox id=$appWidgetId optW=$optW optH=$optH cardSide=$cardSide boxW=$boxW boxH=$boxH"
     )
-    views.setViewLayoutWidth(R.id.widget_minimal_box, width.toFloat(), TypedValue.COMPLEX_UNIT_DIP)
-    views.setViewLayoutHeight(R.id.widget_minimal_box, half, TypedValue.COMPLEX_UNIT_DIP)
+    views.setViewLayoutWidth(R.id.widget_minimal_box, boxW, TypedValue.COMPLEX_UNIT_DIP)
+    views.setViewLayoutHeight(R.id.widget_minimal_box, boxH, TypedValue.COMPLEX_UNIT_DIP)
 }
 
 private fun updateMinimalWidget(
