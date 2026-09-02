@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -288,9 +289,12 @@ private fun PreviewCaption(text: String) {
 
 /** 距离/过去 tag pill shared by all widget previews. */
 @Composable
-private fun WidgetTagPill(event: CountdownEvent?) {
+private fun WidgetTagPill(
+    event: CountdownEvent?,
+    modifier: Modifier = Modifier,
+) {
     Box(
-        modifier = Modifier
+        modifier = modifier
             .clip(androidx.compose.foundation.shape.RoundedCornerShape(8.dp))
             .background(MiuixTheme.colorScheme.onSurface.copy(alpha = 0.08f))
             .padding(horizontal = 6.dp, vertical = 2.dp),
@@ -354,7 +358,7 @@ private fun CardWidgetPreview(
             .padding(horizontal = 14.dp, vertical = 12.dp),
     ) {
         // Tag pill only (matches the real widget — no today label).
-        WidgetTagPill(event)
+        WidgetTagPill(event, Modifier.offset(x = (-4).dp))
         Spacer(Modifier.height(5.dp))
         PreviewHeader(event)
         CenteredDayNumber(event, modifier = Modifier.weight(1f).fillMaxWidth())
@@ -410,13 +414,13 @@ private fun ListWidgetPreview(
             Image(
                 painter = painterResource(R.drawable.widget_calendar_icon),
                 contentDescription = null,
-                modifier = Modifier.size(13.dp),
+                modifier = Modifier.size(15.dp),
                 colorFilter = ColorFilter.tint(MiuixTheme.colorScheme.onSurfaceVariantSummary),
             )
             Text(
                 text = remember { todayLine() },
                 color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                fontSize = 11.sp,
+                fontSize = 13.sp,
                 modifier = Modifier.padding(start = 5.dp),
             )
         }
