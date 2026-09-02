@@ -11,7 +11,7 @@ import com.chayewuu.hypermatter.MainActivity
 import com.chayewuu.hypermatter.R
 
 /**
- * Android 16 持续通知（Live Updates / promoted ongoing）：
+ * Android 16 实时动态（Live Updates / promoted ongoing）：
  * 倒计时秒表风格的通知，chronometer 实时倒数到目标时刻，系统在到达时
  * 自动移除（setTimeoutAfter）。API 36+ 申请 promoted（关键持续通知），
  * 旧系统降级为普通 ongoing 通知。
@@ -34,14 +34,15 @@ object LiveUpdateNotifier {
     fun ensureChannel(context: Context) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
         val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        if (manager.getNotificationChannel(CHANNEL_LIVE) != null) return
+        // Always upsert: re-creating an existing channel refreshes its
+        // name/description (rename from「持续倒数提醒」to「实时动态」).
         manager.createNotificationChannel(
             NotificationChannel(
                 CHANNEL_LIVE,
-                "持续倒数提醒",
+                "实时动态",
                 NotificationManager.IMPORTANCE_DEFAULT,
             ).apply {
-                description = "倒数日实时倒计时持续通知"
+                description = "倒数日实时动态倒计时通知"
                 setShowBadge(true)
                 enableLights(false)
                 enableVibration(false)

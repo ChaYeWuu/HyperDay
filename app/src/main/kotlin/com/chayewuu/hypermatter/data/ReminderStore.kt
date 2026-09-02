@@ -27,7 +27,7 @@ class ReminderStore(context: Context) {
     /** 小米超级岛（= HyperOS 焦点通知）开关，默认开。 */
     val islandEnabled = MutableStateFlow(prefs.getBoolean(KEY_ISLAND, true))
 
-    /** Android 16 Live Updates（持续通知）开关，默认开。 */
+    /** Android 16 实时动态（Live Updates）开关，默认开。 */
     val liveUpdatesEnabled = MutableStateFlow(prefs.getBoolean(KEY_LIVE, true))
 
     fun setEnabled(value: Boolean) {

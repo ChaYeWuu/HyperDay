@@ -237,7 +237,7 @@ fun ReminderPage(onBack: () -> Unit) {
 
                 item {
                     Spacer(Modifier.height(12.dp))
-                    SmallTitle(text = "小米超级岛与 Live Updates")
+                    SmallTitle(text = "小米超级岛与实时动态")
                     LiquidGlassCard(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -254,14 +254,14 @@ fun ReminderPage(onBack: () -> Unit) {
                         // Promoted style needs the user's per-app grant; see the
                         // standalone 「实时动态」card below for the direct entry.
                         SwitchPreference(
-                            title = "Live Updates",
+                            title = "实时动态",
                             summary = when {
                                 Build.VERSION.SDK_INT < 36 ->
-                                    "当前系统不支持 Live Updates 样式，将以带实时倒计时的普通通知显示"
+                                    "当前系统不支持实时动态样式，将以带实时倒计时的普通通知显示"
                                 promoted ->
-                                    "系统已允许实时更新样式，提醒将以 Live Updates 持续通知展示"
+                                    "系统已允许实时动态，提醒将以实时动态通知展示"
                                 else ->
-                                    "系统未开启实时更新样式，将以带实时倒计时的普通通知显示"
+                                    "系统未开启实时动态，将以带实时倒计时的普通通知显示"
                             },
                             checked = liveUpdatesEnabled,
                             onCheckedChange = { on ->
@@ -270,7 +270,7 @@ fun ReminderPage(onBack: () -> Unit) {
                         )
                         ArrowPreference(
                             title = "系统通知设置",
-                            summary = "查看通知权限与「实时更新 / Live Updates」开关",
+                            summary = "查看通知权限与「实时动态」开关",
                             onClick = {
                                 runCatching {
                                     context.startActivity(
