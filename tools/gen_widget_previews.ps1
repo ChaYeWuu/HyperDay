@@ -49,10 +49,10 @@ $bSecondary = New-Object System.Drawing.SolidBrush($Secondary)
 $bAccent = New-Object System.Drawing.SolidBrush($Accent)
 
 $fTag = Font $YaHei 26 ([System.Drawing.FontStyle]::Regular)
-$fTitle = Font $YaHei 50 ([System.Drawing.FontStyle]::Bold)
+$fTitle = Font $YaHei 40 ([System.Drawing.FontStyle]::Bold)
 $fDate = Font $YaHei 30 ([System.Drawing.FontStyle]::Regular)
-$fNum = Font $YaHei 130 ([System.Drawing.FontStyle]::Bold)
-$fUnit = Font $YaHei 36 ([System.Drawing.FontStyle]::Regular)
+$fNum = Font $YaHei 106 ([System.Drawing.FontStyle]::Bold)
+$fUnit = Font $YaHei 30 ([System.Drawing.FontStyle]::Regular)
 
 # tag pill (rounded 18px, 8% black)
 $tagText = '距离'
@@ -72,13 +72,8 @@ $tagBg = New-Object System.Drawing.SolidBrush([System.Drawing.Color]::FromArgb(0
 $g.FillPath($tagBg, $tagPath)
 $g.DrawString($tagText, $fTag, $bSecondary, ($tagX + 16), ($tagY + 9))
 
-# today's date, right-aligned on the tag row
-$todayText = '今日 · 12月25日 周四'
-$todaySize = $g.MeasureString($todayText, $fTag)
-$g.DrawString($todayText, $fTag, $bSecondary, (600 - $pad - $todaySize.Width), ($tagY + ($tagH - $todaySize.Height) / 2))
-
 $g.DrawString('生日', $fTitle, $bPrimary, $pad, ($tagY + $tagH + 22))
-$g.DrawString('2月14日 周五', $fDate, $bSecondary, $pad, ($tagY + $tagH + 84))
+$g.DrawString('2月14日 周五', $fDate, $bSecondary, $pad, ($tagY + $tagH + 74))
 
 $numText = '12'
 $numSize = $g.MeasureString($numText, $fNum)

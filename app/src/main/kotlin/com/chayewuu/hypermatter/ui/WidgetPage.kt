@@ -160,7 +160,13 @@ fun WidgetPage(
                                 PreviewCaption("卡片 2×2")
                             }
                             Spacer(Modifier.width(10.dp))
-                            Column(modifier = Modifier.weight(1f)) {
+                            // Bottom-aligned so the minimal widget's bottom
+                            // edge lines up with the card (home-screen style:
+                            // card top-left, minimal bottom-right).
+                            Column(
+                                modifier = Modifier.weight(1f),
+                                verticalArrangement = Arrangement.Bottom,
+                            ) {
                                 MinimalWidgetPreview(
                                     event = feed.firstOrNull(),
                                     modifier = Modifier
@@ -306,7 +312,7 @@ private fun CenteredDayNumber(
             Text(
                 text = "--",
                 color = MiuixTheme.colorScheme.primary,
-                fontSize = 42.sp,
+                fontSize = 36.sp,
                 fontWeight = FontWeight.Bold,
             )
         }
@@ -320,14 +326,14 @@ private fun CenteredDayNumber(
                 Text(
                     text = DateUtils.dayNumber(event).toString(),
                     color = MiuixTheme.colorScheme.primary,
-                    fontSize = 42.sp,
+                    fontSize = 36.sp,
                     fontWeight = FontWeight.Bold,
                 )
                 Text(
                     text = "天",
                     color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                    fontSize = 13.sp,
-                    modifier = Modifier.padding(start = 3.dp, bottom = 7.dp),
+                    fontSize = 11.sp,
+                    modifier = Modifier.padding(start = 3.dp, bottom = 6.dp),
                 )
             }
         }
@@ -344,12 +350,8 @@ private fun CardWidgetPreview(
             .widgetPreviewSurface()
             .padding(horizontal = 14.dp, vertical = 12.dp),
     ) {
-        // Tag pill left, today's date right (matches the real widget).
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            WidgetTagPill(event)
-            Spacer(Modifier.weight(1f))
-            TodayLabel()
-        }
+        // Tag pill only (matches the real widget — no today label).
+        WidgetTagPill(event)
         Spacer(Modifier.height(5.dp))
         PreviewHeader(event)
         CenteredDayNumber(event, modifier = Modifier.weight(1f).fillMaxWidth())
@@ -374,7 +376,7 @@ private fun PreviewHeader(event: CountdownEvent?) {
     Text(
         text = event?.title ?: "还没有倒数日",
         color = MiuixTheme.colorScheme.onSurface,
-        fontSize = 15.sp,
+        fontSize = 13.sp,
         fontWeight = FontWeight.Medium,
         maxLines = 1,
         overflow = TextOverflow.Ellipsis,

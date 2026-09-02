@@ -211,7 +211,6 @@ private fun updateCardWidget(
     val event = singleEvent(context)
     val views = RemoteViews(context.packageName, R.layout.widget_card)
     squareCardBox(context, views, manager, appWidgetId)
-    views.setTextViewText(R.id.widget_today, todayLine())
     if (event == null) {
         views.setTextViewText(R.id.widget_tag, "")
         views.setTextViewText(R.id.widget_title, context.getString(R.string.widget_empty_title))
