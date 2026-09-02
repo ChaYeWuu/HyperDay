@@ -5,6 +5,7 @@ import android.app.AlarmManager
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -24,6 +25,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -52,6 +54,7 @@ import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.basic.SmallTitle
 import top.yukonga.miuix.kmp.basic.SmallTopAppBar
 import top.yukonga.miuix.kmp.basic.Text
+import top.yukonga.miuix.kmp.basic.TextButton
 import top.yukonga.miuix.kmp.blur.layerBackdrop
 import top.yukonga.miuix.kmp.icon.MiuixIcons
 import top.yukonga.miuix.kmp.icon.extended.Back
@@ -85,6 +88,36 @@ fun ReminderPage(onBack: () -> Unit) {
     val liveUpdatesEnabled by reminderStore.liveUpdatesEnabled.collectAsState()
     val context = LocalContext.current
     val barBackdrop = rememberBlurBackdrop()
+
+    // Live Updates promoted-notification grant. There is no request API —
+    // the per-app toggle lives in system settings; we re-check whenever the
+    // user returns from there and whenever the toggles change.
+    var promoted by remember { mutableStateOf(LiveUpdateNotifier.canPostPromoted(context)) }
+    LaunchedEffect(enabled, liveUpdatesEnabled) {
+        promoted = LiveUpdateNotifier.canPostPromoted(context)
+    }
+    val promotedSettingsLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartActivityForResult(),
+    ) {
+        promoted = LiveUpdateNotifier.canPostPromoted(context)
+    }
+
+    /** Jump straight to the system Live Updates toggle; fall back to the app's notification settings. */
+    fun launchPromotedSettings() {
+        try {
+            val intent = Intent("android.settings.MANAGE_APP_PROMOTED_NOTIFICATIONS").apply {
+                data = Uri.parse("package:${context.packageName}")
+            }
+            promotedSettingsLauncher.launch(intent)
+        } catch (_: Exception) {
+            runCatching {
+                promotedSettingsLauncher.launch(
+                    Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+                        .putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName),
+                )
+            }
+        }
+    }
 
     val notifPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission(),
@@ -218,10 +251,8 @@ fun ReminderPage(onBack: () -> Unit) {
                                 apply { reminderStore.setIslandEnabled(on) }
                             },
                         )
-                        // Real system state: promoted style needs the user's
-                        // per-app grant (no request API — toggle lives in the
-                        // system notification settings, if the ROM exposes it).
-                        val promoted = LiveUpdateNotifier.canPostPromoted(context)
+                        // Promoted style needs the user's per-app grant; see the
+                        // standalone 「实时动态」card below for the direct entry.
                         SwitchPreference(
                             title = "Live Updates",
                             summary = when {
@@ -283,6 +314,43 @@ fun ReminderPage(onBack: () -> Unit) {
                             summary = "立即弹出一条 60 秒倒计时的测试超级岛通知",
                             onClick = { IslandNotifier.sendTestIsland(context) },
                         )
+                    }
+                }
+
+                // Standalone 实时动态 entry (mirrors NexioSchedule): shown when
+                // Live Updates is wanted but the system grant is still missing.
+                if (enabled && liveUpdatesEnabled && Build.VERSION.SDK_INT >= 36 && !promoted) {
+                    item {
+                        Spacer(Modifier.height(12.dp))
+                        LiquidGlassCard(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 12.dp),
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp),
+                            ) {
+                                Text(
+                                    text = "开启实时动态",
+                                    color = MiuixTheme.colorScheme.onSurface,
+                                    style = MiuixTheme.textStyles.body1,
+                                )
+                                Spacer(Modifier.height(4.dp))
+                                Text(
+                                    text = "开启后，倒数日倒计时将实时显示在状态栏和锁屏上，无需打开应用即可查看",
+                                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                                    style = MiuixTheme.textStyles.body2,
+                                )
+                                Spacer(Modifier.height(12.dp))
+                                TextButton(
+                                    text = "前往开启实时动态",
+                                    onClick = { launchPromotedSettings() },
+                                    modifier = Modifier.fillMaxWidth(),
+                                )
+                            }
+                        }
                     }
                 }
 
