@@ -41,6 +41,16 @@ class ReminderReceiver : BroadcastReceiver() {
             return
         }
 
+        // Re-check the selection at delivery time: MIUI App Standby can defer
+        // the 09:00 broadcast for hours, long after the user changed the
+        // 提醒分组 selection (or disabled reminders). A stale deferred alarm
+        // must not notify an event that is no longer selected.
+        val store = ReminderStore(app)
+        if (!store.enabled.value || !store.isSelected(event)) {
+            ReminderScheduler.reschedule(app)
+            return
+        }
+
         val pending = goAsync()
         IslandNotifier.scope.launch {
             try {
