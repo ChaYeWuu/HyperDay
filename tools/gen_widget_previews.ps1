@@ -100,21 +100,46 @@ $fRowDate = Font $YaHei 30 ([System.Drawing.FontStyle]::Regular)
 $fRowNum = Font $YaHei 48 ([System.Drawing.FontStyle]::Bold)
 $fRowUnit = Font $YaHei 28 ([System.Drawing.FontStyle]::Regular)
 
-# header: small calendar glyph (outline + top band + center square) + today
+# header: HyperOS calendar glyph (MiuixIcons.Months shape: rounded frame
+# ring + two horizontal bars in the upper half) + today
 $hdrY = 50
 $iconS = 38
-$iconPen = New-Object System.Drawing.Pen($Secondary, 4)
+$iconBrush = New-Object System.Drawing.SolidBrush($Secondary)
+$whiteBrush = New-Object System.Drawing.SolidBrush([System.Drawing.Color]::White)
 $iconPath = New-Object System.Drawing.Drawing2D.GraphicsPath
-$ir = 8
+$ir = 9
 $iconPath.AddArc($pad, $hdrY, 2 * $ir, 2 * $ir, 180, 90)
 $iconPath.AddArc(($pad + $iconS - 2 * $ir), $hdrY, 2 * $ir, 2 * $ir, 270, 90)
 $iconPath.AddArc(($pad + $iconS - 2 * $ir), ($hdrY + $iconS - 2 * $ir), 2 * $ir, 2 * $ir, 0, 90)
 $iconPath.AddArc($pad, ($hdrY + $iconS - 2 * $ir), 2 * $ir, 2 * $ir, 90, 90)
 $iconPath.CloseFigure()
-$g.DrawPath($iconPen, $iconPath)
-$bandBrush = New-Object System.Drawing.SolidBrush($Secondary)
-$g.FillRectangle($bandBrush, ($pad + 2), ($hdrY + 8), ($iconS - 4), 7)
-$g.FillRectangle($bandBrush, ($pad + $iconS / 2 - 5), ($hdrY + $iconS / 2 - 2), 10, 10)
+$g.FillPath($iconBrush, $iconPath)
+$iconInner = New-Object System.Drawing.Drawing2D.GraphicsPath
+$inset = 6
+$inS = $iconS - 2 * $inset
+$ir2 = 6
+$iconInner.AddArc(($pad + $inset), ($hdrY + $inset), 2 * $ir2, 2 * $ir2, 180, 90)
+$iconInner.AddArc(($pad + $inset + $inS - 2 * $ir2), ($hdrY + $inset), 2 * $ir2, 2 * $ir2, 270, 90)
+$iconInner.AddArc(($pad + $inset + $inS - 2 * $ir2), ($hdrY + $inset + $inS - 2 * $ir2), 2 * $ir2, 2 * $ir2, 0, 90)
+$iconInner.AddArc(($pad + $inset), ($hdrY + $inset + $inS - 2 * $ir2), 2 * $ir2, 2 * $ir2, 90, 90)
+$iconInner.CloseFigure()
+$g.FillPath($whiteBrush, $iconInner)
+# two horizontal bars, left-aligned in the upper half of the frame
+function New-Bar([float]$bx, [float]$by, [float]$bw, [float]$bh) {
+    $bp = New-Object System.Drawing.Drawing2D.GraphicsPath
+    $br = $bh / 2
+    $bp.AddArc($bx, $by, 2 * $br, 2 * $br, 180, 90)
+    $bp.AddArc(($bx + $bw - 2 * $br), $by, 2 * $br, 2 * $br, 270, 90)
+    $bp.AddArc(($bx + $bw - 2 * $br), ($by + $bh - 2 * $br), 2 * $br, 2 * $br, 0, 90)
+    $bp.AddArc($bx, ($by + $bh - 2 * $br), 2 * $br, 2 * $br, 90, 90)
+    $bp.CloseFigure()
+    return $bp
+}
+$barX = $pad + $inset + 3
+$bar1 = New-Bar $barX ($hdrY + $inset + 5) ($inS - 3 - 10) 5
+$g.FillPath($iconBrush, $bar1)
+$bar2 = New-Bar $barX ($hdrY + $inset + 14) ($inS - 3 - 22) 5
+$g.FillPath($iconBrush, $bar2)
 $g.DrawString('今日 · 12月25日 周四', $fHeader, $bSecondary, ($pad + $iconS + 14), ($hdrY - 1))
 
 # rows: title, date, days, tag (距离/过去)
@@ -161,47 +186,45 @@ $bmp.Save("$outDir\widget_list_preview.png", [System.Drawing.Imaging.ImageFormat
 $g.Dispose(); $bmp.Dispose()
 
 # ---------------------------------------------------------------- minimal 2x1
-# 距离/过去 tag pill alone top-left; title vertically centered on the left;
-# day number on the right, vertically centered.
+# Restructured HyperOS style: top row = tag pill + title (left aligned);
+# bottom row = big day number + unit, right aligned.
 $bmp, $g = New-Canvas 600 300
 $pad = 50
-$fNum = Font $YaHei 88 ([System.Drawing.FontStyle]::Bold)
-$fUnit = Font $YaHei 28 ([System.Drawing.FontStyle]::Regular)
-$fTitle = Font $YaHei 72 ([System.Drawing.FontStyle]::Bold)
+$fNum = Font $YaHei 92 ([System.Drawing.FontStyle]::Bold)
+$fUnit = Font $YaHei 30 ([System.Drawing.FontStyle]::Regular)
+$fTitle = Font $YaHei 46 ([System.Drawing.FontStyle]::Bold)
 $fTag = Font $YaHei 24 ([System.Drawing.FontStyle]::Regular)
 
 $tagText = '距离'
 $tagSize = $g.MeasureString($tagText, $fTag)
 $tagW = $tagSize.Width + 24
 $tagH = $tagSize.Height + 14
-$tagY = 44
+$topY = 40
 $tagPath = New-Object System.Drawing.Drawing2D.GraphicsPath
 $r = 14
-$tagPath.AddArc($pad, $tagY, 2 * $r, 2 * $r, 180, 90)
-$tagPath.AddArc(($pad + $tagW - 2 * $r), $tagY, 2 * $r, 2 * $r, 270, 90)
-$tagPath.AddArc(($pad + $tagW - 2 * $r), ($tagY + $tagH - 2 * $r), 2 * $r, 2 * $r, 0, 90)
-$tagPath.AddArc($pad, ($tagY + $tagH - 2 * $r), 2 * $r, 2 * $r, 90, 90)
+$tagPath.AddArc($pad, $topY, 2 * $r, 2 * $r, 180, 90)
+$tagPath.AddArc(($pad + $tagW - 2 * $r), $topY, 2 * $r, 2 * $r, 270, 90)
+$tagPath.AddArc(($pad + $tagW - 2 * $r), ($topY + $tagH - 2 * $r), 2 * $r, 2 * $r, 0, 90)
+$tagPath.AddArc($pad, ($topY + $tagH - 2 * $r), 2 * $r, 2 * $r, 90, 90)
 $tagPath.CloseFigure()
 $tagBg = New-Object System.Drawing.SolidBrush([System.Drawing.Color]::FromArgb(0x14, 0x00, 0x00, 0x00))
 $g.FillPath($tagBg, $tagPath)
-$g.DrawString($tagText, $fTag, $bSecondary, ($pad + 12), ($tagY + 7))
+$g.DrawString($tagText, $fTag, $bSecondary, ($pad + 12), ($topY + 7))
 
-# title centered in the space left of the day number, vertically centered
+# title next to the pill, vertically centered on the pill, left aligned
 $ts = $g.MeasureString('去上海', $fTitle)
+$ty = $topY + ($tagH - $ts.Height) / 2
+$g.DrawString('去上海', $fTitle, $bPrimary, ($pad + $tagW + 16), $ty)
+
+# big day number + unit in the bottom-right corner
 $numText = '12'
 $ns = $g.MeasureString($numText, $fNum)
 $us = $g.MeasureString('天', $fUnit)
 $rightEdge = 600 - $pad
-$numBlockW = $us.Width + 10 + $ns.Width
-$availEnd = $rightEdge - $numBlockW - 20
-$tx = $pad + (($availEnd - $pad - $ts.Width) / 2)
-$g.DrawString('去上海', $fTitle, $bPrimary, $tx, ((300 - $ts.Height) / 2))
-
-# day number on the right, vertically centered; unit centered too (aligned
-# with the title's vertical center, not the number's bottom)
-$ny = (300 - $ns.Height) / 2
-$g.DrawString('天', $fUnit, $bSecondary, ($rightEdge - $us.Width), ((300 - $us.Height) / 2))
-$g.DrawString($numText, $fNum, $bAccent, ($rightEdge - $us.Width - 10 - $ns.Width), $ny)
+$bottom = 300 - 40
+$ny = $bottom - $ns.Height
+$g.DrawString($numText, $fNum, $bAccent, ($rightEdge - $us.Width - 12 - $ns.Width), $ny)
+$g.DrawString('天', $fUnit, $bSecondary, ($rightEdge - $us.Width), ($bottom - $us.Height))
 
 $bmp.Save("$outDir\widget_minimal_preview.png", [System.Drawing.Imaging.ImageFormat]::Png)
 $g.Dispose(); $bmp.Dispose()
