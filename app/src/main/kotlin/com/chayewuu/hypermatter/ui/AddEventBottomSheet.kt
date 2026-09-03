@@ -396,15 +396,10 @@ fun AddEventBottomSheet(
                             onSelectedIndexChange = { index ->
                                 view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
                                 category = if (index == 0) null else categories.getOrNull(index - 1)?.id
-                                // Anniversaries recur yearly: switching to the
-                                // 纪念日 category defaults 重复 to 每年 (seeded
-                                // from the picked date) when still 不重复.
-                                if (category == CategoryStore.ID_ANNIVERSARY && repeatType == 0) {
-                                    val selected = safeLocalDate(year, month, day)
-                                    repeatType = 4
-                                    yearMonth = selected.monthValue
-                                    monthDay = selected.dayOfMonth
-                                }
+                                // No form mutation here: 纪念日 events keep
+                                // 不重复 in the draft — DateUtils.effectiveRepeatType
+                                // already treats the 纪念日 category as yearly
+                                // when computing, so the date picker stays put.
                             },
                         )
                         OverlayDropdownPreference(
