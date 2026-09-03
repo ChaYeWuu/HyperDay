@@ -212,6 +212,7 @@ fun CategoryPage(onBack: () -> Unit) {
             title = "添加分类",
             show = true,
             onDismissRequest = { showAdd = false },
+            renderInRootScaffold = false,
         ) {
             Column {
                 TextField(
@@ -252,6 +253,7 @@ fun CategoryPage(onBack: () -> Unit) {
             title = "重命名分类",
             show = true,
             onDismissRequest = { renameTarget = null },
+            renderInRootScaffold = false,
         ) {
             Column {
                 TextField(
@@ -293,6 +295,7 @@ fun CategoryPage(onBack: () -> Unit) {
             summary = "确定要删除「${target.name}」吗？其中的倒数日会保留，只是变为未分类。",
             show = true,
             onDismissRequest = { deleteTarget = null },
+            renderInRootScaffold = false,
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),

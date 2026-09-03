@@ -151,12 +151,12 @@ fun SettingsPage(
             ) {
                 ArrowPreference(
                     title = "分类管理",
-                    summary = "管理事件的分类，内置纪念日、生活、工作，支持自定义",
+                    summary = "管理事件的分类，支持自定义",
                     onClick = onOpenCategory,
                 )
                 ArrowPreference(
                     title = "日程提醒",
-                    summary = "自由选择要提醒的分组与倒数日，支持 HyperOS 焦点通知",
+                    summary = "自由选择要提醒的分组与倒数日",
                     onClick = onOpenReminder,
                 )
             }

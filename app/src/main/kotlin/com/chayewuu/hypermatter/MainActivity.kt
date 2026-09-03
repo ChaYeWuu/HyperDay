@@ -46,6 +46,7 @@ import com.chayewuu.hypermatter.ui.CategoryPage
 import com.chayewuu.hypermatter.ui.EventDetailPage
 import com.chayewuu.hypermatter.ui.HomePage
 import com.chayewuu.hypermatter.ui.IslandPage
+import com.chayewuu.hypermatter.ui.LiveUpdatesPage
 import com.chayewuu.hypermatter.ui.ReminderPage
 import com.chayewuu.hypermatter.ui.SettingsPage
 import com.chayewuu.hypermatter.ui.ThemePage
@@ -188,6 +189,9 @@ private sealed interface Route : NavKey {
     data object Island : Route
 
     @Serializable
+    data object LiveUpdates : Route
+
+    @Serializable
     data class EventDetail(val id: String) : Route
 }
 
@@ -312,10 +316,14 @@ private fun App(pendingEventId: MutableState<String?>) {
                 ReminderPage(
                     onBack = { backStack.removeLastOrNull() },
                     onOpenIsland = { backStack.add(Route.Island) },
+                    onOpenLiveUpdates = { backStack.add(Route.LiveUpdates) },
                 )
             }
             entry<Route.Island>(swipeDismiss = NavSwipeDirection.LeftToRight) {
                 IslandPage(onBack = { backStack.removeLastOrNull() })
+            }
+            entry<Route.LiveUpdates>(swipeDismiss = NavSwipeDirection.LeftToRight) {
+                LiveUpdatesPage(onBack = { backStack.removeLastOrNull() })
             }
             entry<Route.EventDetail>(swipeDismiss = NavSwipeDirection.LeftToRight) { route ->
                 EventDetailPage(

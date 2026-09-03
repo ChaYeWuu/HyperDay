@@ -67,6 +67,7 @@ private val AdvanceItems = listOf("当天 09:00", "提前 1 天", "提前 2 天"
 fun ReminderPage(
     onBack: () -> Unit,
     onOpenIsland: () -> Unit,
+    onOpenLiveUpdates: () -> Unit,
 ) {
     val reminderStore = LocalReminderStore.current
     val categoryStore = LocalCategoryStore.current
@@ -162,9 +163,14 @@ fun ReminderPage(
                             },
                         )
                         ArrowPreference(
-                            title = "小米超级岛与实时动态",
-                            summary = "超级岛弹窗样式、实时动态倒计时与 Shizuku 授权",
+                            title = "小米超级岛",
+                            summary = "超级岛弹窗样式、Shizuku 授权与测试",
                             onClick = onOpenIsland,
+                        )
+                        ArrowPreference(
+                            title = "实时动态",
+                            summary = "实时倒计时通知与系统开关",
+                            onClick = onOpenLiveUpdates,
                         )
                         if (enabled) {
                             OverlayDropdownPreference(
