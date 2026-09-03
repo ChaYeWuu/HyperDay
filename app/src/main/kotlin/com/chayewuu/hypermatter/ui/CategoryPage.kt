@@ -194,7 +194,7 @@ fun CategoryPage(onBack: () -> Unit) {
 
                 item {
                     Text(
-                        text = "长按分类名可重命名；删除分类不会删除其中的倒数日",
+                        text = "点击分类名可重命名；删除分类不会删除其中的倒数日",
                         color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                         style = MiuixTheme.textStyles.footnote1,
                         modifier = Modifier
@@ -204,117 +204,124 @@ fun CategoryPage(onBack: () -> Unit) {
                 }
             }
         }
-    }
 
-    // Add dialog
-    if (showAdd) {
-        OverlayDialog(
-            title = "添加分类",
-            show = true,
-            onDismissRequest = { showAdd = false },
-            renderInRootScaffold = false,
-        ) {
-            Column {
-                TextField(
-                    value = addText,
-                    onValueChange = { addText = it },
-                    label = "分类名称",
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                Spacer(Modifier.height(16.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
-                    TextButton(
-                        text = "取消",
-                        onClick = { showAdd = false },
-                        modifier = Modifier.weight(1f),
-                    )
-                    TextButton(
-                        text = "添加",
-                        onClick = {
-                            if (addText.isNotBlank()) {
-                                categoryStore.add(addText)
-                                runCatching { ReminderScheduler.reschedule(context) }
-                            }
-                            showAdd = false
-                        },
-                        modifier = Modifier.weight(1f),
-                    )
-                }
-            }
-        }
-    }
+        // Dialogs must stay INSIDE this Scaffold's content lambda: a Scaffold
+        // provides LocalDialogStates (rendered by its own MiuixPopupHost) only
+        // to its slots. Outside the Scaffold the CompositionLocal falls back to
+        // an unrendered default list — the dialog would silently never show.
+        // (Same reason EventDetailPage/AboutPage keep their dialogs inside
+        // with renderInRootScaffold = false.)
 
-    // Rename dialog
-    renameTarget?.let { target ->
-        OverlayDialog(
-            title = "重命名分类",
-            show = true,
-            onDismissRequest = { renameTarget = null },
-            renderInRootScaffold = false,
-        ) {
-            Column {
-                TextField(
-                    value = renameText,
-                    onValueChange = { renameText = it },
-                    label = "分类名称",
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                Spacer(Modifier.height(16.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
-                    TextButton(
-                        text = "取消",
-                        onClick = { renameTarget = null },
-                        modifier = Modifier.weight(1f),
-                    )
-                    TextButton(
-                        text = "保存",
-                        onClick = {
-                            if (renameText.isNotBlank()) {
-                                categoryStore.rename(target.id, renameText)
-                                runCatching { ReminderScheduler.reschedule(context) }
-                            }
-                            renameTarget = null
-                        },
-                        modifier = Modifier.weight(1f),
-                    )
-                }
-            }
-        }
-    }
-
-    // Delete confirmation
-    deleteTarget?.let { target ->
-        OverlayDialog(
-            title = "删除分类",
-            summary = "确定要删除「${target.name}」吗？其中的倒数日会保留，只是变为未分类。",
-            show = true,
-            onDismissRequest = { deleteTarget = null },
-            renderInRootScaffold = false,
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
+        // Add dialog
+        if (showAdd) {
+            OverlayDialog(
+                title = "添加分类",
+                show = true,
+                onDismissRequest = { showAdd = false },
+                renderInRootScaffold = false,
             ) {
-                TextButton(
-                    text = "取消",
-                    onClick = { deleteTarget = null },
-                    modifier = Modifier.weight(1f),
-                )
-                TextButton(
-                    text = "删除",
-                    onClick = {
-                        categoryStore.delete(target.id)
-                        runCatching { ReminderScheduler.reschedule(context) }
-                        deleteTarget = null
-                    },
-                    modifier = Modifier.weight(1f),
-                )
+                Column {
+                    TextField(
+                        value = addText,
+                        onValueChange = { addText = it },
+                        label = "分类名称",
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    Spacer(Modifier.height(16.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        TextButton(
+                            text = "取消",
+                            onClick = { showAdd = false },
+                            modifier = Modifier.weight(1f),
+                        )
+                        TextButton(
+                            text = "添加",
+                            onClick = {
+                                if (addText.isNotBlank()) {
+                                    categoryStore.add(addText)
+                                    runCatching { ReminderScheduler.reschedule(context) }
+                                }
+                                showAdd = false
+                            },
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
+                }
+            }
+        }
+
+        // Rename dialog
+        renameTarget?.let { target ->
+            OverlayDialog(
+                title = "重命名分类",
+                show = true,
+                onDismissRequest = { renameTarget = null },
+                renderInRootScaffold = false,
+            ) {
+                Column {
+                    TextField(
+                        value = renameText,
+                        onValueChange = { renameText = it },
+                        label = "分类名称",
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    Spacer(Modifier.height(16.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        TextButton(
+                            text = "取消",
+                            onClick = { renameTarget = null },
+                            modifier = Modifier.weight(1f),
+                        )
+                        TextButton(
+                            text = "保存",
+                            onClick = {
+                                if (renameText.isNotBlank()) {
+                                    categoryStore.rename(target.id, renameText)
+                                    runCatching { ReminderScheduler.reschedule(context) }
+                                }
+                                renameTarget = null
+                            },
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
+                }
+            }
+        }
+
+        // Delete confirmation
+        deleteTarget?.let { target ->
+            OverlayDialog(
+                title = "删除分类",
+                summary = "确定要删除「${target.name}」吗？其中的倒数日会保留，只是变为未分类。",
+                show = true,
+                onDismissRequest = { deleteTarget = null },
+                renderInRootScaffold = false,
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    TextButton(
+                        text = "取消",
+                        onClick = { deleteTarget = null },
+                        modifier = Modifier.weight(1f),
+                    )
+                    TextButton(
+                        text = "删除",
+                        onClick = {
+                            categoryStore.delete(target.id)
+                            runCatching { ReminderScheduler.reschedule(context) }
+                            deleteTarget = null
+                        },
+                        modifier = Modifier.weight(1f),
+                    )
+                }
             }
         }
     }
