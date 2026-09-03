@@ -35,12 +35,12 @@
         android:textColor="@color/widget_text_primary"
         android:textSize="15sp" />
 
-    <!-- Fixed-width date column with zero-padded uniform dates: leading year
-         digits align across rows (2026 lines up with 2027). Wide enough for
-         "2026年09月05日" (8 digits + 3 CJK at 12sp) without ellipsizing. -->
+    <!-- Fixed-width date column with zero-padded uniform dates + fixed-width
+         weekday ("2026年09月05日 周六"): every row renders the same string
+         width, so year digits column-align across rows. -->
     <TextView
         android:id="@+id/widget_row_date"
-        android:layout_width="112dp"
+        android:layout_width="140dp"
         android:layout_height="wrap_content"
         android:layout_marginStart="8dp"
         android:ellipsize="none"

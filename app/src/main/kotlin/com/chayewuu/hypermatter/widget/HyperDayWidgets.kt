@@ -104,14 +104,15 @@ internal fun eventDateLine(event: CountdownEvent): String {
 }
 
 /**
- * Zero-padded uniform date for list widget rows: "2026年01月05日". Every row
- * renders the same width, so the year digits column-align (2026 lines up
- * with 2027) inside the fixed-width date column.
+ * Zero-padded uniform date for list widget rows: "2026年01月05日 周六".
+ * Every row renders the same width (weekday is always two CJK chars), so the
+ * year digits column-align (2026 lines up with 2027) inside the fixed-width
+ * date column.
  */
 internal fun listRowDateLine(event: CountdownEvent): String {
     val date = java.time.LocalDate.ofEpochDay(DateUtils.effectiveEpochDay(event))
     return "${date.year}年${date.monthValue.toString().padStart(2, '0')}月" +
-        "${date.dayOfMonth.toString().padStart(2, '0')}日"
+        "${date.dayOfMonth.toString().padStart(2, '0')}日 ${DateUtils.weekdayLabel(date.toEpochDay())}"
 }
 
 /** "今日 · M月d日 周X" line shown next to the tag pill on card/minimal widgets. */
