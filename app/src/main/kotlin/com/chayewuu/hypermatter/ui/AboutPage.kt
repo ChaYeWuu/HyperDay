@@ -1,5 +1,6 @@
 package com.chayewuu.hypermatter.ui
 
+import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.Image
@@ -65,6 +66,7 @@ import androidx.compose.ui.graphics.BlendMode as ComposeBlendMode
 
 private const val REPO_URL = "https://github.com/ChaYeWuu/HyperDay"
 private const val AUTHOR_URL = "https://www.coolapk.com/u/40700674"
+private const val AUTHOR_DEEPLINK = "coolmarket://u/40700674"
 private const val MIUIX_URL = "https://github.com/compose-miuix-ui/miuix"
 private const val BACKDROP_URL = "https://github.com/Kyant0/AndroidLiquidGlass"
 private const val MATERIALKOLOR_URL = "https://github.com/jordond/materialkolor"
@@ -136,6 +138,24 @@ fun AboutPage(
     fun openUrl(url: String) {
         val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
         runCatching { context.startActivity(intent) }
+    }
+
+    // Open the author's Coolapk profile in the Coolapk app via deep link,
+    // falling back to the web page when the app is not installed.
+    fun openAuthorHome() {
+        val deeplink = Intent(Intent.ACTION_VIEW, Uri.parse(AUTHOR_DEEPLINK)).apply {
+            addCategory(Intent.CATEGORY_BROWSABLE)
+            setPackage("com.coolapk.market")
+        }
+        try {
+            context.startActivity(deeplink)
+        } catch (_: ActivityNotFoundException) {
+            runCatching {
+                context.startActivity(
+                    Intent(Intent.ACTION_VIEW, Uri.parse(AUTHOR_DEEPLINK))
+                )
+            }.onFailure { openUrl(AUTHOR_URL) }
+        }
     }
 
     // Top-bar progressive blur samples the whole page (shader + content).
@@ -273,8 +293,8 @@ fun AboutPage(
                         )
                         ArrowPreference(
                             title = "作者主页",
-                            summary = "在浏览器中打开酷安个人主页",
-                            onClick = { openUrl(AUTHOR_URL) },
+                            summary = "打开酷安个人主页",
+                            onClick = { openAuthorHome() },
                         )
                         ArrowPreference(
                             title = "开源许可",
