@@ -515,7 +515,7 @@ private fun ListWidgetPreview(
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                             modifier = Modifier
-                                .width(96.dp)
+                                .width(112.dp)
                                 .padding(start = 8.dp),
                         )
                         Row(verticalAlignment = Alignment.Bottom) {
