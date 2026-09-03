@@ -309,10 +309,9 @@ fun AddEventBottomSheet(
                             }
                         }
                         else -> {
-                            // Confirming the repeat config page makes the
-                            // yearly repeat deliberate: it no longer reverts
-                            // when the category is switched away.
-                            anniversaryAutoRepeat = false
+                            // Confirming the config page just returns to the
+                            // form; the auto-repeat stays "unconfirmed", so
+                            // switching the category still reverts it.
                             page = AddSheetPage.FORM
                         }
                     }
