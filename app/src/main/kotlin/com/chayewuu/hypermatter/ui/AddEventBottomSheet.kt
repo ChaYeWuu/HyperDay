@@ -148,6 +148,10 @@ fun AddEventBottomSheet(
     var page by remember { mutableStateOf(AddSheetPage.FORM) }
     // Category draft: null = uncategorized.
     var category by remember { mutableStateOf(editEvent?.category) }
+    // True while repeatType==4 was auto-set by picking the 纪念日 category
+    // (not chosen manually in the repeat dropdown): leaving 纪念日 then
+    // reverts the draft back to 不重复.
+    var anniversaryAutoRepeat by remember { mutableStateOf(false) }
 
     /** Shared "go back one level" used by the back gesture and × button. */
     fun pageBack() {
@@ -161,6 +165,7 @@ fun AddEventBottomSheet(
         view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
         title = preset.name
         repeatType = preset.repeatType
+        anniversaryAutoRepeat = false
         lunarMonth = preset.lunarMonth
         lunarDay = preset.lunarDay
         val anchor = when (preset.repeatType) {
@@ -198,6 +203,8 @@ fun AddEventBottomSheet(
         view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
         val previousType = repeatType
         repeatType = index
+        // A manual repeat choice is deliberate — it survives category changes.
+        anniversaryAutoRepeat = false
         val selected = safeLocalDate(year, month, day)
         when (index) {
             0 -> {
@@ -301,7 +308,13 @@ fun AddEventBottomSheet(
                                 )
                             }
                         }
-                        else -> page = AddSheetPage.FORM
+                        else -> {
+                            // Confirming the repeat config page makes the
+                            // yearly repeat deliberate: it no longer reverts
+                            // when the category is switched away.
+                            anniversaryAutoRepeat = false
+                            page = AddSheetPage.FORM
+                        }
                     }
                 },
             ) {
@@ -395,11 +408,25 @@ fun AddEventBottomSheet(
                             renderInRootScaffold = false,
                             onSelectedIndexChange = { index ->
                                 view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
-                                category = if (index == 0) null else categories.getOrNull(index - 1)?.id
-                                // No form mutation here: 纪念日 events keep
-                                // 不重复 in the draft — DateUtils.effectiveRepeatType
-                                // already treats the 纪念日 category as yearly
-                                // when computing, so the date picker stays put.
+                                val picked = if (index == 0) null else categories.getOrNull(index - 1)?.id
+                                if (picked == CategoryStore.ID_ANNIVERSARY && repeatType == 0) {
+                                    // 纪念日 defaults to a yearly repeat: slide
+                                    // straight into the 每年 month/day config page,
+                                    // seeded from the currently picked date (same
+                                    // flow as choosing 每年 in the repeat dropdown).
+                                    val selected = safeLocalDate(year, month, day)
+                                    repeatType = 4
+                                    yearMonth = selected.monthValue
+                                    monthDay = selected.dayOfMonth
+                                    anniversaryAutoRepeat = true
+                                    page = AddSheetPage.CONFIG
+                                } else if (anniversaryAutoRepeat && picked != CategoryStore.ID_ANNIVERSARY) {
+                                    // Leaving 纪念日 drops the category-auto
+                                    // yearly repeat so the form isn't stuck on it.
+                                    repeatType = 0
+                                    anniversaryAutoRepeat = false
+                                }
+                                category = picked
                             },
                         )
                         OverlayDropdownPreference(
