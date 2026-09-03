@@ -17,6 +17,11 @@
 - **备份与导入** — 一键导出 / 导入自有备份格式，同时支持导入官方倒数日的 .idmbaks 加密备份文件
 - **官方导航转场** — miuix-nav 的 MiuixDefault 转场 + 预测性返回 + 边缘滑动返回
 - **Miuix 交互细节** — 过滚动回弹、滚动到底震动反馈、列表增删位移动画
+- **桌面小部件** — 卡片 / 列表 / 极简三款，点击直达事件，卡片支持绑定指定倒数日
+- **分类系统** — 内置纪念日 / 生活 / 工作，支持自定义分类、重命名与首页分类筛选
+- **日程提醒** — 当天或提前 1–3 天提醒，可按分组与倒数日自由选择，错过时刻当天补发
+- **小米超级岛** — 提醒以 HyperOS 超级岛样式弹出（需 [Shizuku](https://github.com/RikkaApps/Shizuku) 授权）
+- **实时动态通知** — Android 16 持续通知样式，最后 12 小时秒表倒计时
 
 ## 技术栈
 
@@ -25,7 +30,8 @@
 | UI 框架 | [Miuix](https://github.com/compose-miuix-ui/miuix) v0.9.4-rc01（HyperOS Design） |
 | 液态玻璃 | [AndroidLiquidGlass](https://github.com/Kyant0/AndroidLiquidGlass) backdrop 2.0.1（Apache-2.0） |
 | 动态取色 | [MaterialKolor](https://github.com/jordond/materialkolor)（经 Miuix 传递依赖） |
-| 语言 | Kotlin 2.4.0 |
+| 超级岛支持 | [Shizuku](https://github.com/RikkaApps/Shizuku) v13.1.5（dev.rikka.shizuku，超级岛提醒的特权服务） |
+| 语言 | Kotlin 2.4.0 + kotlinx.serialization |
 | 构建 | Gradle 9.4.1 + AGP 9.2.1 |
 | 最低支持 | Android 7.0（API 24），液态玻璃需 Android 12+（API 31），磨砂模糊等效果需 Android 13+（API 33） |
 
@@ -97,9 +103,18 @@ app/src/main/kotlin/com/chayewuu/hypermatter/
 │   ├── DateUtils.kt         # epochDay 日期计算
 │   ├── EventStore.kt        # SharedPreferences + JSON 持久化
 │   ├── EventViewModel.kt    # 事件 ViewModel
+│   ├── CategoryStore.kt     # 分类数据（内置 + 自定义）
+│   ├── ReminderStore.kt     # 提醒开关与选择集
 │   ├── SettingsStore.kt     # 外观 / 应用风格 / 莫奈取色设置
 │   ├── BackupManager.kt    # 备份导出与导入（含官方 .idmbaks 解析）
 │   └── LunarCalendar.kt     # 1900–2100 农历换算（重复事件用）
+├── reminder/                # 日程提醒链（AlarmManager 精确闹钟 + 错过补发）
+│   ├── ReminderScheduler.kt # 闹钟账本与全量重排
+│   ├── ReminderReceiver.kt  # 提醒触发（岛 / 实时动态 / 普通通知）
+│   ├── IslandNotifier.kt    # 小米超级岛通知（Shizuku XMSF 旁路）
+│   ├── LiveUpdateNotifier.kt # Android 16 实时动态（持续通知）
+│   └── FocusNotification.kt # 超级岛 param_v2 JSON 构建
+├── shizuku/                 # 特权服务（AIDL + UserService 绑定）
 └── ui/
     ├── HomePage.kt          # 首页事件列表
     ├── AddEventBottomSheet.kt
@@ -122,8 +137,10 @@ app/src/main/kotlin/com/chayewuu/hypermatter/
 - [Miuix](https://github.com/compose-miuix-ui/miuix) — HyperOS 风格 Compose 组件库（Apache-2.0），动态混色背景与磨砂玻璃效果移植自其官方 example
 - [AndroidLiquidGlass](https://github.com/Kyant0/AndroidLiquidGlass) — 液态玻璃效果库 backdrop（Apache-2.0），可拖拽折射底栏移植自其官方 catalog 示例
 - [MaterialKolor](https://github.com/jordond/materialkolor) — Material You 动态取色（Miuix 莫奈取色传递依赖）
+- [Shizuku](https://github.com/RikkaApps/Shizuku) — 特权 UserService 框架（Apache-2.0），小米超级岛提醒的 XMSF 网络旁路基于其实现
+- [NexioSchedule](https://github.com/HaoZai000/NexioSchedule) — 小米超级岛与 Android 16 实时动态通知的实现参考
 - [Jetpack Compose](https://developer.android.com/compose) — Android 声明式 UI 框架
 
 ## 许可
 
-本项目仅供学习交流。所依赖的开源项目分别遵循其各自的开源许可（Miuix、AndroidLiquidGlass 均为 Apache-2.0）。
+本项目仅供学习交流。所依赖的开源项目分别遵循其各自的开源许可（Miuix、AndroidLiquidGlass、Shizuku 均为 Apache-2.0）。

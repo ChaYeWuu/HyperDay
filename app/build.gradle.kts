@@ -69,6 +69,8 @@ android {
         compose = true
         // Shizuku UserService IPC (IPrivilegedService.aidl).
         aidl = true
+        // About page reads BuildConfig.VERSION_NAME instead of a hardcoded string.
+        buildConfig = true
     }
 }
 

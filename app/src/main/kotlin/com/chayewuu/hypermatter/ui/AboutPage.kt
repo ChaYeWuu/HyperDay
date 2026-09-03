@@ -33,6 +33,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.chayewuu.hypermatter.BuildConfig
 import com.chayewuu.hypermatter.R
 import com.chayewuu.hypermatter.ui.effect.BgEffectBackground
 import com.chayewuu.hypermatter.ui.theme.LocalSettingsStore
@@ -63,9 +64,12 @@ import top.yukonga.miuix.kmp.utils.scrollEndHaptic
 import androidx.compose.ui.graphics.BlendMode as ComposeBlendMode
 
 private const val REPO_URL = "https://github.com/ChaYeWuu/HyperDay"
+private const val AUTHOR_URL = "https://www.coolapk.com/u/40700674"
 private const val MIUIX_URL = "https://github.com/compose-miuix-ui/miuix"
 private const val BACKDROP_URL = "https://github.com/Kyant0/AndroidLiquidGlass"
 private const val MATERIALKOLOR_URL = "https://github.com/jordond/materialkolor"
+private const val SHIZUKU_URL = "https://github.com/RikkaApps/Shizuku"
+private const val NEXIO_URL = "https://github.com/HaoZai000/NexioSchedule"
 
 // Official Miuix example card-blend presets
 // (example component/blend/ColorBlendToken.kt, Apache-2.0): dark theme uses
@@ -239,7 +243,7 @@ fun AboutPage(
                         )
                         Spacer(Modifier.height(8.dp))
                         Text(
-                            text = "版本 1.0.0",
+                            text = "版本 ${BuildConfig.VERSION_NAME}",
                             color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                             style = MiuixTheme.textStyles.body2,
                         )
@@ -266,6 +270,11 @@ fun AboutPage(
                             title = "项目主页",
                             summary = "在浏览器中打开 GitHub 仓库",
                             onClick = { openUrl(REPO_URL) },
+                        )
+                        ArrowPreference(
+                            title = "作者主页",
+                            summary = "在浏览器中打开酷安个人主页",
+                            onClick = { openUrl(AUTHOR_URL) },
                         )
                         ArrowPreference(
                             title = "开源许可",
@@ -295,6 +304,8 @@ fun AboutPage(
                             InfoLine("液态玻璃", "backdrop 2.0.1 (Kyant0)")
                             Spacer(Modifier.height(8.dp))
                             InfoLine("动态取色", "MaterialKolor")
+                            Spacer(Modifier.height(8.dp))
+                            InfoLine("超级岛支持", "Shizuku (v13.1.5)")
                             Spacer(Modifier.height(8.dp))
                             InfoLine("开发语言", "Kotlin 2.4.0")
                             Spacer(Modifier.height(8.dp))
@@ -355,6 +366,42 @@ fun AboutPage(
                                 color = MiuixTheme.colorScheme.primary,
                                 fontSize = 13.sp,
                             )
+                            Spacer(Modifier.height(12.dp))
+                            Text(
+                                text = "感谢 RikkaApps 的 Shizuku，小米超级岛提醒经由其特权 UserService 实现（XMSF 网络旁路方案）。",
+                                color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                                style = MiuixTheme.textStyles.body2,
+                            )
+                            Spacer(Modifier.height(4.dp))
+                            Text(
+                                text = SHIZUKU_URL.removePrefix("https://"),
+                                color = MiuixTheme.colorScheme.primary,
+                                fontSize = 13.sp,
+                            )
+                            Spacer(Modifier.height(12.dp))
+                            Text(
+                                text = "感谢 NexioSchedule 项目，小米超级岛与 Android 16 实时动态通知的实现参考自其源码。",
+                                color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                                style = MiuixTheme.textStyles.body2,
+                            )
+                            Spacer(Modifier.height(4.dp))
+                            Text(
+                                text = NEXIO_URL.removePrefix("https://"),
+                                color = MiuixTheme.colorScheme.primary,
+                                fontSize = 13.sp,
+                            )
+                            Spacer(Modifier.height(12.dp))
+                            Text(
+                                text = "感谢 JetBrains 的 Kotlin 与 kotlinx.serialization，本应用的数据层基于其构建。",
+                                color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                                style = MiuixTheme.textStyles.body2,
+                            )
+                            Spacer(Modifier.height(4.dp))
+                            Text(
+                                text = "jetbrains.com/kotlin",
+                                color = MiuixTheme.colorScheme.primary,
+                                fontSize = 13.sp,
+                            )
                         }
                     }
                 }
@@ -373,7 +420,9 @@ fun AboutPage(
                 "· MaterialKolor — Material You 动态取色\n" +
                 "· Jetpack Compose — Android 声明式 UI 框架\n" +
                 "· Kotlin & kotlinx.serialization — JetBrains\n" +
+                "· Shizuku — RikkaApps 特权服务（超级岛提醒）\n" +
                 "· desugar_jdk_libs — Google\n\n" +
+                "超级岛与实时动态通知实现参考了 NexioSchedule 项目。\n\n" +
                 "各项目的完整许可文本请见其源码仓库。",
             show = showLicenseDialog,
             onDismissRequest = { showLicenseDialog = false },
