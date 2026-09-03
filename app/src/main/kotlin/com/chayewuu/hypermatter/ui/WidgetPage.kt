@@ -54,6 +54,7 @@ import com.chayewuu.hypermatter.ui.theme.LocalEventViewModel
 import com.chayewuu.hypermatter.widget.CardWidget
 import com.chayewuu.hypermatter.widget.WidgetPrefs
 import com.chayewuu.hypermatter.widget.eventDateLine
+import com.chayewuu.hypermatter.widget.listRowDateLine
 import com.chayewuu.hypermatter.widget.todayLine
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
@@ -485,7 +486,8 @@ private fun ListWidgetPreview(
             )
         } else {
             // Mirrors widget_list_row.xml: each row carries 8dp vertical
-            // padding, title weight(1f) fills, date wraps, 20sp day number.
+            // padding, title weight(1f) fills, 96dp zero-padded date column,
+            // 52dp right-aligned day number.
             Column {
                 events.forEach { event ->
                     Row(
@@ -507,12 +509,14 @@ private fun ListWidgetPreview(
                                 .padding(start = 6.dp),
                         )
                         Text(
-                            text = eventDateLine(event),
+                            text = listRowDateLine(event),
                             color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                             fontSize = 12.sp,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.padding(start = 8.dp),
+                            modifier = Modifier
+                                .width(96.dp)
+                                .padding(start = 8.dp),
                         )
                         Row(verticalAlignment = Alignment.Bottom) {
                             Text(
@@ -520,7 +524,10 @@ private fun ListWidgetPreview(
                                 color = MiuixTheme.colorScheme.primary,
                                 fontSize = 20.sp,
                                 fontWeight = FontWeight.Bold,
-                                modifier = Modifier.padding(start = 12.dp),
+                                textAlign = TextAlign.End,
+                                modifier = Modifier
+                                    .width(52.dp)
+                                    .padding(start = 10.dp),
                             )
                             Text(
                                 text = "天",

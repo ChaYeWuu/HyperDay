@@ -35,15 +35,15 @@
         android:textColor="@color/widget_text_primary"
         android:textSize="15sp" />
 
-    <!-- Fixed-width, right-aligned date column: every row's date ends at the
-         same boundary so 日期对齐日期 regardless of title length. -->
+    <!-- Fixed-width date column with zero-padded uniform dates: leading year
+         digits align across rows (2026 lines up with 2027). -->
     <TextView
         android:id="@+id/widget_row_date"
-        android:layout_width="118dp"
+        android:layout_width="96dp"
         android:layout_height="wrap_content"
         android:layout_marginStart="8dp"
         android:ellipsize="end"
-        android:gravity="end"
+        android:gravity="start"
         android:maxLines="1"
         android:text=""
         android:textColor="@color/widget_text_secondary"

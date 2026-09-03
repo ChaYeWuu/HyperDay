@@ -103,6 +103,17 @@ internal fun eventDateLine(event: CountdownEvent): String {
     return "${DateUtils.formatDate(day)} ${DateUtils.weekdayLabel(day)}"
 }
 
+/**
+ * Zero-padded uniform date for list widget rows: "2026年01月05日". Every row
+ * renders the same width, so the year digits column-align (2026 lines up
+ * with 2027) inside the fixed-width date column.
+ */
+internal fun listRowDateLine(event: CountdownEvent): String {
+    val date = java.time.LocalDate.ofEpochDay(DateUtils.effectiveEpochDay(event))
+    return "${date.year}年${date.monthValue.toString().padStart(2, '0')}月" +
+        "${date.dayOfMonth.toString().padStart(2, '0')}日"
+}
+
 /** "今日 · M月d日 周X" line shown next to the tag pill on card/minimal widgets. */
 internal fun todayLine(): String {
     val today = java.time.LocalDate.now()
@@ -270,7 +281,7 @@ private fun updateListWidget(
                 if (DateUtils.isPastEvent(event)) "过去" else "距离",
             )
             row.setTextViewText(R.id.widget_row_title, event.title)
-            row.setTextViewText(R.id.widget_row_date, eventDateLine(event))
+            row.setTextViewText(R.id.widget_row_date, listRowDateLine(event))
             row.setTextViewText(R.id.widget_row_days, DateUtils.dayNumber(event).toString())
             row.setTextViewText(R.id.widget_row_days_unit, "天")
             row.setOnClickPendingIntent(R.id.widget_row_root, openEvent(context, event.id))
