@@ -35,23 +35,28 @@
         android:textColor="@color/widget_text_primary"
         android:textSize="15sp" />
 
+    <!-- Fixed-width, right-aligned date column: every row's date ends at the
+         same boundary so 日期对齐日期 regardless of title length. -->
     <TextView
         android:id="@+id/widget_row_date"
-        android:layout_width="wrap_content"
+        android:layout_width="118dp"
         android:layout_height="wrap_content"
         android:layout_marginStart="8dp"
         android:ellipsize="end"
+        android:gravity="end"
         android:maxLines="1"
         android:text=""
         android:textColor="@color/widget_text_secondary"
         android:textSize="12sp" />
 
+    <!-- Fixed-width, right-aligned day column: 天对齐天 across rows. -->
     <TextView
         android:id="@+id/widget_row_days"
-        android:layout_width="wrap_content"
+        android:layout_width="52dp"
         android:layout_height="wrap_content"
-        android:layout_marginStart="12dp"
+        android:layout_marginStart="10dp"
         android:fontFamily="sans-serif"
+        android:gravity="end"
         android:includeFontPadding="false"
         android:text=""
         android:textColor="@color/widget_accent"

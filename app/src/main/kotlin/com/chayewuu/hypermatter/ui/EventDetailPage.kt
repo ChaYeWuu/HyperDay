@@ -693,6 +693,9 @@ fun EventDetailPage(
                         Row(
                             verticalAlignment = Alignment.Bottom,
                             modifier = Modifier
+                                // Fixed height: switching between 88sp 天数 and
+                                // 36sp 年月天 keeps the card shape unchanged.
+                                .height(120.dp)
                                 .clip(RoundedCornerShape(12.dp))
                                 .clickable { showPeriod = !showPeriod },
                         ) {
