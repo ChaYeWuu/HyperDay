@@ -137,8 +137,26 @@ object ReminderScheduler {
             scheduled.add(event.id)
         }
         saveScheduled(app, scheduled)
-        // Drop stale 持续通知 (Live Updates) of events no longer scheduled.
-        oldIds.filter { it !in scheduled }.forEach { LiveUpdateNotifier.cancel(app, it) }
+
+        // Events that should currently hold a 实时动态 notification:
+        // selected AND inside the reminder window. Fired reminder-day events
+        // deliberately stay in this set — they leave the alarm bookkeeping
+        // (`scheduled`) but their ongoing notification must survive. (The old
+        // `oldIds.filter { it !in scheduled }` cancel killed the live
+        // notification one second after the reminder receiver posted it,
+        // because firing removes the event from the bookkeeping.)
+        val liveKeep = if (store.liveUpdatesEnabled.value) {
+            events.filter { store.isSelected(it) }.mapNotNull { ev ->
+                val days = ChronoUnit.DAYS.between(today, DateUtils.effectiveDate(ev))
+                if (days in 0..advance.toLong()) ev.id else null
+            }.toSet()
+        } else {
+            emptySet()
+        }
+        // Cancel stale live notifications: deselected / out-of-window /
+        // deleted events (oldIds persists deleted ids) / live toggled off.
+        (oldIds + events.map { it.id }).filter { it !in liveKeep }
+            .forEach { LiveUpdateNotifier.cancel(app, it) }
 
         // Daily live-refresh chain: keep countdown texts / island state in
         // sync as days roll over. Armed while any selected event sits in the
@@ -153,30 +171,28 @@ object ReminderScheduler {
 
         if (live) {
             // Keep every selected event inside the reminder window in sync:
-            // - days < advance (reminder already fired / day-0 arrival):
-            //   silent same-id re-post refreshes the ongoing notification
-            //   (style auto-picked from the remaining time).
-            // - days == advance (today's reminder day): its own 09:00 alarm
-            //   posts the notification in plain style.
-            // Both arm the style-switch alarm: once the remaining time
-            // enters the final countdown window, the notification switches
-            // from「还有 N 天」to the live 秒表倒数 (CountdownSwitchReceiver).
+            // silent same-id re-post refreshes the ongoing notification —
+            // style auto-picked from the remaining time (plain「还有 N 天」
+            // until the final 12 h window, then the 秒表倒数).
             // Filtered by selection & window (NOT `scheduled` — fired events
-            // leave the alarm bookkeeping but must keep refreshing).
+            // leave the alarm bookkeeping but must keep refreshing). Also
+            // posts on days == advance: a reminder deferred by MIUI standby
+            // past the switch moment (target − 12 h) can no longer arm the
+            // style-switch alarm, and a live-toggled-on-after-09:00 reminder
+            // would otherwise stay without its notification until day 0 —
+            // same-id re-posts are seamless (onlyAlertOnce).
             events.filter { store.isSelected(it) }.forEach { ev ->
                 val days = ChronoUnit.DAYS.between(today, DateUtils.effectiveDate(ev))
                 if (days !in 0..advance.toLong()) return@forEach
                 val timing = ReminderReceiver.timingFor(ev)
-                if (days < advance.toLong()) {
-                    LiveUpdateNotifier.showCountdown(
-                        context = app,
-                        eventId = ev.id,
-                        title = "${ev.title} · 倒计时",
-                        content = DateUtils.describe(ev),
-                        shortCriticalText = timing.hintContent,
-                        targetTimestamp = timing.targetMillis,
-                    )
-                }
+                LiveUpdateNotifier.showCountdown(
+                    context = app,
+                    eventId = ev.id,
+                    title = "${ev.title} · 倒计时",
+                    content = DateUtils.describe(ev),
+                    shortCriticalText = timing.hintContent,
+                    targetTimestamp = timing.targetMillis,
+                )
                 val switchAt = timing.targetMillis - LiveUpdateNotifier.COUNTDOWN_LEAD_MS
                 if (switchAt > now) {
                     val switchIntent = Intent(app, CountdownSwitchReceiver::class.java)
@@ -196,10 +212,9 @@ object ReminderScheduler {
                     }
                 }
             }
-        } else {
-            // Live Updates toggled off: cancel every ongoing notification.
-            events.forEach { LiveUpdateNotifier.cancel(app, it.id) }
         }
+        // (Live Updates toggled off needs no extra branch: liveKeep is empty
+        // above, so the unified cancel already removed every notification.)
     }
 
     /**
