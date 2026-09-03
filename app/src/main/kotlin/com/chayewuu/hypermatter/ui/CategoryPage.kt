@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -29,7 +30,10 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.dp
 import com.chayewuu.hypermatter.data.EventCategory
 import com.chayewuu.hypermatter.reminder.ReminderScheduler
+import com.chayewuu.hypermatter.ui.glass.GlassCanvasRecorder
 import com.chayewuu.hypermatter.ui.glass.LiquidGlassCard
+import com.chayewuu.hypermatter.ui.glass.LocalGlassBackdrop
+import com.chayewuu.hypermatter.ui.glass.rememberGlassBackdrop
 import com.chayewuu.hypermatter.ui.rememberBlurBackdrop
 import com.chayewuu.hypermatter.ui.theme.LocalCategoryStore
 import com.chayewuu.hypermatter.ui.theme.LocalEventViewModel
@@ -65,6 +69,7 @@ fun CategoryPage(onBack: () -> Unit) {
     val context = LocalContext.current
     val view = LocalView.current
     val barBackdrop = rememberBlurBackdrop()
+    val glassBackdrop = rememberGlassBackdrop()
 
     var renameTarget by remember { mutableStateOf<EventCategory?>(null) }
     var renameText by remember { mutableStateOf("") }
@@ -104,7 +109,12 @@ fun CategoryPage(onBack: () -> Unit) {
                     else Modifier
                 ),
         ) {
-            LazyColumn(
+            // Flat-canvas recorder for the glass cards: a sibling with no
+            // glass inside it (glass surfaces must never be part of the
+            // subtree recording their own sample — infinite render nesting).
+            GlassCanvasRecorder(glassBackdrop)
+            CompositionLocalProvider(LocalGlassBackdrop provides glassBackdrop) {
+                LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
                     .overScrollVertical()
@@ -201,6 +211,7 @@ fun CategoryPage(onBack: () -> Unit) {
                             .fillMaxWidth()
                             .padding(horizontal = 28.dp, vertical = 8.dp),
                     )
+                }
                 }
             }
         }

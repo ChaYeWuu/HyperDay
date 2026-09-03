@@ -24,7 +24,18 @@ object DateUtils {
     }
 
     /** Whether this event repeats (daily/weekly/monthly/yearly/lunar-yearly). */
-    fun isRecurring(event: CountdownEvent): Boolean = (event.repeatType ?: 0) != 0
+    fun isRecurring(event: CountdownEvent): Boolean = effectiveRepeatType(event) != 0
+
+    /**
+     * Effective repeat type: an explicit setting (1..5) always wins; events in
+     * the built-in 纪念日 category default to yearly (4) — anniversaries roll
+     * to the next year after the day passes instead of falling into "past".
+     */
+    private fun effectiveRepeatType(event: CountdownEvent): Int {
+        val explicit = event.repeatType ?: 0
+        if (explicit != 0) return explicit
+        return if (event.category == CategoryStore.ID_ANNIVERSARY) 4 else 0
+    }
 
     /**
      * The effective target date: for one-off events the stored date; for
@@ -34,7 +45,7 @@ object DateUtils {
         if (!isRecurring(event)) return LocalDate.ofEpochDay(event.epochDay)
         val today = today()
         val anchor = LocalDate.ofEpochDay(event.epochDay)
-        return when (event.repeatType) {
+        return when (effectiveRepeatType(event)) {
             1 -> today // daily
             2 -> { // weekly: chosen weekday (or the anchor's, legacy)
                 val weekday = event.repeatWeekday ?: anchor.dayOfWeek.value
@@ -84,7 +95,7 @@ object DateUtils {
      * Human-readable repeat label, e.g. "每周六" / "每年 农历八月十五".
      */
     fun repeatLabel(event: CountdownEvent): String {
-        return when (event.repeatType) {
+        return when (effectiveRepeatType(event)) {
             1 -> {
                 val h = event.timeHour
                 val m = event.timeMinute

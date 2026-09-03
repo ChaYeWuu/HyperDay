@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -28,7 +29,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.chayewuu.hypermatter.reminder.LiveUpdateNotifier
 import com.chayewuu.hypermatter.reminder.ReminderScheduler
+import com.chayewuu.hypermatter.ui.glass.GlassCanvasRecorder
 import com.chayewuu.hypermatter.ui.glass.LiquidGlassCard
+import com.chayewuu.hypermatter.ui.glass.LocalGlassBackdrop
+import com.chayewuu.hypermatter.ui.glass.rememberGlassBackdrop
 import com.chayewuu.hypermatter.ui.theme.LocalReminderStore
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
@@ -58,6 +62,7 @@ fun LiveUpdatesPage(onBack: () -> Unit) {
     val liveUpdatesEnabled by reminderStore.liveUpdatesEnabled.collectAsState()
     val context = LocalContext.current
     val barBackdrop = rememberBlurBackdrop()
+    val glassBackdrop = rememberGlassBackdrop()
 
     // Live Updates promoted-notification grant. There is no request API —
     // the per-app toggle lives in system settings; we re-check whenever the
@@ -125,7 +130,12 @@ fun LiveUpdatesPage(onBack: () -> Unit) {
                     else Modifier
                 ),
         ) {
-            LazyColumn(
+            // Flat-canvas recorder for the glass cards: a sibling with no
+            // glass inside it (glass surfaces must never be part of the
+            // subtree recording their own sample — infinite render nesting).
+            GlassCanvasRecorder(glassBackdrop)
+            CompositionLocalProvider(LocalGlassBackdrop provides glassBackdrop) {
+                LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
                     .overScrollVertical()
@@ -211,6 +221,7 @@ fun LiveUpdatesPage(onBack: () -> Unit) {
                             }
                         }
                     }
+                }
                 }
             }
         }

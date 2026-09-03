@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -20,7 +21,10 @@ import androidx.compose.ui.unit.dp
 import com.chayewuu.hypermatter.reminder.IslandNotifier
 import com.chayewuu.hypermatter.reminder.ReminderScheduler
 import com.chayewuu.hypermatter.shizuku.ShizukuManager
+import com.chayewuu.hypermatter.ui.glass.GlassCanvasRecorder
 import com.chayewuu.hypermatter.ui.glass.LiquidGlassCard
+import com.chayewuu.hypermatter.ui.glass.LocalGlassBackdrop
+import com.chayewuu.hypermatter.ui.glass.rememberGlassBackdrop
 import com.chayewuu.hypermatter.ui.theme.LocalReminderStore
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
@@ -46,6 +50,7 @@ fun IslandPage(onBack: () -> Unit) {
     val islandEnabled by reminderStore.islandEnabled.collectAsState()
     val context = LocalContext.current
     val barBackdrop = rememberBlurBackdrop()
+    val glassBackdrop = rememberGlassBackdrop()
 
     val shizukuRunning = remember {
         ShizukuManager.init(context)
@@ -89,7 +94,12 @@ fun IslandPage(onBack: () -> Unit) {
                     else Modifier
                 ),
         ) {
-            LazyColumn(
+            // Flat-canvas recorder for the glass cards: a sibling with no
+            // glass inside it (glass surfaces must never be part of the
+            // subtree recording their own sample — infinite render nesting).
+            GlassCanvasRecorder(glassBackdrop)
+            CompositionLocalProvider(LocalGlassBackdrop provides glassBackdrop) {
+                LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
                     .overScrollVertical()
@@ -145,6 +155,7 @@ fun IslandPage(onBack: () -> Unit) {
                             onClick = { IslandNotifier.sendTestIsland(context) },
                         )
                     }
+                }
                 }
             }
         }
