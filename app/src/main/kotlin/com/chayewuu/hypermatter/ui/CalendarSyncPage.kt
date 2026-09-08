@@ -91,6 +91,7 @@ fun CalendarSyncPage(onBack: () -> Unit) {
     var syncTick by remember { mutableStateOf(0) }
     var syncing by remember { mutableStateOf(false) }
     var showRemoveDialog by remember { mutableStateOf(false) }
+    var showSyncDialog by remember { mutableStateOf(false) }
 
     // The effective selection: stored set, or every event id when null.
     val effective: Set<String> = selectedIds ?: events.map { it.id }.toSet()
@@ -209,7 +210,17 @@ fun CalendarSyncPage(onBack: () -> Unit) {
                                     else -> "已选 ${effective.size}/${events.size} 个倒数日，点击开始同步"
                                 },
                                 enabled = !syncing,
-                                onClick = { syncOrAskPermission() },
+                                onClick = {
+                                    if (effective.isEmpty()) {
+                                        Toast.makeText(
+                                            context,
+                                            "请先勾选要同步的倒数日",
+                                            Toast.LENGTH_SHORT,
+                                        ).show()
+                                    } else {
+                                        showSyncDialog = true
+                                    }
+                                },
                             )
                             ArrowPreference(
                                 title = "移除日历同步",
@@ -265,49 +276,86 @@ fun CalendarSyncPage(onBack: () -> Unit) {
                     }
                 }
             }
-        }
-    }
 
-    OverlayDialog(
-        title = "移除日历同步",
-        summary = "将删除系统日历中由 HyperDay 创建的全部事件与日历，不影响应用内的倒数日。确定继续吗？",
-        show = showRemoveDialog,
-        onDismissRequest = { showRemoveDialog = false },
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            TextButton(
-                text = "取消",
-                onClick = { showRemoveDialog = false },
-                modifier = Modifier.weight(1f),
-            )
-            TextButton(
-                text = "删除",
-                onClick = {
-                    showRemoveDialog = false
-                    syncing = true
-                    scope.launch(Dispatchers.IO) {
-                        val result = CalendarSyncManager.removeAll(context)
-                        withContext(Dispatchers.Main) {
-                            syncing = false
-                            syncTick++
-                            result.onSuccess {
-                                Toast.makeText(context, "已移除日历同步", Toast.LENGTH_SHORT).show()
-                            }.onFailure {
-                                Toast.makeText(
-                                    context,
-                                    "移除失败：${it.message ?: "日历不可用"}",
-                                    Toast.LENGTH_SHORT,
-                                ).show()
-                            }
-                        }
+            // Both confirmation dialogs must live INSIDE this Scaffold's
+            // content lambda (the popup host lives there — a dialog written
+            // outside it silently never shows) AND pass
+            // renderInRootScaffold = false: this page is a pushed route
+            // covering the main-tabs scaffold, so a dialog rendered into
+            // the root scaffold would be invisible behind this page.
+            if (showSyncDialog) {
+                OverlayDialog(
+                    title = "立即同步",
+                    summary = "将把已选的 ${effective.size} 个倒数日写入系统日历，并覆盖之前同步的旧事件。确定继续吗？",
+                    show = true,
+                    onDismissRequest = { showSyncDialog = false },
+                    renderInRootScaffold = false,
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        TextButton(
+                            text = "取消",
+                            onClick = { showSyncDialog = false },
+                            modifier = Modifier.weight(1f),
+                        )
+                        TextButton(
+                            text = "同步",
+                            onClick = {
+                                showSyncDialog = false
+                                syncOrAskPermission()
+                            },
+                            colors = ButtonDefaults.textButtonColorsPrimary(),
+                            modifier = Modifier.weight(1f),
+                        )
                     }
-                },
-                colors = ButtonDefaults.textButtonColorsPrimary(),
-                modifier = Modifier.weight(1f),
-            )
+                }
+            }
+
+            OverlayDialog(
+                title = "移除日历同步",
+                summary = "将删除系统日历中由 HyperDay 创建的全部事件与日历，不影响应用内的倒数日。确定继续吗？",
+                show = showRemoveDialog,
+                onDismissRequest = { showRemoveDialog = false },
+                renderInRootScaffold = false,
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    TextButton(
+                        text = "取消",
+                        onClick = { showRemoveDialog = false },
+                        modifier = Modifier.weight(1f),
+                    )
+                    TextButton(
+                        text = "删除",
+                        onClick = {
+                            showRemoveDialog = false
+                            syncing = true
+                            scope.launch(Dispatchers.IO) {
+                                val result = CalendarSyncManager.removeAll(context)
+                                withContext(Dispatchers.Main) {
+                                    syncing = false
+                                    syncTick++
+                                    result.onSuccess {
+                                        Toast.makeText(context, "已移除日历同步", Toast.LENGTH_SHORT).show()
+                                    }.onFailure {
+                                        Toast.makeText(
+                                            context,
+                                            "移除失败：${it.message ?: "日历不可用"}",
+                                            Toast.LENGTH_SHORT,
+                                        ).show()
+                                    }
+                                }
+                            }
+                        },
+                        colors = ButtonDefaults.textButtonColorsPrimary(),
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+            }
         }
     }
 }
