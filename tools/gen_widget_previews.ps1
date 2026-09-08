@@ -142,38 +142,41 @@ $bar2 = New-Bar $barX ($hdrY + $inset + 14) ($inS - 3 - 22) 5
 $g.FillPath($iconBrush, $bar2)
 $g.DrawString('今日 · 12月25日 周四', $fHeader, $bSecondary, ($pad + $iconS + 14), ($hdrY - 1))
 
-# rows: title, date, days, tag (距离/过去)
+# rows: title, date, days, tag (距离/过去) — two-line HyperOS list style:
+# tag pill + title on the first line, date below, "N 天" right at the edge.
 $rows = @(
     @('发工资', '每月15日', '12', '距离'),
-    @('春节', '2026年2月17日 周二', '45', '距离'),
-    @('生日', '2026年2月14日 周六', '89', '距离'),
-    @('高考', '2025年6月7日 周六', '123', '过去')
+    @('春节', '2026年02月17日 周二', '45', '距离'),
+    @('生日', '2026年02月14日 周六', '89', '距离')
 )
-$y = 122
-$rowH = 113
+$y = 118
+$rowH = 140
 foreach ($row in $rows) {
-    $cy = $y + $rowH / 2
+    # first line: tag pill + title, vertically centered together
+    $ts = $g.MeasureString($row[0], $fRowTitle)
+    $line1Top = $y + 24
+    $line1Cy = $line1Top + $ts.Height / 2
     # tag pill (rounded 14px, 8% black)
     $tagSize = $g.MeasureString($row[3], $fTag)
     $tagW = $tagSize.Width + 24
     $tagH = $tagSize.Height + 14
     $tagPath = New-Object System.Drawing.Drawing2D.GraphicsPath
     $r = 14
-    $tagPath.AddArc($pad, ($cy - $tagH / 2), 2 * $r, 2 * $r, 180, 90)
-    $tagPath.AddArc(($pad + $tagW - 2 * $r), ($cy - $tagH / 2), 2 * $r, 2 * $r, 270, 90)
-    $tagPath.AddArc(($pad + $tagW - 2 * $r), ($cy + $tagH / 2 - 2 * $r), 2 * $r, 2 * $r, 0, 90)
-    $tagPath.AddArc($pad, ($cy + $tagH / 2 - 2 * $r), 2 * $r, 2 * $r, 90, 90)
+    $tagPath.AddArc($pad, ($line1Cy - $tagH / 2), 2 * $r, 2 * $r, 180, 90)
+    $tagPath.AddArc(($pad + $tagW - 2 * $r), ($line1Cy - $tagH / 2), 2 * $r, 2 * $r, 270, 90)
+    $tagPath.AddArc(($pad + $tagW - 2 * $r), ($line1Cy + $tagH / 2 - 2 * $r), 2 * $r, 2 * $r, 0, 90)
+    $tagPath.AddArc($pad, ($line1Cy + $tagH / 2 - 2 * $r), 2 * $r, 2 * $r, 90, 90)
     $tagPath.CloseFigure()
     $tagBg = New-Object System.Drawing.SolidBrush([System.Drawing.Color]::FromArgb(0x14, 0x00, 0x00, 0x00))
     $g.FillPath($tagBg, $tagPath)
-    $g.DrawString($row[3], $fTag, $bSecondary, ($pad + 12), ($cy - $tagSize.Height / 2))
-    # title after the pill, then date
+    $g.DrawString($row[3], $fTag, $bSecondary, ($pad + 12), ($line1Cy - $tagSize.Height / 2))
+    # title after the pill
     $tx = $pad + $tagW + 14
-    $ts = $g.MeasureString($row[0], $fRowTitle)
-    $g.DrawString($row[0], $fRowTitle, $bPrimary, $tx, ($cy - $ts.Height / 2))
-    $ds = $g.MeasureString($row[1], $fRowDate)
-    $g.DrawString($row[1], $fRowDate, $bSecondary, ($tx + $ts.Width + 16), ($cy - $ds.Height / 2))
-    # right-aligned "N 天"
+    $g.DrawString($row[0], $fRowTitle, $bPrimary, $tx, ($line1Cy - $ts.Height / 2))
+    # second line: date under the pill
+    $g.DrawString($row[1], $fRowDate, $bSecondary, $pad, ($line1Top + $ts.Height + 6))
+    # right-aligned "N 天", centered on the whole row
+    $cy = $y + $rowH / 2
     $us = $g.MeasureString('天', $fRowUnit)
     $ns = $g.MeasureString($row[2], $fRowNum)
     $rightEdge = 1200 - $pad

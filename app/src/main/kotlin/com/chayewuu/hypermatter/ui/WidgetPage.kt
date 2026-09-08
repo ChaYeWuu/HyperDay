@@ -191,7 +191,7 @@ fun WidgetPage(
                     item {
                         Spacer(Modifier.height(10.dp))
                         ListWidgetPreview(
-                            events = feed.take(4),
+                            events = feed.take(3),
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(horizontal = 12.dp)
@@ -485,55 +485,56 @@ private fun ListWidgetPreview(
                 fontWeight = FontWeight.Medium,
             )
         } else {
-            // Mirrors widget_list_row.xml: each row carries 8dp vertical
-            // padding, title weight(1f) fills, 96dp zero-padded date column,
-            // 52dp right-aligned day number.
+            // Mirrors widget_list_row.xml: HyperOS list style — tag + title
+            // on the first line, zero-padded date below, "N 天" right-aligned
+            // at the row edge (no fixed columns in the middle).
             Column {
                 events.forEach { event ->
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(vertical = 8.dp),
+                            .padding(vertical = 4.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        WidgetTagPill(event)
-                        Text(
-                            text = event.title,
-                            color = MiuixTheme.colorScheme.onSurface,
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.Medium,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier
-                                .weight(1f)
-                                .padding(start = 6.dp),
-                        )
-                        Text(
-                            text = listRowDateLine(event),
-                            color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                            fontSize = 12.sp,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier
-                                .width(140.dp)
-                                .padding(start = 8.dp),
-                        )
-                        Row(verticalAlignment = Alignment.Bottom) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                WidgetTagPill(event)
+                                Text(
+                                    text = event.title,
+                                    color = MiuixTheme.colorScheme.onSurface,
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .padding(start = 6.dp),
+                                )
+                            }
+                            Text(
+                                text = listRowDateLine(event),
+                                color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                                fontSize = 12.sp,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.padding(top = 1.dp),
+                            )
+                        }
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(start = 10.dp),
+                        ) {
                             Text(
                                 text = DateUtils.dayNumber(event).toString(),
                                 color = MiuixTheme.colorScheme.primary,
                                 fontSize = 20.sp,
                                 fontWeight = FontWeight.Bold,
-                                textAlign = TextAlign.End,
-                                modifier = Modifier
-                                    .width(52.dp)
-                                    .padding(start = 10.dp),
                             )
                             Text(
                                 text = "天",
                                 color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                                 fontSize = 12.sp,
-                                modifier = Modifier.padding(start = 2.dp, bottom = 1.dp),
+                                modifier = Modifier.padding(start = 2.dp),
                             )
                         }
                     }

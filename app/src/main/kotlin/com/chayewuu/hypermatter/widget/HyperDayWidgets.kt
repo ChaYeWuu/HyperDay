@@ -105,9 +105,8 @@ internal fun eventDateLine(event: CountdownEvent): String {
 
 /**
  * Zero-padded uniform date for list widget rows: "2026年01月05日 周六".
- * Every row renders the same width (weekday is always two CJK chars), so the
- * year digits column-align (2026 lines up with 2027) inside the fixed-width
- * date column.
+ * Every row renders the same width (weekday is always two CJK chars), so
+ * the rows column-align on the secondary line under the title.
  */
 internal fun listRowDateLine(event: CountdownEvent): String {
     val date = java.time.LocalDate.ofEpochDay(DateUtils.effectiveEpochDay(event))
@@ -261,7 +260,7 @@ private fun updateListWidget(
     manager: AppWidgetManager,
     appWidgetId: Int,
 ) {
-    val events = feedEvents(context).take(4)
+    val events = feedEvents(context).take(3)
     val views = RemoteViews(context.packageName, R.layout.widget_list)
     views.setTextViewText(R.id.widget_header_date, todayLine())
     views.removeAllViews(R.id.widget_rows)
