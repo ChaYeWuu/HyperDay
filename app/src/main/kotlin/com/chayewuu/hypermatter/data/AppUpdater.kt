@@ -26,8 +26,9 @@ import java.net.URL
 object AppUpdater {
 
     private const val REPO = "ChaYeWuu/HyperDay"
+    // Gitee mirror (owner differs: chayewuuu vs ChaYeWuu on GitHub).
     private const val GITEE_API =
-        "https://gitee.com/api/v5/repos/$REPO/releases/latest"
+        "https://gitee.com/api/v5/repos/chayewuuu/HyperDay/releases/latest"
     private const val CONNECT_TIMEOUT_MS = 10_000
     private const val READ_TIMEOUT_MS = 20_000
     private const val USER_AGENT = "HyperDay-Android"
