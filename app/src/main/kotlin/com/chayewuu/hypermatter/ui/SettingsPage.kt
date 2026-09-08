@@ -1,7 +1,5 @@
 package com.chayewuu.hypermatter.ui
 
-import android.Manifest
-import android.content.pm.PackageManager
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -24,7 +22,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import androidx.core.content.ContextCompat
 import com.chayewuu.hypermatter.BuildConfig
 import com.chayewuu.hypermatter.data.BackupManager
 import com.chayewuu.hypermatter.data.CalendarSyncManager
@@ -33,13 +30,13 @@ import com.chayewuu.hypermatter.ui.theme.LocalEventViewModel
 import com.chayewuu.hypermatter.ui.theme.LocalSettingsStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import top.yukonga.miuix.kmp.basic.SmallTitle
 import top.yukonga.miuix.kmp.basic.TextButton
 import top.yukonga.miuix.kmp.overlay.OverlayDialog
 import top.yukonga.miuix.kmp.preference.ArrowPreference
 import top.yukonga.miuix.kmp.utils.overScrollVertical
 import top.yukonga.miuix.kmp.utils.scrollEndHaptic
+import java.time.Instant
 import java.time.LocalDateTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -50,6 +47,7 @@ fun SettingsPage(
     onOpenAbout: () -> Unit,
     onOpenTheme: () -> Unit,
     onOpenWidget: () -> Unit,
+    onOpenCalendarSync: () -> Unit,
     onOpenCategory: () -> Unit,
     onOpenReminder: () -> Unit,
 ) {
@@ -64,50 +62,8 @@ fun SettingsPage(
     var pendingImport by remember { mutableStateOf<BackupManager.ImportResult?>(null) }
     var importing by remember { mutableStateOf(false) }
 
-    // ---- calendar sync state ----
-    var calendarSyncing by remember { mutableStateOf(false) }
-    var showCalendarRemoveDialog by remember { mutableStateOf(false) }
-    // Bumped after each sync so the summary line re-reads the prefs.
-    var calendarSyncTick by remember { mutableStateOf(0) }
-
     // ---- update state ----
     val updateState = rememberUpdateDialogState()
-
-    val calendarPermissions = arrayOf(
-        Manifest.permission.READ_CALENDAR,
-        Manifest.permission.WRITE_CALENDAR,
-    )
-
-    fun hasCalendarPermission(): Boolean = calendarPermissions.all {
-        ContextCompat.checkSelfPermission(context, it) == PackageManager.PERMISSION_GRANTED
-    }
-
-    fun runCalendarSync() {
-        if (calendarSyncing) return
-        calendarSyncing = true
-        scope.launch(Dispatchers.IO) {
-            val result = CalendarSyncManager.syncAll(context, viewModel.events.value)
-            withContext(Dispatchers.Main) {
-                calendarSyncing = false
-                calendarSyncTick++
-                result.onSuccess { count ->
-                    Toast.makeText(context, "已同步 $count 个倒数日到系统日历", Toast.LENGTH_SHORT).show()
-                }.onFailure {
-                    Toast.makeText(context, "同步失败：${it.message ?: "日历不可用"}", Toast.LENGTH_SHORT).show()
-                }
-            }
-        }
-    }
-
-    val calendarPermissionLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestMultiplePermissions(),
-    ) { grants ->
-        if (grants.values.all { it }) {
-            runCalendarSync()
-        } else {
-            Toast.makeText(context, "需要日历权限才能同步", Toast.LENGTH_SHORT).show()
-        }
-    }
 
     val modeName = when (colorMode) {
         1 -> "浅色"
@@ -222,37 +178,25 @@ fun SettingsPage(
                     .fillMaxWidth()
                     .padding(horizontal = 12.dp),
             ) {
-                // Summary re-reads the prefs after each sync (tick).
-                val lastSync = remember(calendarSyncTick) {
+                // Last sync info is static while this page is composed;
+                // CalendarSyncPage re-reads it after every sync.
+                val lastSync = remember {
                     CalendarSyncManager.getLastSyncInfo(context)
                 }
                 ArrowPreference(
                     title = "同步到系统日历",
                     summary = when {
-                        calendarSyncing -> "正在同步…"
                         lastSync != null -> {
                             val time = LocalDateTime.ofInstant(
-                                java.time.Instant.ofEpochMilli(lastSync.first),
+                                Instant.ofEpochMilli(lastSync.first),
                                 ZoneId.systemDefault(),
                             )
-                            "上次同步 ${time.format(DateTimeFormatter.ofPattern("M月d日 HH:mm"))} · ${lastSync.second} 个事件"
+                            "上次同步 ${time.format(DateTimeFormatter.ofPattern("M月d日 HH:mm"))} · " +
+                                "${lastSync.second} 个事件"
                         }
-                        else -> "把全部倒数日写入系统日历（本地日历，不上传）"
+                        else -> "自由选择要同步的倒数日，写入本地日历"
                     },
-                    enabled = !calendarSyncing,
-                    onClick = {
-                        if (hasCalendarPermission()) {
-                            runCalendarSync()
-                        } else {
-                            calendarPermissionLauncher.launch(calendarPermissions)
-                        }
-                    },
-                )
-                ArrowPreference(
-                    title = "移除日历同步",
-                    summary = "删除系统日历中的全部 HyperDay 事件",
-                    enabled = !calendarSyncing,
-                    onClick = { showCalendarRemoveDialog = true },
+                    onClick = onOpenCalendarSync,
                 )
                 ArrowPreference(
                     title = "备份数据",
@@ -323,44 +267,6 @@ fun SettingsPage(
                 onClick = {
                     viewModel.clearAll()
                     showClearDialog = false
-                },
-                modifier = Modifier.weight(1f),
-            )
-        }
-    }
-
-    OverlayDialog(
-        title = "移除日历同步",
-        summary = "将删除系统日历中由 HyperDay 创建的全部事件与日历，不影响应用内的倒数日。确定继续吗？",
-        show = showCalendarRemoveDialog,
-        onDismissRequest = { showCalendarRemoveDialog = false },
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            TextButton(
-                text = "取消",
-                onClick = { showCalendarRemoveDialog = false },
-                modifier = Modifier.weight(1f),
-            )
-            TextButton(
-                text = "删除",
-                onClick = {
-                    showCalendarRemoveDialog = false
-                    calendarSyncing = true
-                    scope.launch(Dispatchers.IO) {
-                        val result = CalendarSyncManager.removeAll(context)
-                        withContext(Dispatchers.Main) {
-                            calendarSyncing = false
-                            calendarSyncTick++
-                            result.onSuccess {
-                                Toast.makeText(context, "已移除日历同步", Toast.LENGTH_SHORT).show()
-                            }.onFailure {
-                                Toast.makeText(context, "移除失败：${it.message ?: "日历不可用"}", Toast.LENGTH_SHORT).show()
-                            }
-                        }
-                    }
                 },
                 modifier = Modifier.weight(1f),
             )

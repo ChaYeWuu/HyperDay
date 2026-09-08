@@ -35,6 +35,9 @@ object CalendarSyncManager {
     private const val KEY_LAST_TIME = "last_sync_time"
     private const val KEY_LAST_COUNT = "last_sync_count"
 
+    /** Selected event ids; key absent = selection never customized (all). */
+    private const val KEY_SELECTED_IDS = "selected_ids"
+
     /** Calendar accent color (HyperDay blue). */
     private const val CALENDAR_COLOR = 0xFF5B8DEF.toInt()
 
@@ -217,6 +220,27 @@ object CalendarSyncManager {
         val time = prefs.getLong(KEY_LAST_TIME, 0L)
         if (time <= 0L) return null
         return time to prefs.getInt(KEY_LAST_COUNT, 0)
+    }
+
+    // ------------------------------------------------------------------
+    // Free event selection (二级页勾选集)
+    // ------------------------------------------------------------------
+
+    /**
+     * The user's event selection for syncing, or null when the selection
+     * was never customized (null = "all events" default).
+     */
+    fun getSelectedIds(context: Context): Set<String>? {
+        val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        if (!prefs.contains(KEY_SELECTED_IDS)) return null
+        return prefs.getStringSet(KEY_SELECTED_IDS, emptySet()) ?: emptySet()
+    }
+
+    fun setSelectedIds(context: Context, ids: Set<String>) {
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .edit()
+            .putStringSet(KEY_SELECTED_IDS, ids)
+            .apply()
     }
 
     private fun rememberSync(context: Context, count: Int) {

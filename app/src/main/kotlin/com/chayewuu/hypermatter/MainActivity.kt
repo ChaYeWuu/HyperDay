@@ -42,6 +42,7 @@ import com.chayewuu.hypermatter.reminder.ReminderScheduler
 import com.chayewuu.hypermatter.ui.AboutPage
 import com.chayewuu.hypermatter.ui.AddEventBottomSheet
 import com.chayewuu.hypermatter.ui.BlurredBar
+import com.chayewuu.hypermatter.ui.CalendarSyncPage
 import com.chayewuu.hypermatter.ui.CategoryPage
 import com.chayewuu.hypermatter.ui.EventDetailPage
 import com.chayewuu.hypermatter.ui.HomePage
@@ -183,6 +184,9 @@ private sealed interface Route : NavKey {
     data object Widget : Route
 
     @Serializable
+    data object CalendarSync : Route
+
+    @Serializable
     data object Category : Route
 
     @Serializable
@@ -299,6 +303,7 @@ private fun App(pendingEventId: MutableState<String?>) {
                     onOpenAbout = { backStack.add(Route.About) },
                     onOpenTheme = { backStack.add(Route.Theme) },
                     onOpenWidget = { backStack.add(Route.Widget) },
+                    onOpenCalendarSync = { backStack.add(Route.CalendarSync) },
                     onOpenCategory = { backStack.add(Route.Category) },
                     onOpenReminder = { backStack.add(Route.Reminder) },
                 )
@@ -311,6 +316,9 @@ private fun App(pendingEventId: MutableState<String?>) {
             }
             entry<Route.Widget>(swipeDismiss = NavSwipeDirection.LeftToRight) {
                 WidgetPage(onBack = { backStack.removeLastOrNull() })
+            }
+            entry<Route.CalendarSync>(swipeDismiss = NavSwipeDirection.LeftToRight) {
+                CalendarSyncPage(onBack = { backStack.removeLastOrNull() })
             }
             entry<Route.Category>(swipeDismiss = NavSwipeDirection.LeftToRight) {
                 CategoryPage(onBack = { backStack.removeLastOrNull() })
@@ -344,6 +352,7 @@ private fun MainTabs(
     onOpenAbout: () -> Unit,
     onOpenTheme: () -> Unit,
     onOpenWidget: () -> Unit,
+    onOpenCalendarSync: () -> Unit,
     onOpenCategory: () -> Unit,
     onOpenReminder: () -> Unit,
 ) {
@@ -486,6 +495,7 @@ private fun MainTabs(
                             onOpenAbout = onOpenAbout,
                             onOpenTheme = onOpenTheme,
                             onOpenWidget = onOpenWidget,
+                            onOpenCalendarSync = onOpenCalendarSync,
                             onOpenCategory = onOpenCategory,
                             onOpenReminder = onOpenReminder,
                         )
