@@ -50,6 +50,7 @@ import com.chayewuu.hypermatter.ui.LiveUpdatesPage
 import com.chayewuu.hypermatter.ui.ReminderPage
 import com.chayewuu.hypermatter.ui.SettingsPage
 import com.chayewuu.hypermatter.ui.ThemePage
+import com.chayewuu.hypermatter.ui.UpdateAutoCheckHost
 import com.chayewuu.hypermatter.ui.WidgetPage
 import com.chayewuu.hypermatter.ui.prewarmWallpaperThumbs
 import com.chayewuu.hypermatter.ui.rememberBlurBackdrop
@@ -77,6 +78,7 @@ import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.basic.SmallTopAppBar
 import top.yukonga.miuix.kmp.icon.MiuixIcons
 import top.yukonga.miuix.kmp.icon.extended.Add
+import top.yukonga.miuix.kmp.icon.extended.GridView
 import top.yukonga.miuix.kmp.icon.extended.Home
 import top.yukonga.miuix.kmp.icon.extended.Settings
 import top.yukonga.miuix.kmp.nav.core.NavDisplay
@@ -175,9 +177,6 @@ private sealed interface Route : NavKey {
 
     @Serializable
     data object Theme : Route
-
-    @Serializable
-    data object Widget : Route
 
     @Serializable
     data object Category : Route
@@ -295,7 +294,6 @@ private fun App(pendingEventId: MutableState<String?>) {
                     onOpenEvent = { backStack.add(Route.EventDetail(it)) },
                     onOpenAbout = { backStack.add(Route.About) },
                     onOpenTheme = { backStack.add(Route.Theme) },
-                    onOpenWidget = { backStack.add(Route.Widget) },
                     onOpenCategory = { backStack.add(Route.Category) },
                     onOpenReminder = { backStack.add(Route.Reminder) },
                 )
@@ -305,9 +303,6 @@ private fun App(pendingEventId: MutableState<String?>) {
             }
             entry<Route.Theme>(swipeDismiss = NavSwipeDirection.LeftToRight) {
                 ThemePage(onBack = { backStack.removeLastOrNull() })
-            }
-            entry<Route.Widget>(swipeDismiss = NavSwipeDirection.LeftToRight) {
-                WidgetPage(onBack = { backStack.removeLastOrNull() })
             }
             entry<Route.Category>(swipeDismiss = NavSwipeDirection.LeftToRight) {
                 CategoryPage(onBack = { backStack.removeLastOrNull() })
@@ -340,11 +335,10 @@ private fun MainTabs(
     onOpenEvent: (String) -> Unit,
     onOpenAbout: () -> Unit,
     onOpenTheme: () -> Unit,
-    onOpenWidget: () -> Unit,
     onOpenCategory: () -> Unit,
     onOpenReminder: () -> Unit,
 ) {
-    val pagerState = rememberPagerState { 2 }
+    val pagerState = rememberPagerState { 3 }
     val scope = rememberCoroutineScope()
     val viewModel = LocalEventViewModel.current
     val view = LocalView.current
@@ -365,10 +359,11 @@ private fun MainTabs(
 
     val navItems = listOf(
         NavigationItem("首页", MiuixIcons.Home),
+        NavigationItem("小工具", MiuixIcons.GridView),
         NavigationItem("设置", MiuixIcons.Settings),
     )
 
-    val titles = listOf("HyperDay", "设置")
+    val titles = listOf("HyperDay", "小工具", "设置")
 
     // Page canvas: `surface` (light: #F7F7F7 gray canvas + white cards;
     // dark: black canvas + #242424 cards). The top bar uses the official
@@ -476,11 +471,11 @@ private fun MainTabs(
                             // In glass mode the + lives in the bottom bar.
                             showFab = glassNavBackdrop == null,
                         )
-                        1 -> SettingsPage(
+                        1 -> WidgetPage(contentPadding = paddingValues)
+                        2 -> SettingsPage(
                             contentPadding = paddingValues,
                             onOpenAbout = onOpenAbout,
                             onOpenTheme = onOpenTheme,
-                            onOpenWidget = onOpenWidget,
                             onOpenCategory = onOpenCategory,
                             onOpenReminder = onOpenReminder,
                         )
@@ -508,6 +503,11 @@ private fun MainTabs(
                     },
                 )
             }
+
+            // Startup update check (once per day, silent unless a new
+            // release is found). Lives inside the Scaffold content so the
+            // overlay can render into the scaffold's popup host.
+            UpdateAutoCheckHost()
         }
     }
 }

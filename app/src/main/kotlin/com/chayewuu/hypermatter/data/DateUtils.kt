@@ -30,8 +30,10 @@ object DateUtils {
      * Effective repeat type: an explicit setting (1..5) always wins; events in
      * the built-in 纪念日 category default to yearly (4) — anniversaries roll
      * to the next year after the day passes instead of falling into "past".
+     *
+     * Public so [CalendarSyncManager] can map it onto RRULEs.
      */
-    private fun effectiveRepeatType(event: CountdownEvent): Int {
+    fun effectiveRepeatType(event: CountdownEvent): Int {
         val explicit = event.repeatType ?: 0
         if (explicit != 0) return explicit
         return if (event.category == CategoryStore.ID_ANNIVERSARY) 4 else 0
