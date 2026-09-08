@@ -30,6 +30,7 @@ import com.chayewuu.hypermatter.ui.theme.LocalEventViewModel
 import com.chayewuu.hypermatter.ui.theme.LocalSettingsStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import top.yukonga.miuix.kmp.basic.ButtonDefaults
 import top.yukonga.miuix.kmp.basic.SmallTitle
 import top.yukonga.miuix.kmp.basic.TextButton
 import top.yukonga.miuix.kmp.overlay.OverlayDialog
@@ -268,6 +269,7 @@ fun SettingsPage(
                     viewModel.clearAll()
                     showClearDialog = false
                 },
+                colors = ButtonDefaults.textButtonColorsPrimary(),
                 modifier = Modifier.weight(1f),
             )
         }
@@ -301,6 +303,7 @@ fun SettingsPage(
                             Toast.LENGTH_SHORT,
                         ).show()
                     },
+                    colors = ButtonDefaults.textButtonColorsPrimary(),
                     modifier = Modifier.weight(1f),
                 )
             }

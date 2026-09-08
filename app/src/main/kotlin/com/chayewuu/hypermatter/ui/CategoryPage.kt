@@ -41,6 +41,7 @@ import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.SmallTitle
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.basic.TextField
+import top.yukonga.miuix.kmp.basic.ButtonDefaults
 import top.yukonga.miuix.kmp.basic.TextButton
 import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.basic.SmallTopAppBar
@@ -330,6 +331,7 @@ fun CategoryPage(onBack: () -> Unit) {
                             runCatching { ReminderScheduler.reschedule(context) }
                             deleteTarget = null
                         },
+                        colors = ButtonDefaults.textButtonColorsPrimary(),
                         modifier = Modifier.weight(1f),
                     )
                 }

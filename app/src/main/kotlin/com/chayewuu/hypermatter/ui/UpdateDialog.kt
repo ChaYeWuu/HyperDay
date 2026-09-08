@@ -193,6 +193,7 @@ internal fun UpdateDialogContent(state: UpdateDialogState) {
             TextButton(
                 text = "确定",
                 onClick = { state.reset() },
+                colors = ButtonDefaults.textButtonColorsPrimary(),
                 modifier = Modifier.fillMaxWidth(),
             )
         }
@@ -206,6 +207,7 @@ internal fun UpdateDialogContent(state: UpdateDialogState) {
             TextButton(
                 text = "确定",
                 onClick = { state.reset() },
+                colors = ButtonDefaults.textButtonColorsPrimary(),
                 modifier = Modifier.fillMaxWidth(),
             )
         }

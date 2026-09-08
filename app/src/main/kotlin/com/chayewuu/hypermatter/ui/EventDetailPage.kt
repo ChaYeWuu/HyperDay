@@ -98,6 +98,7 @@ import top.yukonga.miuix.kmp.basic.IconButton
 import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.basic.SmallTopAppBar
 import top.yukonga.miuix.kmp.basic.Text
+import top.yukonga.miuix.kmp.basic.ButtonDefaults
 import top.yukonga.miuix.kmp.basic.TextButton
 import top.yukonga.miuix.kmp.blur.BlendColorEntry
 import top.yukonga.miuix.kmp.blur.BlurBlendMode
@@ -256,6 +257,9 @@ fun EventDetailPage(
 
     var showBackgroundDialog by remember { mutableStateOf(false) }
     var showFontDialog by remember { mutableStateOf(false) }
+    // "恢复默认" asks for confirmation first — one tap wipes the whole
+    // font customization of the card.
+    var showFontResetDialog by remember { mutableStateOf(false) }
     // Tap the big day number to toggle 天数 ↔ 年月天 conversion.
     var showPeriod by remember { mutableStateOf(false) }
 
@@ -1118,6 +1122,61 @@ fun EventDetailPage(
             }
         }
 
+        // "恢复默认" confirmation: one tap would wipe the whole font
+        // customization of this card, so ask first (same cancel/confirm
+        // pattern as the delete dialogs elsewhere). Must stay inside the
+        // Scaffold content and not render into the root scaffold — this
+        // page covers the main tabs scaffold.
+        if (showFontResetDialog) {
+            OverlayDialog(
+                title = "恢复默认样式",
+                summary = "将清除这张卡片的全部字体自定义，恢复为默认样式。确定继续吗？",
+                show = true,
+                onDismissRequest = { showFontResetDialog = false },
+                renderInRootScaffold = false,
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    TextButton(
+                        text = "取消",
+                        onClick = { showFontResetDialog = false },
+                        modifier = Modifier.weight(1f),
+                    )
+                    TextButton(
+                        text = "恢复",
+                        colors = ButtonDefaults.textButtonColorsPrimary(),
+                        onClick = {
+                            showFontResetDialog = false
+                            updateEventFresh {
+                                it.copy(
+                                    fontScale = null,
+                                    fontWeight = null,
+                                    textColor = null,
+                                    textColorCustom = null,
+                                    fontStroke = null,
+                                    fontStrokeWidth = null,
+                                    strokeColor = null,
+                                    strokeColorCustom = null,
+                                    fontShadow = null,
+                                    shadowColor = null,
+                                    shadowColorCustom = null,
+                                    shadowBlur = null,
+                                    shadowAlpha = null,
+                                )
+                            }
+                            liveFontScale = 1f
+                            liveFontStroke = 2.5f
+                            liveShadowBlur = 8f
+                            liveShadowAlpha = 0.45f
+                        },
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+            }
+        }
+
         // Per-event typography dialog (same shell as the background dialog:
         // inside the Scaffold, no root rendering, custom scrim, sinks away
         // while a slider thumb is held so the card text stays visible).
@@ -1147,32 +1206,11 @@ fun EventDetailPage(
                 // Reset the WHOLE font customization for this event: every
                 // font* field back to null (= defaults) and the live slider
                 // values re-synced so the preview snaps back instantly.
+                // Destructive, so it opens the confirmation dialog below.
                 TextButton(
                     text = "恢复默认",
                     modifier = Modifier.fillMaxWidth(),
-                    onClick = {
-                        updateEventFresh {
-                            it.copy(
-                                fontScale = null,
-                                fontWeight = null,
-                                textColor = null,
-                                textColorCustom = null,
-                                fontStroke = null,
-                                fontStrokeWidth = null,
-                                strokeColor = null,
-                                strokeColorCustom = null,
-                                fontShadow = null,
-                                shadowColor = null,
-                                shadowColorCustom = null,
-                                shadowBlur = null,
-                                shadowAlpha = null,
-                            )
-                        }
-                        liveFontScale = 1f
-                        liveFontStroke = 2.5f
-                        liveShadowBlur = 8f
-                        liveShadowAlpha = 0.45f
-                    },
+                    onClick = { showFontResetDialog = true },
                 )
                 SliderPreference(
                     title = "字体大小",

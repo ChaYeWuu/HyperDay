@@ -50,6 +50,7 @@ import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.basic.SmallTitle
 import top.yukonga.miuix.kmp.basic.SmallTopAppBar
 import top.yukonga.miuix.kmp.basic.Text
+import top.yukonga.miuix.kmp.basic.ButtonDefaults
 import top.yukonga.miuix.kmp.basic.TextButton
 import top.yukonga.miuix.kmp.blur.layerBackdrop
 import top.yukonga.miuix.kmp.icon.MiuixIcons
@@ -304,6 +305,7 @@ fun CalendarSyncPage(onBack: () -> Unit) {
                         }
                     }
                 },
+                colors = ButtonDefaults.textButtonColorsPrimary(),
                 modifier = Modifier.weight(1f),
             )
         }
