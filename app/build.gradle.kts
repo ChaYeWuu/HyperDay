@@ -74,6 +74,19 @@ android {
     }
 }
 
+androidComponents {
+    onVariants { variant ->
+        // Rename the built APK to HyperDay-v<versionName>.apk so release
+        // attachments (GitHub / Gitee) carry a meaningful filename instead
+        // of the default app-{debug,release}.apk.
+        variant.outputs.forEach { output ->
+            output.outputFileName.set(
+                output.versionName.map { name -> "HyperDay-v$name.apk" }
+            )
+        }
+    }
+}
+
 dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
