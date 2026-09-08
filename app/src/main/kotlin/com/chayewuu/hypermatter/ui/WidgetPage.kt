@@ -28,6 +28,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
@@ -45,7 +46,10 @@ import androidx.compose.ui.unit.sp
 import com.chayewuu.hypermatter.data.CountdownEvent
 import com.chayewuu.hypermatter.data.DateUtils
 import com.chayewuu.hypermatter.R
+import com.chayewuu.hypermatter.ui.glass.GlassCanvasRecorder
 import com.chayewuu.hypermatter.ui.glass.LiquidGlassCard
+import com.chayewuu.hypermatter.ui.glass.LocalGlassBackdrop
+import com.chayewuu.hypermatter.ui.glass.rememberGlassBackdrop
 import com.chayewuu.hypermatter.ui.theme.LocalEventViewModel
 import com.chayewuu.hypermatter.widget.CardWidget
 import com.chayewuu.hypermatter.widget.WidgetPrefs
@@ -53,28 +57,32 @@ import com.chayewuu.hypermatter.widget.eventDateLine
 import com.chayewuu.hypermatter.widget.listRowDateLine
 import com.chayewuu.hypermatter.widget.todayLine
 import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.IconButton
+import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.basic.SmallTitle
+import top.yukonga.miuix.kmp.basic.SmallTopAppBar
 import top.yukonga.miuix.kmp.basic.Text
+import top.yukonga.miuix.kmp.blur.layerBackdrop
 import top.yukonga.miuix.kmp.icon.MiuixIcons
+import top.yukonga.miuix.kmp.icon.extended.Back
 import top.yukonga.miuix.kmp.icon.extended.Ok
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.utils.overScrollVertical
 import top.yukonga.miuix.kmp.utils.scrollEndHaptic
 
 /**
- * Widget preview & binding page (底部「小工具」tab).
+ * Widget preview & binding page (设置 → 小部件).
  *
  *  - 小部件预览: live Compose re-drawings of all three home-screen widgets
  *    (卡片 2×2 / 列表 4×2 / 极简 2×1) using the current event data, so the
  *    user can see what each looks like before adding it.
  *  - 卡片事件绑定: pick which event the card widget is pinned to
  *    (persisted via [WidgetPrefs], refreshed via [CardWidget.push]).
- *
- * Rendered inside MainTabs' pager: the shared blurred top bar, the glass
- * canvas recorder and LocalGlassBackdrop provider all live in MainTabs.
  */
 @Composable
-fun WidgetPage(contentPadding: PaddingValues) {
+fun WidgetPage(
+    onBack: () -> Unit,
+) {
     val viewModel = LocalEventViewModel.current
     val events by viewModel.events.collectAsState()
     val context = LocalContext.current
@@ -93,16 +101,56 @@ fun WidgetPage(contentPadding: PaddingValues) {
         .filter { DateUtils.isPastEvent(it) }
         .sortedByDescending { DateUtils.effectiveEpochDay(it) }
 
-    LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .overScrollVertical()
-            .scrollEndHaptic(),
-        contentPadding = PaddingValues(
-            top = contentPadding.calculateTopPadding(),
-            bottom = contentPadding.calculateBottomPadding() + 24.dp,
-        ),
-    ) {
+    val barBackdrop = rememberBlurBackdrop()
+    val glassBackdrop = rememberGlassBackdrop()
+    Scaffold(
+        containerColor = MiuixTheme.colorScheme.surface,
+        topBar = {
+            BlurredBar(barBackdrop) {
+                SmallTopAppBar(
+                    title = "小部件",
+                    color = if (barBackdrop != null)
+                        Color.Transparent
+                    else
+                        MiuixTheme.colorScheme.surface,
+                    navigationIcon = {
+                        IconButton(onClick = onBack) {
+                            Icon(
+                                imageVector = MiuixIcons.Back,
+                                contentDescription = "返回",
+                                tint = MiuixTheme.colorScheme.onSurface,
+                            )
+                        }
+                    },
+                )
+            }
+        },
+    ) { paddingValues ->
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .then(
+                    if (barBackdrop != null)
+                        Modifier.layerBackdrop(barBackdrop)
+                    else
+                        Modifier
+                ),
+        ) {
+            // Flat-canvas recorder for the glass cards: a sibling with no
+            // glass inside it (glass surfaces must never be part of the
+            // subtree recording their own sample — infinite render nesting).
+            GlassCanvasRecorder(glassBackdrop)
+            CompositionLocalProvider(LocalGlassBackdrop provides glassBackdrop) {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .overScrollVertical()
+                        .scrollEndHaptic(),
+                    contentPadding = PaddingValues(
+                        top = paddingValues.calculateTopPadding(),
+                        bottom = paddingValues.calculateBottomPadding() + 24.dp,
+                    ),
+                ) {
                     item {
                         SmallTitle(text = "小部件预览")
                         Row(
@@ -206,9 +254,13 @@ fun WidgetPage(contentPadding: PaddingValues) {
                         )
                     }
                 }
+            }
+        }
+    }
 }
 
-/** The pinned event if it still exists, else the auto pick. */private fun selectedEvent(
+/** The pinned event if it still exists, else the auto pick. */
+private fun selectedEvent(
     events: List<CountdownEvent>,
     selectedId: String?,
 ): CountdownEvent? {

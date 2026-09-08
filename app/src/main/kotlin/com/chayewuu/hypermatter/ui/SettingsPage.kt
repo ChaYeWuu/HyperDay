@@ -49,6 +49,7 @@ fun SettingsPage(
     contentPadding: PaddingValues,
     onOpenAbout: () -> Unit,
     onOpenTheme: () -> Unit,
+    onOpenWidget: () -> Unit,
     onOpenCategory: () -> Unit,
     onOpenReminder: () -> Unit,
 ) {
@@ -183,6 +184,11 @@ fun SettingsPage(
                     title = "主题风格",
                     summary = modeName,
                     onClick = onOpenTheme,
+                )
+                ArrowPreference(
+                    title = "小部件",
+                    summary = "预览桌面小部件，为单个事件小部件选择绑定",
+                    onClick = onOpenWidget,
                 )
             }
         }

@@ -50,6 +50,7 @@ import com.chayewuu.hypermatter.ui.LiveUpdatesPage
 import com.chayewuu.hypermatter.ui.ReminderPage
 import com.chayewuu.hypermatter.ui.SettingsPage
 import com.chayewuu.hypermatter.ui.ThemePage
+import com.chayewuu.hypermatter.ui.ToolsPage
 import com.chayewuu.hypermatter.ui.UpdateAutoCheckHost
 import com.chayewuu.hypermatter.ui.WidgetPage
 import com.chayewuu.hypermatter.ui.prewarmWallpaperThumbs
@@ -179,6 +180,9 @@ private sealed interface Route : NavKey {
     data object Theme : Route
 
     @Serializable
+    data object Widget : Route
+
+    @Serializable
     data object Category : Route
 
     @Serializable
@@ -294,6 +298,7 @@ private fun App(pendingEventId: MutableState<String?>) {
                     onOpenEvent = { backStack.add(Route.EventDetail(it)) },
                     onOpenAbout = { backStack.add(Route.About) },
                     onOpenTheme = { backStack.add(Route.Theme) },
+                    onOpenWidget = { backStack.add(Route.Widget) },
                     onOpenCategory = { backStack.add(Route.Category) },
                     onOpenReminder = { backStack.add(Route.Reminder) },
                 )
@@ -303,6 +308,9 @@ private fun App(pendingEventId: MutableState<String?>) {
             }
             entry<Route.Theme>(swipeDismiss = NavSwipeDirection.LeftToRight) {
                 ThemePage(onBack = { backStack.removeLastOrNull() })
+            }
+            entry<Route.Widget>(swipeDismiss = NavSwipeDirection.LeftToRight) {
+                WidgetPage(onBack = { backStack.removeLastOrNull() })
             }
             entry<Route.Category>(swipeDismiss = NavSwipeDirection.LeftToRight) {
                 CategoryPage(onBack = { backStack.removeLastOrNull() })
@@ -335,6 +343,7 @@ private fun MainTabs(
     onOpenEvent: (String) -> Unit,
     onOpenAbout: () -> Unit,
     onOpenTheme: () -> Unit,
+    onOpenWidget: () -> Unit,
     onOpenCategory: () -> Unit,
     onOpenReminder: () -> Unit,
 ) {
@@ -471,11 +480,12 @@ private fun MainTabs(
                             // In glass mode the + lives in the bottom bar.
                             showFab = glassNavBackdrop == null,
                         )
-                        1 -> WidgetPage(contentPadding = paddingValues)
+                        1 -> ToolsPage(contentPadding = paddingValues)
                         2 -> SettingsPage(
                             contentPadding = paddingValues,
                             onOpenAbout = onOpenAbout,
                             onOpenTheme = onOpenTheme,
+                            onOpenWidget = onOpenWidget,
                             onOpenCategory = onOpenCategory,
                             onOpenReminder = onOpenReminder,
                         )
