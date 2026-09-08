@@ -51,6 +51,7 @@ fun SettingsPage(
     onOpenCalendarSync: () -> Unit,
     onOpenCategory: () -> Unit,
     onOpenReminder: () -> Unit,
+    onOpenUpdate: () -> Unit,
 ) {
     val settingsStore = LocalSettingsStore.current
     val viewModel = LocalEventViewModel.current
@@ -62,9 +63,6 @@ fun SettingsPage(
     // Parsed import waiting for the user's confirmation (null = idle).
     var pendingImport by remember { mutableStateOf<BackupManager.ImportResult?>(null) }
     var importing by remember { mutableStateOf(false) }
-
-    // ---- update state ----
-    val updateState = rememberUpdateDialogState()
 
     val modeName = when (colorMode) {
         1 -> "浅色"
@@ -231,13 +229,9 @@ fun SettingsPage(
                     .padding(horizontal = 12.dp),
             ) {
                 ArrowPreference(
-                    title = "检查更新",
-                    summary = when {
-                        updateState.isBusy -> "正在检查…"
-                        else -> "当前版本 v${BuildConfig.VERSION_NAME}"
-                    },
-                    enabled = !updateState.isBusy,
-                    onClick = { updateState.checkManual(scope) },
+                    title = "软件版本",
+                    summary = "当前版本 v${BuildConfig.VERSION_NAME}，检查并安装新版本",
+                    onClick = onOpenUpdate,
                 )
                 ArrowPreference(
                     title = "关于应用",
@@ -309,8 +303,4 @@ fun SettingsPage(
             }
         }
     }
-
-    // Manual update check result overlay. Rendered here (inside the
-    // MainTabs Scaffold content) so the dialog reaches the popup host.
-    UpdateDialogContent(updateState)
 }

@@ -67,33 +67,18 @@ internal class UpdateDialogState {
     val isBusy: Boolean
         get() = phase is UpdatePhase.Checking || phase is UpdatePhase.Downloading
 
-    /** Manual check from settings: always reports the outcome. */
-    fun checkManual(scope: kotlinx.coroutines.CoroutineScope) {
-        if (isBusy) return
-        phase = UpdatePhase.Checking
-        scope.launch(Dispatchers.IO) {
-            val result = AppUpdater.checkForUpdate()
-            withContext(Dispatchers.Main) {
-                phase = when (result) {
-                    is AppUpdater.CheckResult.Checked ->
-                        if (result.hasUpdate) UpdatePhase.Available(result.release)
-                        else UpdatePhase.UpToDate
-                    is AppUpdater.CheckResult.Failed -> UpdatePhase.Failed(result.message)
-                }
-            }
-        }
-    }
-
     /** Startup check: once per calendar day, only surfaces a new release. */
     fun autoCheckIfDue(context: Context, scope: kotlinx.coroutines.CoroutineScope) {
         if (isBusy) return
         val prefs = context.getSharedPreferences("update_prefs", Context.MODE_PRIVATE)
+        // The "自动检查更新" switch on the update page gates this entirely.
+        if (!prefs.getBoolean("auto_check_update", true)) return
         val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
         if (prefs.getString("last_check_date", "") == today) return
         prefs.edit().putString("last_check_date", today).apply()
 
         scope.launch(Dispatchers.IO) {
-            val result = AppUpdater.checkForUpdate()
+            val result = AppUpdater.checkForUpdate(context)
             withContext(Dispatchers.Main) {
                 if (result is AppUpdater.CheckResult.Checked &&
                     result.hasUpdate &&

@@ -53,6 +53,7 @@ import com.chayewuu.hypermatter.ui.SettingsPage
 import com.chayewuu.hypermatter.ui.ThemePage
 import com.chayewuu.hypermatter.ui.ToolsPage
 import com.chayewuu.hypermatter.ui.UpdateAutoCheckHost
+import com.chayewuu.hypermatter.ui.UpdatePage
 import com.chayewuu.hypermatter.ui.WidgetPage
 import com.chayewuu.hypermatter.ui.prewarmWallpaperThumbs
 import com.chayewuu.hypermatter.ui.rememberBlurBackdrop
@@ -199,6 +200,9 @@ private sealed interface Route : NavKey {
     data object LiveUpdates : Route
 
     @Serializable
+    data object Update : Route
+
+    @Serializable
     data class EventDetail(val id: String) : Route
 }
 
@@ -306,6 +310,7 @@ private fun App(pendingEventId: MutableState<String?>) {
                     onOpenCalendarSync = { backStack.add(Route.CalendarSync) },
                     onOpenCategory = { backStack.add(Route.Category) },
                     onOpenReminder = { backStack.add(Route.Reminder) },
+                    onOpenUpdate = { backStack.add(Route.Update) },
                 )
             }
             entry<Route.About>(swipeDismiss = NavSwipeDirection.LeftToRight) {
@@ -336,6 +341,9 @@ private fun App(pendingEventId: MutableState<String?>) {
             entry<Route.LiveUpdates>(swipeDismiss = NavSwipeDirection.LeftToRight) {
                 LiveUpdatesPage(onBack = { backStack.removeLastOrNull() })
             }
+            entry<Route.Update>(swipeDismiss = NavSwipeDirection.LeftToRight) {
+                UpdatePage(onBack = { backStack.removeLastOrNull() })
+            }
             entry<Route.EventDetail>(swipeDismiss = NavSwipeDirection.LeftToRight) { route ->
                 EventDetailPage(
                     eventId = route.id,
@@ -355,6 +363,7 @@ private fun MainTabs(
     onOpenCalendarSync: () -> Unit,
     onOpenCategory: () -> Unit,
     onOpenReminder: () -> Unit,
+    onOpenUpdate: () -> Unit,
 ) {
     val pagerState = rememberPagerState { 3 }
     val scope = rememberCoroutineScope()
@@ -498,6 +507,7 @@ private fun MainTabs(
                             onOpenCalendarSync = onOpenCalendarSync,
                             onOpenCategory = onOpenCategory,
                             onOpenReminder = onOpenReminder,
+                            onOpenUpdate = onOpenUpdate,
                         )
                     }
                 }

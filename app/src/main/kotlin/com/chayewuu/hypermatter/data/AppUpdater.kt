@@ -12,32 +12,52 @@ import java.net.HttpURLConnection
 import java.net.URL
 
 /**
- * GitHub-Releases-based in-app updater (在线更新).
+ * Releases-based in-app updater (在线更新), with a selectable download
+ * source: Gitee (国内直连) or GitHub (direct + public proxy mirrors).
  *
- * Checks https://api.github.com/repos/ChaYeWuu/HyperDay/releases/latest,
- * compares the tag with the local version name, downloads the release APK
- * asset into filesDir and hands it to the system installer via FileProvider.
+ * Gitee: https://gitee.com/api/v5/repos/ChaYeWuu/HyperDay/releases/latest —
+ * same tag_name / name / body / assets[].browser_download_url shape as the
+ * GitHub API, and the asset URL is directly reachable from CN networks.
+ * GitHub: api.github.com first, then gh-proxy / ghproxy mirrors.
  *
- * api.github.com / github.com are often unreachable from CN networks, so
- * every request tries the direct host first and then a couple of public
- * GitHub proxy mirrors.
+ * The chosen source is persisted in the "update_prefs" preferences
+ * ("download_source": auto | gitee | github; auto = gitee → github).
  */
 object AppUpdater {
 
     private const val REPO = "ChaYeWuu/HyperDay"
+    private const val GITEE_API =
+        "https://gitee.com/api/v5/repos/$REPO/releases/latest"
     private const val CONNECT_TIMEOUT_MS = 10_000
     private const val READ_TIMEOUT_MS = 20_000
     private const val USER_AGENT = "HyperDay-Android"
 
-    /** API hosts to try in order: direct GitHub, then public mirrors. */
-    private val API_BASES = listOf(
+    /** GitHub API hosts to try in order: direct, then public mirrors. */
+    private val GITHUB_API_BASES = listOf(
         "https://api.github.com",
         "https://gh-proxy.com/https://api.github.com",
         "https://ghproxy.net/https://api.github.com",
     )
 
-    /** Download URL prefixes to try in order ("" = direct). */
-    private val DOWNLOAD_PREFIXES = listOf("", "https://gh-proxy.com/", "https://ghproxy.net/")
+    /** GitHub download URL prefixes to try in order ("" = direct). */
+    private val GITHUB_DOWNLOAD_PREFIXES = listOf("", "https://gh-proxy.com/", "https://ghproxy.net/")
+
+    // ------------------------------------------------------------------
+    // Download source preference
+    // ------------------------------------------------------------------
+
+    const val SOURCE_AUTO = "auto"
+    const val SOURCE_GITEE = "gitee"
+    const val SOURCE_GITHUB = "github"
+
+    fun getDownloadSource(context: Context): String =
+        context.getSharedPreferences("update_prefs", Context.MODE_PRIVATE)
+            .getString("download_source", SOURCE_AUTO) ?: SOURCE_AUTO
+
+    fun setDownloadSource(context: Context, source: String) {
+        context.getSharedPreferences("update_prefs", Context.MODE_PRIVATE)
+            .edit().putString("download_source", source).apply()
+    }
 
     data class Release(
         val tagName: String,
@@ -46,6 +66,8 @@ object AppUpdater {
         val apkUrl: String,
         val htmlUrl: String,
         val publishedAt: String,
+        /** Where this release was fetched from: "gitee" or "github". */
+        val source: String,
     ) {
         /** "v1.2.0" style display version derived from the tag. */
         val versionLabel: String get() = tagName.removePrefix("v")
@@ -82,13 +104,22 @@ object AppUpdater {
     // Check
     // ------------------------------------------------------------------
 
-    /** Blocking; call from Dispatchers.IO. */
-    fun checkForUpdate(): CheckResult {
+    /**
+     * Blocking; call from Dispatchers.IO. Tries the sources selected by the
+     * persisted download-source preference (auto = Gitee → GitHub).
+     */
+    fun checkForUpdate(context: Context): CheckResult {
+        val source = getDownloadSource(context)
+        val urls = when (source) {
+            SOURCE_GITEE -> listOf(GITEE_API)
+            SOURCE_GITHUB -> GITHUB_API_BASES.map { "$it/repos/$REPO/releases/latest" }
+            else -> listOf(GITEE_API) + GITHUB_API_BASES.map { "$it/repos/$REPO/releases/latest" }
+        }
         var lastError = "无法连接更新服务器"
-        for (base in API_BASES) {
+        for (url in urls) {
+            val isGitee = url.contains("gitee.com")
             try {
-                val body = httpGet("$base/repos/$REPO/releases/latest")
-                    ?: continue
+                val body = httpGet(url) ?: continue
                 val json = JSONObject(body)
                 val tagName = json.optString("tag_name")
                 if (tagName.isBlank()) {
@@ -117,7 +148,10 @@ object AppUpdater {
                     body = json.optString("body"),
                     apkUrl = apkUrl,
                     htmlUrl = json.optString("html_url"),
-                    publishedAt = json.optString("published_at"),
+                    // Gitee uses created_at; GitHub uses published_at.
+                    publishedAt = json.optString("published_at")
+                        .ifBlank { json.optString("created_at") },
+                    source = if (isGitee) SOURCE_GITEE else SOURCE_GITHUB,
                 )
                 return CheckResult.Checked(
                     hasUpdate = isNewerVersion(release.versionLabel, BuildConfig.VERSION_NAME),
@@ -142,6 +176,8 @@ object AppUpdater {
     /**
      * Downloads the release APK into filesDir, reporting progress 0..1.
      * Blocking; call from Dispatchers.IO. Throws IOException on failure.
+     * Gitee asset URLs are directly reachable; GitHub URLs fall back to
+     * the public proxy mirrors.
      */
     fun downloadApk(
         context: Context,
@@ -149,8 +185,10 @@ object AppUpdater {
         onProgress: (Float) -> Unit,
     ): File {
         val target = File(context.filesDir, "update-${release.tagName}.apk")
+        val prefixes = if (release.source == SOURCE_GITEE) listOf("")
+        else GITHUB_DOWNLOAD_PREFIXES
         var lastError: IOException? = null
-        for (prefix in DOWNLOAD_PREFIXES) {
+        for (prefix in prefixes) {
             try {
                 downloadTo(prefix + release.apkUrl, target, onProgress)
                 if (target.length() > 0) {
@@ -244,7 +282,7 @@ object AppUpdater {
 
     private fun friendlyError(e: Exception): String = when (e) {
         is java.net.SocketTimeoutException -> "连接超时，请稍后重试"
-        is java.net.UnknownHostException -> "无法连接 GitHub，请检查网络或 DNS"
+        is java.net.UnknownHostException -> "无法连接更新服务器，请检查网络或 DNS"
         is IOException -> "网络错误，请稍后重试"
         else -> "更新数据无法解析"
     }
