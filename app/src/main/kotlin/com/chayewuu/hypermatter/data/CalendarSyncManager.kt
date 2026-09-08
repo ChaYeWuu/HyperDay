@@ -67,15 +67,37 @@ object CalendarSyncManager {
 
     /** Finds or creates our local calendar, returning its id. */
     private fun ensureCalendarId(resolver: ContentResolver): Long {
+        // SYNC_EVENTS/VISIBLE are read too: MIUI's calendar app hides
+        // local calendars with sync_events=0 (the wallet calendar beside
+        // ours keeps it on), and early builds created ours with 0 — flip
+        // pre-existing rows back to 1 so the calendar actually shows up.
         resolver.query(
             CalendarContract.Calendars.CONTENT_URI,
-            arrayOf(CalendarContract.Calendars._ID),
+            arrayOf(
+                CalendarContract.Calendars._ID,
+                CalendarContract.Calendars.SYNC_EVENTS,
+                CalendarContract.Calendars.VISIBLE,
+            ),
             "${CalendarContract.Calendars.ACCOUNT_NAME}=? AND " +
                 "${CalendarContract.Calendars.ACCOUNT_TYPE}=?",
             arrayOf(ACCOUNT_NAME, ACCOUNT_TYPE),
             null,
         )?.use { cursor ->
-            if (cursor.moveToFirst()) return cursor.getLong(0)
+            if (cursor.moveToFirst()) {
+                val id = cursor.getLong(0)
+                if (cursor.getInt(1) == 0 || cursor.getInt(2) == 0) {
+                    resolver.update(
+                        asSyncAdapter(CalendarContract.Calendars.CONTENT_URI),
+                        ContentValues().apply {
+                            put(CalendarContract.Calendars.SYNC_EVENTS, 1)
+                            put(CalendarContract.Calendars.VISIBLE, 1)
+                        },
+                        "${CalendarContract.Calendars._ID}=?",
+                        arrayOf(id.toString()),
+                    )
+                }
+                return id
+            }
         }
 
         val values = ContentValues().apply {
@@ -85,7 +107,10 @@ object CalendarSyncManager {
             put(CalendarContract.Calendars.CALENDAR_DISPLAY_NAME, "HyperDay 倒数日")
             put(CalendarContract.Calendars.CALENDAR_COLOR, CALENDAR_COLOR)
             put(CalendarContract.Calendars.CALENDAR_ACCESS_LEVEL, CalendarContract.Calendars.CAL_ACCESS_OWNER)
-            put(CalendarContract.Calendars.SYNC_EVENTS, 0)
+            // Must be 1: MIUI's calendar app won't list/display a local
+            // calendar whose sync flag is off. ACCOUNT_TYPE_LOCAL has no
+            // sync adapter, so nothing actually syncs anywhere.
+            put(CalendarContract.Calendars.SYNC_EVENTS, 1)
             put(CalendarContract.Calendars.VISIBLE, 1)
             put(CalendarContract.Calendars.OWNER_ACCOUNT, ACCOUNT_NAME)
         }
@@ -137,23 +162,30 @@ object CalendarSyncManager {
     /**
      * The date the calendar event starts at:
      *  - one-off / past events: the stored date itself;
-     *  - recurring events: the NEXT occurrence ([DateUtils.effectiveDate]).
+     *  - RRULE events: the LAST occurrence at/before today;
+     *  - lunar-yearly (no RRULE, a one-off): the next occurrence.
      *
-     *  For recurring events the stored epochDay is merely the ADD date —
-     *  the add form hides the date picker once a repeat type is chosen, so
-     *  the real recurrence lives in the repeatYearMonth/repeatMonthDay/
-     *  repeatWeekday fields. Using the raw epochDay as DTSTART created a
-     *  stray calendar instance on the add day that didn't match the RRULE
-     *  (e.g. a Jan 6 birthday synced onto the day it was added).
-     *  effectiveDate always yields a date that satisfies the RRULE, so
-     *  DTSTART and the recurrence line up and the calendar mirrors what
-     *  the app itself counts down to.
+     *  The stored epochDay of a recurring event is only the ADD date (the
+     *  add form hides the date picker once a repeat type is chosen), so
+     *  the real recurrence lives in the repeat* fields. Seeding DTSTART
+     *  at the next occurrence made this year's already-passed dates
+     *  (e.g. a Jan 6 birthday checked in September) invisible in the
+     *  calendar app; seeding it at the add date created a stray instance
+     *  on the wrong day. The last occurrence ≤ today keeps the whole
+     *  current period visible plus all future ones, without fabricating
+     *  history the app never knew about.
      */
     private fun startDateOf(event: CountdownEvent): LocalDate {
-        return if (DateUtils.isRecurring(event)) {
-            DateUtils.effectiveDate(event)
-        } else {
-            LocalDate.ofEpochDay(event.epochDay)
+        if (!DateUtils.isRecurring(event)) {
+            return LocalDate.ofEpochDay(event.epochDay)
+        }
+        val next = DateUtils.effectiveDate(event)
+        return when (DateUtils.effectiveRepeatType(event)) {
+            1 -> next.minusDays(1)     // daily
+            2 -> next.minusDays(7)     // weekly
+            3 -> next.minusMonths(1)   // monthly (day-of-month clamps itself)
+            4 -> next.minusYears(1)    // yearly (Feb 29 clamps to Feb 28)
+            else -> next               // lunar-yearly one-off: stays upcoming
         }
     }
 
