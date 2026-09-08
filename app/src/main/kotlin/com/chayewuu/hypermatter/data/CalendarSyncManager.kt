@@ -137,11 +137,20 @@ object CalendarSyncManager {
     /**
      * The date the calendar event starts at:
      *  - one-off / past events: the stored date itself;
-     *  - RRULE events: the stored anchor date (history + future covered);
-     *  - lunar-yearly events: the next lunar occurrence.
+     *  - recurring events: the NEXT occurrence ([DateUtils.effectiveDate]).
+     *
+     *  For recurring events the stored epochDay is merely the ADD date —
+     *  the add form hides the date picker once a repeat type is chosen, so
+     *  the real recurrence lives in the repeatYearMonth/repeatMonthDay/
+     *  repeatWeekday fields. Using the raw epochDay as DTSTART created a
+     *  stray calendar instance on the add day that didn't match the RRULE
+     *  (e.g. a Jan 6 birthday synced onto the day it was added).
+     *  effectiveDate always yields a date that satisfies the RRULE, so
+     *  DTSTART and the recurrence line up and the calendar mirrors what
+     *  the app itself counts down to.
      */
     private fun startDateOf(event: CountdownEvent): LocalDate {
-        return if (DateUtils.effectiveRepeatType(event) == 5) {
+        return if (DateUtils.isRecurring(event)) {
             DateUtils.effectiveDate(event)
         } else {
             LocalDate.ofEpochDay(event.epochDay)
