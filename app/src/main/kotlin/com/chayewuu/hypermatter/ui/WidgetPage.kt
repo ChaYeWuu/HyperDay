@@ -457,11 +457,11 @@ private fun ListWidgetPreview(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 16.dp, vertical = 14.dp),
+                .padding(horizontal = 16.dp, vertical = 12.dp),
         ) {
         // Header: calendar glyph + today's date (matches the real widget).
         Row(
-            modifier = Modifier.padding(bottom = 4.dp),
+            modifier = Modifier.padding(bottom = 3.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Image(
@@ -493,7 +493,7 @@ private fun ListWidgetPreview(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(vertical = 4.dp),
+                            .padding(vertical = 3.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
@@ -517,7 +517,6 @@ private fun ListWidgetPreview(
                                 fontSize = 12.sp,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier.padding(top = 1.dp),
                             )
                         }
                         Row(

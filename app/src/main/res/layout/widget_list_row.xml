@@ -3,15 +3,22 @@
      two-line row — tag + title on the first line, date below, and the
      big day number right-aligned at the edge. The title gets the full
      remaining width instead of sharing the line with a fixed date
-     column, so it no longer collapses into an ellipsis. -->
+     column, so it no longer collapses into an ellipsis.
+
+     Height budget: this row must fit ~37dp so three rows + header stay
+     inside the smallest MIUI 4x2 drawable area (~172dp). When content
+     overflows, LinearLayout squeezes the last row with an AT_MOST spec
+     and the date line gets half-clipped INSIDE the row (with the card's
+     white bottom padding still visible below) — text sizes are therefore
+     dp (immune to system font scale) and vertical paddings are compact. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/widget_row_root"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:gravity="center_vertical"
     android:orientation="horizontal"
-    android:paddingTop="4dp"
-    android:paddingBottom="4dp">
+    android:paddingTop="3dp"
+    android:paddingBottom="3dp">
 
     <LinearLayout
         android:layout_width="0dp"
@@ -37,7 +44,7 @@
                 android:paddingBottom="2dp"
                 android:text=""
                 android:textColor="@color/widget_text_secondary"
-                android:textSize="10sp" />
+                android:textSize="10dp" />
 
             <TextView
                 android:id="@+id/widget_row_title"
@@ -46,10 +53,11 @@
                 android:layout_weight="1"
                 android:ellipsize="end"
                 android:fontFamily="sans-serif-medium"
+                android:includeFontPadding="false"
                 android:maxLines="1"
                 android:text=""
                 android:textColor="@color/widget_text_primary"
-                android:textSize="15sp" />
+                android:textSize="15dp" />
         </LinearLayout>
 
         <!-- Secondary line: zero-padded uniform date "2026年09月05日 周六".
@@ -59,13 +67,12 @@
             android:id="@+id/widget_row_date"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="1dp"
             android:ellipsize="end"
             android:includeFontPadding="false"
             android:maxLines="1"
             android:text=""
             android:textColor="@color/widget_text_secondary"
-            android:textSize="12sp" />
+            android:textSize="12dp" />
     </LinearLayout>
 
     <!-- Right-aligned "N 天": the unit hugs the row's right edge, so the
@@ -86,7 +93,7 @@
             android:includeFontPadding="false"
             android:text=""
             android:textColor="@color/widget_accent"
-            android:textSize="20sp"
+            android:textSize="20dp"
             android:textStyle="bold" />
 
         <TextView
@@ -96,6 +103,6 @@
             android:layout_marginStart="2dp"
             android:text="天"
             android:textColor="@color/widget_text_secondary"
-            android:textSize="12sp" />
+            android:textSize="12dp" />
     </LinearLayout>
 </LinearLayout>

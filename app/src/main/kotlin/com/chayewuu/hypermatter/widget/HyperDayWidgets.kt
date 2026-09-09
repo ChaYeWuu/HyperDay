@@ -260,7 +260,18 @@ private fun updateListWidget(
     manager: AppWidgetManager,
     appWidgetId: Int,
 ) {
-    val events = feedEvents(context).take(3)
+    // Row-count adaptivity: the compacted two-line rows (3 × ~37dp +
+    // header + paddings ≈ 164dp) fit the smallest documented MIUI 4x2
+    // drawable area (~172dp), but launchers report even shorter cells in
+    // some grid configurations — in that case two rows guarantee no
+    // clipping. This is a coarse decision (2 vs 3), so the known
+    // inaccuracy of the reported options heights doesn't matter.
+    val minHeightDp = runCatching {
+        manager.getAppWidgetOptions(appWidgetId)
+            .getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT)
+    }.getOrDefault(0)
+    val rowCount = if (minHeightDp in 1 until 168) 2 else 3
+    val events = feedEvents(context).take(rowCount)
     val views = RemoteViews(context.packageName, R.layout.widget_list)
     views.setTextViewText(R.id.widget_header_date, todayLine())
     views.removeAllViews(R.id.widget_rows)

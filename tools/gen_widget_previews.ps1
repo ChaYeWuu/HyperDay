@@ -150,7 +150,7 @@ $rows = @(
     @('生日', '2026年02月14日 周六', '89', '距离')
 )
 $y = 118
-$rowH = 140
+$rowH = 129
 foreach ($row in $rows) {
     # first line: tag pill + title, vertically centered together
     $ts = $g.MeasureString($row[0], $fRowTitle)
