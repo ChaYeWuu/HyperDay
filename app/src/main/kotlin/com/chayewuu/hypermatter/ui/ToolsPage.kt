@@ -27,7 +27,10 @@ import top.yukonga.miuix.kmp.utils.scrollEndHaptic
  * 渲染于 MainTabs pager 内：模糊顶栏与玻璃宿主由 MainTabs 提供。
  */
 @Composable
-fun ToolsPage(contentPadding: PaddingValues) {
+fun ToolsPage(
+    contentPadding: PaddingValues,
+    onOpenDeerTracker: () -> Unit,
+) {
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
@@ -45,6 +48,11 @@ fun ToolsPage(contentPadding: PaddingValues) {
                     .fillMaxWidth()
                     .padding(horizontal = 12.dp),
             ) {
+                ArrowPreference(
+                    title = "🦌🦌记录器",
+                    summary = "日历打卡，记录坚持的每一天",
+                    onClick = onOpenDeerTracker,
+                )
                 ArrowPreference(
                     title = "更多工具即将到来",
                     summary = "更多小工具正在开发中，敬请期待",

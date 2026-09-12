@@ -44,6 +44,7 @@ import com.chayewuu.hypermatter.ui.AddEventBottomSheet
 import com.chayewuu.hypermatter.ui.BlurredBar
 import com.chayewuu.hypermatter.ui.CalendarSyncPage
 import com.chayewuu.hypermatter.ui.CategoryPage
+import com.chayewuu.hypermatter.ui.DeerTrackerPage
 import com.chayewuu.hypermatter.ui.EventDetailPage
 import com.chayewuu.hypermatter.ui.HomePage
 import com.chayewuu.hypermatter.ui.IslandPage
@@ -203,6 +204,9 @@ private sealed interface Route : NavKey {
     data object Update : Route
 
     @Serializable
+    data object DeerTracker : Route
+
+    @Serializable
     data class EventDetail(val id: String) : Route
 }
 
@@ -311,6 +315,7 @@ private fun App(pendingEventId: MutableState<String?>) {
                     onOpenCategory = { backStack.add(Route.Category) },
                     onOpenReminder = { backStack.add(Route.Reminder) },
                     onOpenUpdate = { backStack.add(Route.Update) },
+                    onOpenDeerTracker = { backStack.add(Route.DeerTracker) },
                 )
             }
             entry<Route.About>(swipeDismiss = NavSwipeDirection.LeftToRight) {
@@ -344,6 +349,9 @@ private fun App(pendingEventId: MutableState<String?>) {
             entry<Route.Update>(swipeDismiss = NavSwipeDirection.LeftToRight) {
                 UpdatePage(onBack = { backStack.removeLastOrNull() })
             }
+            entry<Route.DeerTracker>(swipeDismiss = NavSwipeDirection.LeftToRight) {
+                DeerTrackerPage(onBack = { backStack.removeLastOrNull() })
+            }
             entry<Route.EventDetail>(swipeDismiss = NavSwipeDirection.LeftToRight) { route ->
                 EventDetailPage(
                     eventId = route.id,
@@ -364,6 +372,7 @@ private fun MainTabs(
     onOpenCategory: () -> Unit,
     onOpenReminder: () -> Unit,
     onOpenUpdate: () -> Unit,
+    onOpenDeerTracker: () -> Unit,
 ) {
     val pagerState = rememberPagerState { 3 }
     val scope = rememberCoroutineScope()
@@ -498,7 +507,10 @@ private fun MainTabs(
                             // In glass mode the + lives in the bottom bar.
                             showFab = glassNavBackdrop == null,
                         )
-                        1 -> ToolsPage(contentPadding = paddingValues)
+                        1 -> ToolsPage(
+                            contentPadding = paddingValues,
+                            onOpenDeerTracker = onOpenDeerTracker,
+                        )
                         2 -> SettingsPage(
                             contentPadding = paddingValues,
                             onOpenAbout = onOpenAbout,
