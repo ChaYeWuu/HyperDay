@@ -70,9 +70,9 @@ import top.yukonga.miuix.kmp.utils.scrollEndHaptic
  * 🦌🦌记录器 page (小工具 → 🦌🦌记录器).
  *
  * A month calendar where long-pressing a past/today cell toggles that
- * day between 记录了(打了) and unrecorded — an unrecorded day simply
- * means 没打, no explicit marking needed (no tap cycling). Stats card
- * shows current streak / best streak / this month / total; today also
+ * day between 记录了(破了戒) and unrecorded — an unrecorded day simply
+ * means abstained, no explicit marking needed (no tap cycling). Stats
+ * card shows days quit / best quit / this month / total; today also
  * gets a quick toggle button. All data lives in [DeerTrackerStore].
  */
 @Composable
@@ -145,7 +145,7 @@ fun DeerTrackerPage(onBack: () -> Unit) {
                 ) {
                     // ---- Stats ----
                     item {
-                        SmallTitle(text = "坚持统计")
+                        SmallTitle(text = "戒断统计")
                         LiquidGlassCard(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -157,23 +157,24 @@ fun DeerTrackerPage(onBack: () -> Unit) {
                                     .padding(vertical = 16.dp),
                             ) {
                                 StatCell(
-                                    value = DeerTrackerStore.currentStreak(records, today).toString(),
-                                    label = "连续天数",
+                                    value = DeerTrackerStore.daysQuit(records, today)
+                                        ?.toString() ?: "—",
+                                    label = "已戒天数",
                                     modifier = Modifier.weight(1f),
                                 )
                                 StatCell(
-                                    value = DeerTrackerStore.bestStreak(records).toString(),
-                                    label = "最长连续",
+                                    value = DeerTrackerStore.bestQuit(records, today).toString(),
+                                    label = "最长戒断",
                                     modifier = Modifier.weight(1f),
                                 )
                                 StatCell(
                                     value = DeerTrackerStore.monthHits(records, shownMonth).toString(),
-                                    label = "本月记录",
+                                    label = "本月破戒",
                                     modifier = Modifier.weight(1f),
                                 )
                                 StatCell(
                                     value = DeerTrackerStore.totalHits(records).toString(),
-                                    label = "累计记录",
+                                    label = "累计破戒",
                                     modifier = Modifier.weight(1f),
                                 )
                             }

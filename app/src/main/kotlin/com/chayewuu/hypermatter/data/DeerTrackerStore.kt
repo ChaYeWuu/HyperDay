@@ -17,7 +17,7 @@ import java.time.YearMonth
  *    like NONE by stats and rendered as plain 没打 by the UI
  *
  * The calendar toggles a day between HIT and unrecorded on long-press
- * (no tap cycling); future days cannot be marked. Stats (streaks /
+ * (no tap cycling); future days cannot be marked. Stats (quit days /
  * totals) are pure functions over the map so the UI can recompute
  * after every write.
  */
@@ -66,36 +66,32 @@ object DeerTrackerStore {
     // ------------------------------------------------------------------
 
     /**
-     * Current streak of consecutive HIT days ending today (or yesterday —
-     * today still unrecorded does not break a running streak, but a KEPT
-     * day or a fully unrecorded gap does).
+     * Days since the most recent relapse (HIT): 0 means the relapse was
+     * today, null means no relapse ever recorded (nothing to count from).
      */
-    fun currentStreak(records: Map<Long, Int>, today: LocalDate): Int {
-        var day = today
-        if (records[day.toEpochDay()] != STATUS_HIT) day = day.minusDays(1)
-        var streak = 0
-        while (records[day.toEpochDay()] == STATUS_HIT) {
-            streak++
-            day = day.minusDays(1)
-        }
-        return streak
+    fun daysQuit(records: Map<Long, Int>, today: LocalDate): Int? {
+        val todayDay = today.toEpochDay()
+        val lastHit = records.filterValues { it == STATUS_HIT }
+            .keys.filter { it <= todayDay }.maxOrNull() ?: return null
+        return (todayDay - lastHit).toInt()
     }
 
-    /** Longest run of consecutive HIT days ever recorded. */
-    fun bestStreak(records: Map<Long, Int>): Int {
-        val hitDays = records.filterValues { it == STATUS_HIT }.keys.sorted()
+    /**
+     * Longest abstain run in days: the biggest gap between consecutive
+     * relapses, with the ongoing run (last relapse → today) counted too.
+     */
+    fun bestQuit(records: Map<Long, Int>, today: LocalDate): Int {
+        val days = records.filterValues { it == STATUS_HIT }.keys.sorted()
+        if (days.isEmpty()) return 0
         var best = 0
-        var run = 0
-        var prev: Long? = null
-        for (day in hitDays) {
-            run = if (prev != null && day == prev!! + 1) run + 1 else 1
-            prev = day
-            if (run > best) best = run
+        for (i in 1 until days.size) {
+            best = maxOf(best, (days[i] - days[i - 1]).toInt())
         }
+        best = maxOf(best, (today.toEpochDay() - days.last()).toInt())
         return best
     }
 
-    /** HIT days within [month]. */
+    /** Relapses (HIT days) within [month]. */
     fun monthHits(records: Map<Long, Int>, month: YearMonth): Int {
         val first = month.atDay(1).toEpochDay()
         val last = month.atEndOfMonth().toEpochDay()
@@ -104,7 +100,7 @@ object DeerTrackerStore {
         }
     }
 
-    /** Total HIT days ever recorded. */
+    /** Total relapses (HIT days) ever recorded. */
     fun totalHits(records: Map<Long, Int>): Int =
         records.count { it.value == STATUS_HIT }
 }
