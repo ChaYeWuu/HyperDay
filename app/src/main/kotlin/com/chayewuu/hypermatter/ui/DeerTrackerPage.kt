@@ -27,7 +27,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
@@ -59,6 +58,7 @@ import top.yukonga.miuix.kmp.basic.TextButton
 import top.yukonga.miuix.kmp.blur.layerBackdrop
 import top.yukonga.miuix.kmp.icon.MiuixIcons
 import top.yukonga.miuix.kmp.icon.extended.Back
+import top.yukonga.miuix.kmp.icon.extended.ChevronBackward
 import top.yukonga.miuix.kmp.icon.extended.ChevronForward
 import top.yukonga.miuix.kmp.overlay.OverlayDialog
 import top.yukonga.miuix.kmp.preference.ArrowPreference
@@ -208,10 +208,9 @@ fun DeerTrackerPage(onBack: () -> Unit) {
                                         },
                                     ) {
                                         Icon(
-                                            imageVector = MiuixIcons.Back,
+                                            imageVector = MiuixIcons.ChevronBackward,
                                             contentDescription = "上个月",
                                             tint = MiuixTheme.colorScheme.onSurface,
-                                            modifier = Modifier.rotate(180f),
                                         )
                                     }
                                     Text(

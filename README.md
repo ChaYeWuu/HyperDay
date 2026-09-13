@@ -157,6 +157,7 @@ app/src/main/kotlin/com/chayewuu/hypermatter/
 - [MaterialKolor](https://github.com/jordond/materialkolor) — Material You 动态取色（Miuix 莫奈取色传递依赖）
 - [Shizuku](https://github.com/RikkaApps/Shizuku) — 特权 UserService 框架（Apache-2.0），小米超级岛提醒的 XMSF 网络旁路基于其实现
 - [NexioSchedule](https://github.com/HaoZai000/NexioSchedule) — 小米超级岛与 Android 16 实时动态通知的实现参考
+- [HyperIntervals](https://www.coolapk.com/u/2292343) — 酷安作者 ShallowY_ 的作品，软件版本页、工具页与更新流程的设计参考
 - [Jetpack Compose](https://developer.android.com/compose) — Android 声明式 UI 框架
 
 ## 许可

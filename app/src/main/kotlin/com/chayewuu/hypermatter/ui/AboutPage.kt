@@ -72,6 +72,7 @@ private const val BACKDROP_URL = "https://github.com/Kyant0/AndroidLiquidGlass"
 private const val MATERIALKOLOR_URL = "https://github.com/jordond/materialkolor"
 private const val SHIZUKU_URL = "https://github.com/RikkaApps/Shizuku"
 private const val NEXIO_URL = "https://github.com/HaoZai000/NexioSchedule"
+private const val HYPERINTERVALS_URL = "https://www.coolapk.com/u/2292343"
 
 // Official Miuix example card-blend presets
 // (example component/blend/ColorBlendToken.kt, Apache-2.0): dark theme uses
@@ -412,6 +413,18 @@ fun AboutPage(
                             )
                             Spacer(Modifier.height(12.dp))
                             Text(
+                                text = "感谢 HyperIntervals 与其作者 ShallowY_，软件版本页、工具页与更新流程的设计参考自其作品。",
+                                color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                                style = MiuixTheme.textStyles.body2,
+                            )
+                            Spacer(Modifier.height(4.dp))
+                            Text(
+                                text = HYPERINTERVALS_URL.removePrefix("https://"),
+                                color = MiuixTheme.colorScheme.primary,
+                                fontSize = 13.sp,
+                            )
+                            Spacer(Modifier.height(12.dp))
+                            Text(
                                 text = "感谢 JetBrains 的 Kotlin 与 kotlinx.serialization，本应用的数据层基于其构建。",
                                 color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                                 style = MiuixTheme.textStyles.body2,
@@ -442,7 +455,8 @@ fun AboutPage(
                 "· Kotlin & kotlinx.serialization — JetBrains\n" +
                 "· Shizuku — RikkaApps 特权服务（超级岛提醒）\n" +
                 "· desugar_jdk_libs — Google\n\n" +
-                "超级岛与实时动态通知实现参考了 NexioSchedule 项目。\n\n" +
+                "超级岛与实时动态通知实现参考了 NexioSchedule 项目。\n" +
+                "软件版本页与更新流程设计参考了酷安 ShallowY_ 的 HyperIntervals。\n\n" +
                 "各项目的完整许可文本请见其源码仓库。",
             show = showLicenseDialog,
             onDismissRequest = { showLicenseDialog = false },

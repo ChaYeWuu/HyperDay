@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
@@ -47,7 +46,6 @@ import com.chayewuu.hypermatter.BuildConfig
 import com.chayewuu.hypermatter.data.AppUpdater
 import com.chayewuu.hypermatter.ui.data.changelogData
 import com.chayewuu.hypermatter.ui.glass.GlassCanvasRecorder
-import com.chayewuu.hypermatter.ui.glass.LiquidGlassCard
 import com.chayewuu.hypermatter.ui.glass.LocalGlassBackdrop
 import com.chayewuu.hypermatter.ui.glass.rememberGlassBackdrop
 import com.chayewuu.hypermatter.ui.theme.LocalSettingsStore
@@ -56,7 +54,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import top.yukonga.miuix.kmp.basic.BasicComponent
 import top.yukonga.miuix.kmp.basic.ButtonDefaults
 import top.yukonga.miuix.kmp.basic.DropdownEntry
 import top.yukonga.miuix.kmp.basic.DropdownItem
@@ -64,18 +61,16 @@ import top.yukonga.miuix.kmp.basic.HorizontalDivider
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
 import top.yukonga.miuix.kmp.basic.Scaffold
-import top.yukonga.miuix.kmp.basic.SmallTitle
 import top.yukonga.miuix.kmp.basic.SmallTopAppBar
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.basic.TextButton
 import top.yukonga.miuix.kmp.blur.layerBackdrop
 import top.yukonga.miuix.kmp.icon.MiuixIcons
 import top.yukonga.miuix.kmp.icon.extended.Back
-import top.yukonga.miuix.kmp.icon.extended.Delete
+import top.yukonga.miuix.kmp.icon.extended.More
 import top.yukonga.miuix.kmp.icon.extended.Update
+import top.yukonga.miuix.kmp.menu.OverlayIconDropdownMenu
 import top.yukonga.miuix.kmp.overlay.OverlayDialog
-import top.yukonga.miuix.kmp.preference.OverlayDropdownPreference
-import top.yukonga.miuix.kmp.preference.SwitchPreference
 import top.yukonga.miuix.kmp.squircle.squircleClip
 import top.yukonga.miuix.kmp.squircle.squircleSurface
 import top.yukonga.miuix.kmp.theme.MiuixTheme
@@ -181,6 +176,14 @@ fun UpdatePage(onBack: () -> Unit) {
             prefs.getString("latest_tag", null)
                 ?.let { AppUpdater.downloadedApk(context, it) != null } == true,
         )
+    }
+    // Update settings, surfaced from the top-bar three-dot menu (ported
+    // from HyperIntervals UpdateAppScreen actions pattern).
+    var autoCheck by remember {
+        mutableStateOf(prefs.getBoolean("auto_check_update", true))
+    }
+    var downloadSource by remember {
+        mutableStateOf(AppUpdater.getDownloadSource(context))
     }
 
     fun checkForUpdate(showResultToast: Boolean = true) {
@@ -364,6 +367,67 @@ fun UpdatePage(onBack: () -> Unit) {
                             )
                         }
                     },
+                    // Update settings live in the three-dot menu instead of
+                    // an inline card (HyperIntervals UpdateAppScreen style).
+                    actions = {
+                        OverlayIconDropdownMenu(
+                            entry = DropdownEntry(
+                                items = listOf(
+                                    DropdownItem(
+                                        text = "自动检查更新",
+                                        selected = autoCheck,
+                                        onClick = {
+                                            autoCheck = !autoCheck
+                                            prefs.edit()
+                                                .putBoolean("auto_check_update", autoCheck)
+                                                .apply()
+                                        },
+                                    ),
+                                    DropdownItem(
+                                        text = "下载源：自动识别",
+                                        selected = downloadSource == AppUpdater.SOURCE_AUTO,
+                                        onClick = {
+                                            downloadSource = AppUpdater.SOURCE_AUTO
+                                            AppUpdater.setDownloadSource(
+                                                context, AppUpdater.SOURCE_AUTO,
+                                            )
+                                        },
+                                    ),
+                                    DropdownItem(
+                                        text = "下载源：Gitee",
+                                        selected = downloadSource == AppUpdater.SOURCE_GITEE,
+                                        onClick = {
+                                            downloadSource = AppUpdater.SOURCE_GITEE
+                                            AppUpdater.setDownloadSource(
+                                                context, AppUpdater.SOURCE_GITEE,
+                                            )
+                                        },
+                                    ),
+                                    DropdownItem(
+                                        text = "下载源：GitHub",
+                                        selected = downloadSource == AppUpdater.SOURCE_GITHUB,
+                                        onClick = {
+                                            downloadSource = AppUpdater.SOURCE_GITHUB
+                                            AppUpdater.setDownloadSource(
+                                                context, AppUpdater.SOURCE_GITHUB,
+                                            )
+                                        },
+                                    ),
+                                    DropdownItem(
+                                        text = "清理安装包",
+                                        onClick = { clearDownloadedPackages(context) },
+                                    ),
+                                ),
+                            ),
+                            modifier = Modifier.size(40.dp),
+                        ) {
+                            Icon(
+                                imageVector = MiuixIcons.More,
+                                contentDescription = "更多选项",
+                                tint = MiuixTheme.colorScheme.onBackground,
+                            )
+                        }
+                    },
                 )
             }
         },
@@ -461,95 +525,6 @@ fun UpdatePage(onBack: () -> Unit) {
                                         )
                                     }
                                 }
-                            }
-                        }
-                    }
-
-                    item(key = "update_settings") {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 12.dp),
-                        ) {
-                            Spacer(Modifier.height(8.dp))
-                            SmallTitle(text = "更新设置")
-                            LiquidGlassCard(
-                                modifier = Modifier.fillMaxWidth(),
-                            ) {
-                                var autoCheck by remember {
-                                    mutableStateOf(prefs.getBoolean("auto_check_update", true))
-                                }
-                                var downloadSource by remember {
-                                    mutableStateOf(AppUpdater.getDownloadSource(context))
-                                }
-                                SwitchPreference(
-                                    title = "自动检查更新",
-                                    summary = "每天启动时自动检查是否有新版本",
-                                    checked = autoCheck,
-                                    onCheckedChange = { enabled ->
-                                        autoCheck = enabled
-                                        prefs.edit()
-                                            .putBoolean("auto_check_update", enabled)
-                                            .apply()
-                                    },
-                                )
-                                OverlayDropdownPreference(
-                                    title = "下载源",
-                                    summary = when (downloadSource) {
-                                        AppUpdater.SOURCE_GITEE -> "Gitee（国内直连）"
-                                        AppUpdater.SOURCE_GITHUB -> "GitHub（含加速镜像）"
-                                        else -> "自动识别（优先 Gitee）"
-                                    },
-                                    entry = DropdownEntry(
-                                        items = listOf(
-                                            DropdownItem(
-                                                text = "自动识别",
-                                                selected = downloadSource == AppUpdater.SOURCE_AUTO,
-                                                onClick = {
-                                                    downloadSource = AppUpdater.SOURCE_AUTO
-                                                    AppUpdater.setDownloadSource(
-                                                        context, AppUpdater.SOURCE_AUTO,
-                                                    )
-                                                },
-                                            ),
-                                            DropdownItem(
-                                                text = "Gitee",
-                                                selected = downloadSource == AppUpdater.SOURCE_GITEE,
-                                                onClick = {
-                                                    downloadSource = AppUpdater.SOURCE_GITEE
-                                                    AppUpdater.setDownloadSource(
-                                                        context, AppUpdater.SOURCE_GITEE,
-                                                    )
-                                                },
-                                            ),
-                                            DropdownItem(
-                                                text = "GitHub",
-                                                selected = downloadSource == AppUpdater.SOURCE_GITHUB,
-                                                onClick = {
-                                                    downloadSource = AppUpdater.SOURCE_GITHUB
-                                                    AppUpdater.setDownloadSource(
-                                                        context, AppUpdater.SOURCE_GITHUB,
-                                                    )
-                                                },
-                                            ),
-                                        ),
-                                    ),
-                                )
-                                BasicComponent(
-                                    title = "清理安装包",
-                                    summary = "删除已下载的新版本安装包",
-                                    endActions = {
-                                        IconButton(
-                                            onClick = { clearDownloadedPackages(context) },
-                                        ) {
-                                            Icon(
-                                                imageVector = MiuixIcons.Delete,
-                                                contentDescription = "清理安装包",
-                                            )
-                                        }
-                                    },
-                                    onClick = { clearDownloadedPackages(context) },
-                                )
                             }
                         }
                     }
