@@ -40,23 +40,18 @@ object NoticeFetcher {
     const val DISPLAY_MODE_LATEST = "latest"
     const val DISPLAY_MODE_ALWAYS = "always"
 
-    // HyperDay repo raw files. Gitee first (direct CN access), then the
-    // GitHub raw through a public proxy mirror.
+    // Gitee-only notice source (direct CN access, no fallback needed).
+    // The file is notice.json at the repo root:
+    // https://gitee.com/chayewuuu/HyperDay/blob/main/notice.json
     private const val GITEE_URL =
         "https://gitee.com/chayewuuu/HyperDay/raw/main/notice.json"
-    private const val GITHUB_URL =
-        "https://gh-proxy.com/https://raw.githubusercontent.com/ChaYeWuu/HyperDay/main/notice.json"
 
     private const val CONNECT_TIMEOUT_MS = 8_000
     private const val READ_TIMEOUT_MS = 8_000
     private const val USER_AGENT = "HyperDay-Android"
 
-    /** Blocking; call from Dispatchers.IO. Returns null on total failure. */
-    fun fetch(): RemoteNotice? {
-        return listOf(GITEE_URL, GITHUB_URL).firstNotNullOfOrNull { url ->
-            runCatching { fetchFrom(url) }.getOrNull()
-        }
-    }
+    /** Blocking; call from Dispatchers.IO. Returns null on failure. */
+    fun fetch(): RemoteNotice? = runCatching { fetchFrom(GITEE_URL) }.getOrNull()
 
     private fun fetchFrom(url: String): RemoteNotice? {
         val connection = URL(url).openConnection() as HttpURLConnection
