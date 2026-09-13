@@ -11,13 +11,15 @@ import java.time.YearMonth
  * One status per epochDay, stored as a JSON map in SharedPreferences
  * (EventStore/SettingsStore pattern):
  *
- *  * [STATUS_NONE] — no record for that day (also = absent key)
+ *  * [STATUS_NONE] — no record for that day (also = absent key) = 没打
  *  * [STATUS_HIT]  — recorded (打了)
- *  * [STATUS_KEPT] — deliberately kept (没打)
+ *  * [STATUS_KEPT] — legacy "deliberately kept" state; treated exactly
+ *    like NONE by stats and rendered as plain 没打 by the UI
  *
- * The calendar cycles a day through NONE → HIT → KEPT → NONE on tap;
- * future days cannot be tapped. Stats (streaks / totals) are pure
- * functions over the map so the UI can recompute after every write.
+ * The calendar toggles a day between HIT and unrecorded on long-press
+ * (no tap cycling); future days cannot be marked. Stats (streaks /
+ * totals) are pure functions over the map so the UI can recompute
+ * after every write.
  */
 object DeerTrackerStore {
 

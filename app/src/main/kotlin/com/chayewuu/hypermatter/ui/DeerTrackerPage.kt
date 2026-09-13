@@ -3,7 +3,7 @@ package com.chayewuu.hypermatter.ui
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -30,6 +30,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
@@ -68,10 +69,11 @@ import top.yukonga.miuix.kmp.utils.scrollEndHaptic
 /**
  * 🦌🦌记录器 page (小工具 → 🦌🦌记录器).
  *
- * A month calendar where each past/today cell cycles through three
- * states on tap: 无记录 → 打了(🦌) → 保持(没打) → 无记录. Stats card
- * shows current streak / best streak / this month / total; today gets
- * two quick buttons. All data lives in [DeerTrackerStore].
+ * A month calendar where long-pressing a past/today cell toggles that
+ * day between 记录了(打了) and unrecorded — an unrecorded day simply
+ * means 没打, no explicit marking needed (no tap cycling). Stats card
+ * shows current streak / best streak / this month / total; today also
+ * gets a quick toggle button. All data lives in [DeerTrackerStore].
  */
 @Composable
 fun DeerTrackerPage(onBack: () -> Unit) {
@@ -90,9 +92,13 @@ fun DeerTrackerPage(onBack: () -> Unit) {
         records = DeerTrackerStore.getRecords(context)
     }
 
-    fun cycle(day: LocalDate) {
+    fun toggleHit(day: LocalDate) {
         val current = records[day.toEpochDay()] ?: DeerTrackerStore.STATUS_NONE
-        write(day, (current + 1) % 3)
+        write(
+            day,
+            if (current == DeerTrackerStore.STATUS_HIT) DeerTrackerStore.STATUS_NONE
+            else DeerTrackerStore.STATUS_HIT,
+        )
     }
 
     Scaffold(
@@ -260,11 +266,11 @@ fun DeerTrackerPage(onBack: () -> Unit) {
                                                 status = day?.let {
                                                     records[it.toEpochDay()]
                                                 } ?: DeerTrackerStore.STATUS_NONE,
-                                                onTap = { d ->
+                                                onLongPress = { d ->
                                                     haptic.performHapticFeedback(
-                                                        HapticFeedbackType.TextHandleMove,
+                                                        HapticFeedbackType.LongPress,
                                                     )
-                                                    cycle(d)
+                                                    toggleHit(d)
                                                 },
                                                 modifier = Modifier.weight(1f),
                                             )
@@ -286,20 +292,14 @@ fun DeerTrackerPage(onBack: () -> Unit) {
                                         label = "记录了",
                                     )
                                     Spacer(Modifier.size(16.dp))
-                                    LegendDot(
-                                        color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                                        filled = false,
-                                        label = "保持住了",
-                                    )
-                                    Spacer(Modifier.size(16.dp))
                                     Text(
-                                        text = "未标记",
+                                        text = "没打（未记录）",
                                         color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                                         fontSize = 12.sp,
                                     )
                                 }
                                 Text(
-                                    text = "点击日期循环切换：未标记 → 记录了 → 保持住了",
+                                    text = "长按日期记录当天，再长按取消",
                                     color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                                     fontSize = 12.sp,
                                     textAlign = TextAlign.Center,
@@ -311,7 +311,7 @@ fun DeerTrackerPage(onBack: () -> Unit) {
                         }
                     }
 
-                    // ---- Today quick actions ----
+                    // ---- Today quick action ----
                     item {
                         Spacer(Modifier.height(12.dp))
                         SmallTitle(text = "今天")
@@ -320,54 +320,21 @@ fun DeerTrackerPage(onBack: () -> Unit) {
                                 .fillMaxWidth()
                                 .padding(horizontal = 12.dp),
                         ) {
-                            val todayStatus = records[today.toEpochDay()]
-                                ?: DeerTrackerStore.STATUS_NONE
-                            Row(
+                            val todayHit =
+                                records[today.toEpochDay()] == DeerTrackerStore.STATUS_HIT
+                            Button(
+                                onClick = { toggleHit(today) },
+                                colors = if (todayHit)
+                                    ButtonDefaults.buttonColorsPrimary()
+                                else ButtonDefaults.buttonColors(),
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .padding(horizontal = 16.dp, vertical = 14.dp),
-                                horizontalArrangement = Arrangement.spacedBy(12.dp),
                             ) {
-                                Button(
-                                    onClick = {
-                                        write(
-                                            today,
-                                            if (todayStatus == DeerTrackerStore.STATUS_HIT)
-                                                DeerTrackerStore.STATUS_NONE
-                                            else DeerTrackerStore.STATUS_HIT,
-                                        )
-                                    },
-                                    colors = if (todayStatus == DeerTrackerStore.STATUS_HIT)
-                                        ButtonDefaults.buttonColorsPrimary()
-                                    else ButtonDefaults.buttonColors(),
-                                    modifier = Modifier.weight(1f),
-                                ) {
-                                    Text(
-                                        text = if (todayStatus == DeerTrackerStore.STATUS_HIT)
-                                            "已记录 ✓" else "今天打了 🦌",
-                                        fontSize = 15.sp,
-                                    )
-                                }
-                                Button(
-                                    onClick = {
-                                        write(
-                                            today,
-                                            if (todayStatus == DeerTrackerStore.STATUS_KEPT)
-                                                DeerTrackerStore.STATUS_NONE
-                                            else DeerTrackerStore.STATUS_KEPT,
-                                        )
-                                    },
-                                    colors = if (todayStatus == DeerTrackerStore.STATUS_KEPT)
-                                        ButtonDefaults.buttonColorsPrimary()
-                                    else ButtonDefaults.buttonColors(),
-                                    modifier = Modifier.weight(1f),
-                                ) {
-                                    Text(
-                                        text = if (todayStatus == DeerTrackerStore.STATUS_KEPT)
-                                            "已保持 ✓" else "今天没打",
-                                        fontSize = 15.sp,
-                                    )
-                                }
+                                Text(
+                                    text = if (todayHit) "已记录 ✓" else "今天打了 🦌",
+                                    fontSize = 15.sp,
+                                )
                             }
                         }
                     }
@@ -438,13 +405,13 @@ private fun monthCells(month: YearMonth): List<LocalDate?> {
     return List(leading) { null } + (1..month.lengthOfMonth()).map { month.atDay(it) }
 }
 
-/** One day cell: number + state marker, tap cycles the state. */
+/** One day cell: number + state marker, long-press toggles the record. */
 @Composable
 private fun DayCell(
     day: LocalDate?,
     today: LocalDate,
     status: Int,
-    onTap: (LocalDate) -> Unit,
+    onLongPress: (LocalDate) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     if (day == null) {
@@ -458,10 +425,9 @@ private fun DayCell(
         status == DeerTrackerStore.STATUS_HIT -> MiuixTheme.colorScheme.onPrimary
         else -> MiuixTheme.colorScheme.onSurface
     }
+    // Unrecorded (and legacy KEPT) days render as plain "没打".
     val cellColor = when (status) {
         DeerTrackerStore.STATUS_HIT -> MiuixTheme.colorScheme.primary
-        DeerTrackerStore.STATUS_KEPT -> MiuixTheme.colorScheme.onSurfaceVariantSummary
-            .copy(alpha = 0.16f)
         else -> Color.Transparent
     }
     Box(
@@ -470,9 +436,9 @@ private fun DayCell(
             .aspectRatio(1f)
             .clip(CircleShape)
             .background(cellColor)
-            // Today ring when it carries no state of its own yet.
+            // Today ring when it carries no record of its own yet.
             .then(
-                if (isToday && status == DeerTrackerStore.STATUS_NONE)
+                if (isToday && status != DeerTrackerStore.STATUS_HIT)
                     Modifier.border(
                         width = 1.5.dp,
                         color = MiuixTheme.colorScheme.primary,
@@ -482,7 +448,9 @@ private fun DayCell(
             )
             .then(
                 if (isFuture) Modifier
-                else Modifier.clickable { onTap(day) }
+                else Modifier.pointerInput(day) {
+                    detectTapGestures(onLongPress = { onLongPress(day) })
+                }
             ),
         contentAlignment = Alignment.Center,
     ) {
@@ -490,7 +458,7 @@ private fun DayCell(
             text = day.dayOfMonth.toString(),
             color = textColor,
             fontSize = 14.sp,
-            fontWeight = if (status != DeerTrackerStore.STATUS_NONE || isToday)
+            fontWeight = if (status == DeerTrackerStore.STATUS_HIT || isToday)
                 FontWeight.Medium else FontWeight.Normal,
         )
     }
