@@ -1,5 +1,6 @@
 package com.chayewuu.hypermatter
 
+import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.os.Bundle
@@ -13,6 +14,8 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.runtime.Composable
@@ -36,6 +39,7 @@ import androidx.compose.ui.unit.dp
 import com.chayewuu.hypermatter.data.CategoryStore
 import com.chayewuu.hypermatter.data.EventStore
 import com.chayewuu.hypermatter.data.EventViewModel
+import com.chayewuu.hypermatter.data.NoticeFetcher
 import com.chayewuu.hypermatter.data.ReminderStore
 import com.chayewuu.hypermatter.data.SettingsStore
 import com.chayewuu.hypermatter.reminder.ReminderScheduler
@@ -72,7 +76,11 @@ import com.chayewuu.hypermatter.ui.theme.LocalSettingsStore
 import com.chayewuu.hypermatter.ui.theme.MiuixAppTheme
 import com.kyant.backdrop.backdrops.layerBackdrop as liquidLayerBackdrop
 import com.kyant.backdrop.isRenderEffectSupported
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import top.yukonga.miuix.kmp.basic.TextButton
+import top.yukonga.miuix.kmp.overlay.OverlayDialog
 import kotlinx.serialization.Serializable
 import top.yukonga.miuix.kmp.blur.layerBackdrop
 import top.yukonga.miuix.kmp.basic.NavigationBar
@@ -550,6 +558,85 @@ private fun MainTabs(
             // release is found). Lives inside the Scaffold content so the
             // overlay can render into the scaffold's popup host.
             UpdateAutoCheckHost()
+
+            // Remote notice / announcement (公告 / 入群提示), ported from
+            // HyperIntervals: a notice.json at the repo root drives this
+            // dialog without shipping an app update. Same Scaffold-content
+            // hosting rule as the update check above.
+            RemoteNoticeHost()
+        }
+    }
+}
+
+/**
+ * Startup remote-notice host: fetches notice.json (Gitee → GitHub proxy,
+ * daily cache) and shows an OverlayDialog when the notice id is unseen.
+ * Tapping 完成 marks it seen; tapping outside only hides it for this
+ * launch, so the notice resurfaces until acknowledged.
+ */
+@Composable
+private fun RemoteNoticeHost() {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var notice by remember {
+        mutableStateOf<NoticeFetcher.RemoteNotice?>(null)
+    }
+
+    LaunchedEffect(Unit) {
+        // Once per calendar day the fetch actually hits the network; on
+        // later launches the cached prefs result below still applies.
+        val today = java.text.SimpleDateFormat(
+            "yyyy-MM-dd", java.util.Locale.getDefault(),
+        ).format(java.util.Date())
+        val prefs = context.getSharedPreferences("remote_notice_prefs", Context.MODE_PRIVATE)
+        val cachedId = prefs.getString("last_fetch_date", "")
+        if (cachedId != today) {
+            val fetched = withContext(Dispatchers.IO) { NoticeFetcher.fetch() }
+            if (fetched != null) {
+                prefs.edit()
+                    .putString("last_fetch_date", today)
+                    .putString("cached_id", fetched.id)
+                    .putString("cached_title", fetched.title)
+                    .putString("cached_content", fetched.content)
+                    .apply()
+            } else {
+                prefs.edit().putString("last_fetch_date", today).apply()
+            }
+        }
+        // Compose the effective notice from cache (fresh or today's).
+        val id = prefs.getString("cached_id", "") ?: ""
+        if (id.isNotBlank()) {
+            val candidate = NoticeFetcher.RemoteNotice(
+                id = id,
+                title = prefs.getString("cached_title", "") ?: "",
+                content = prefs.getString("cached_content", "") ?: "",
+            )
+            if (NoticeFetcher.shouldShow(context, candidate)) {
+                // Small delay so the home page renders first (same rhythm
+                // as the HyperIntervals update dialog).
+                kotlinx.coroutines.delay(600)
+                notice = candidate
+            }
+        }
+    }
+
+    notice?.let { current ->
+        OverlayDialog(
+            show = true,
+            title = current.title,
+            summary = current.content.ifBlank { null },
+            onDismissRequest = { notice = null },
+        ) {
+            TextButton(
+                text = "完成",
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 16.dp),
+                onClick = {
+                    NoticeFetcher.markSeen(context, current)
+                    notice = null
+                },
+            )
         }
     }
 }
