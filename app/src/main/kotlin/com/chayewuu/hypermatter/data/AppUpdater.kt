@@ -1,8 +1,12 @@
 package com.chayewuu.hypermatter.data
 
+import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.os.Build
+import android.os.Environment
+import android.provider.MediaStore
 import androidx.core.content.FileProvider
 import com.chayewuu.hypermatter.BuildConfig
 import org.json.JSONObject
@@ -204,6 +208,60 @@ object AppUpdater {
         throw lastError ?: IOException("下载失败")
     }
 
+    /**
+     * Saves the release APK into the system Downloads directory
+     * (Download/HyperDay) via MediaStore — the three-dot menu's
+     * "下载最新安装包" action (HyperIntervals pattern). Q+ only.
+     */
+    fun downloadApkToDownloads(
+        context: Context,
+        release: Release,
+        onProgress: (Float) -> Unit,
+    ) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+            throw IOException("系统版本过低，不支持保存到下载目录")
+        }
+        val values = ContentValues().apply {
+            put(MediaStore.Downloads.DISPLAY_NAME, "HyperDay-${release.tagName}.apk")
+            put(MediaStore.Downloads.MIME_TYPE, "application/vnd.android.package-archive")
+            put(
+                MediaStore.Downloads.RELATIVE_PATH,
+                Environment.DIRECTORY_DOWNLOADS + "/HyperDay",
+            )
+            put(MediaStore.Downloads.IS_PENDING, 1)
+        }
+        val uri = context.contentResolver.insert(
+            MediaStore.Downloads.EXTERNAL_CONTENT_URI,
+            values,
+        ) ?: throw IOException("无法创建下载文件")
+
+        val prefixes = if (release.source == SOURCE_GITEE) listOf("")
+        else GITHUB_DOWNLOAD_PREFIXES
+        var lastError: IOException? = null
+        try {
+            for (prefix in prefixes) {
+                try {
+                    downloadToUri(context, prefix + release.apkUrl, uri, onProgress)
+                    context.contentResolver.update(
+                        uri,
+                        ContentValues().apply { put(MediaStore.Downloads.IS_PENDING, 0) },
+                        null,
+                        null,
+                    )
+                    return
+                } catch (e: IOException) {
+                    lastError = e
+                }
+            }
+            throw lastError ?: IOException("下载失败")
+        } catch (e: Exception) {
+            // Failure or cancellation: remove the pending MediaStore entry so
+            // no half-written APK lingers in the Downloads folder.
+            runCatching { context.contentResolver.delete(uri, null, null) }
+            throw e
+        }
+    }
+
     /** Deletes previously downloaded update APKs except [keepTag]'s. */
     fun cleanOldApks(context: Context, keepTag: String) {
         runCatching {
@@ -276,6 +334,41 @@ object AppUpdater {
                     }
                 }
             }
+        } finally {
+            connection.disconnect()
+        }
+    }
+
+    /** Streams [url] into a pending MediaStore [uri] (Downloads export). */
+    private fun downloadToUri(
+        context: Context,
+        url: String,
+        uri: Uri,
+        onProgress: (Float) -> Unit,
+    ) {
+        val connection = URL(url).openConnection() as HttpURLConnection
+        try {
+            connection.connectTimeout = CONNECT_TIMEOUT_MS
+            connection.readTimeout = 60_000
+            connection.instanceFollowRedirects = true
+            connection.setRequestProperty("User-Agent", USER_AGENT)
+            if (connection.responseCode !in 200..299) {
+                throw IOException("HTTP ${connection.responseCode}")
+            }
+            val total = connection.contentLengthLong
+            context.contentResolver.openOutputStream(uri)?.use { out ->
+                connection.inputStream.use { input ->
+                    val buffer = ByteArray(16 * 1024)
+                    var read = 0L
+                    while (true) {
+                        val n = input.read(buffer)
+                        if (n < 0) break
+                        out.write(buffer, 0, n)
+                        read += n
+                        if (total > 0) onProgress((read.toDouble() / total).toFloat().coerceIn(0f, 1f))
+                    }
+                }
+            } ?: throw IOException("无法写入下载文件")
         } finally {
             connection.disconnect()
         }

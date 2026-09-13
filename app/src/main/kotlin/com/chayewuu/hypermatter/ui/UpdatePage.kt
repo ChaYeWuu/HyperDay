@@ -131,7 +131,7 @@ private fun ChangeTypeTag(type: String, modifier: Modifier = Modifier) {
  * shows the last known release immediately; a silent re-check runs on open.
  */
 @Composable
-fun UpdatePage(onBack: () -> Unit) {
+fun UpdatePage(onBack: () -> Unit, onOpenSettings: () -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val prefs = remember {
@@ -176,14 +176,6 @@ fun UpdatePage(onBack: () -> Unit) {
             prefs.getString("latest_tag", null)
                 ?.let { AppUpdater.downloadedApk(context, it) != null } == true,
         )
-    }
-    // Update settings, surfaced from the top-bar three-dot menu (ported
-    // from HyperIntervals UpdateAppScreen actions pattern).
-    var autoCheck by remember {
-        mutableStateOf(prefs.getBoolean("auto_check_update", true))
-    }
-    var downloadSource by remember {
-        mutableStateOf(AppUpdater.getDownloadSource(context))
     }
 
     fun checkForUpdate(showResultToast: Boolean = true) {
@@ -293,6 +285,46 @@ fun UpdatePage(onBack: () -> Unit) {
         }
     }
 
+    // Three-dot menu → 下载最新安装包: export the latest APK to the system
+    // Downloads folder (HyperIntervals pattern) instead of installing it.
+    fun startLatestApkDownload() {
+        if (isDownloading) {
+            Toast.makeText(context, "安装包正在下载中", Toast.LENGTH_SHORT).show()
+            return
+        }
+        val release = latestRelease
+        if (release == null) {
+            Toast.makeText(context, "最新版本信息还未获取", Toast.LENGTH_SHORT).show()
+            return
+        }
+        if (release.apkUrl.isBlank()) {
+            Toast.makeText(context, "暂无安装包下载链接", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        isDownloading = true
+        downloadProgress = 0f
+        downloadJob = scope.launch {
+            try {
+                withContext(Dispatchers.IO) {
+                    AppUpdater.downloadApkToDownloads(context, release) { progress ->
+                        downloadProgress = progress
+                        if (!isDownloading) throw CancellationException("下载已取消")
+                    }
+                }
+                Toast.makeText(context, "已保存到 /sdcard/Download/HyperDay", Toast.LENGTH_LONG).show()
+            } catch (e: CancellationException) {
+                // The pending MediaStore entry is removed inside AppUpdater.
+                downloadProgress = 0f
+            } catch (e: Exception) {
+                Toast.makeText(context, "安装包下载失败：${e.message ?: "网络错误"}", Toast.LENGTH_SHORT).show()
+            } finally {
+                isDownloading = false
+                downloadJob = null
+            }
+        }
+    }
+
     // Silent re-check every time the page opens (no toast unless manual).
     LaunchedEffect(Unit) {
         checkForUpdate(showResultToast = false)
@@ -367,55 +399,19 @@ fun UpdatePage(onBack: () -> Unit) {
                             )
                         }
                     },
-                    // Update settings live in the three-dot menu instead of
-                    // an inline card (HyperIntervals UpdateAppScreen style).
+                    // Three-dot menu, HyperIntervals UpdateAppScreen style:
+                    // export the latest APK / open the settings sub-page.
                     actions = {
                         OverlayIconDropdownMenu(
                             entry = DropdownEntry(
                                 items = listOf(
                                     DropdownItem(
-                                        text = "自动检查更新",
-                                        selected = autoCheck,
-                                        onClick = {
-                                            autoCheck = !autoCheck
-                                            prefs.edit()
-                                                .putBoolean("auto_check_update", autoCheck)
-                                                .apply()
-                                        },
+                                        text = "下载最新安装包",
+                                        onClick = { startLatestApkDownload() },
                                     ),
                                     DropdownItem(
-                                        text = "下载源：自动识别",
-                                        selected = downloadSource == AppUpdater.SOURCE_AUTO,
-                                        onClick = {
-                                            downloadSource = AppUpdater.SOURCE_AUTO
-                                            AppUpdater.setDownloadSource(
-                                                context, AppUpdater.SOURCE_AUTO,
-                                            )
-                                        },
-                                    ),
-                                    DropdownItem(
-                                        text = "下载源：Gitee",
-                                        selected = downloadSource == AppUpdater.SOURCE_GITEE,
-                                        onClick = {
-                                            downloadSource = AppUpdater.SOURCE_GITEE
-                                            AppUpdater.setDownloadSource(
-                                                context, AppUpdater.SOURCE_GITEE,
-                                            )
-                                        },
-                                    ),
-                                    DropdownItem(
-                                        text = "下载源：GitHub",
-                                        selected = downloadSource == AppUpdater.SOURCE_GITHUB,
-                                        onClick = {
-                                            downloadSource = AppUpdater.SOURCE_GITHUB
-                                            AppUpdater.setDownloadSource(
-                                                context, AppUpdater.SOURCE_GITHUB,
-                                            )
-                                        },
-                                    ),
-                                    DropdownItem(
-                                        text = "清理安装包",
-                                        onClick = { clearDownloadedPackages(context) },
+                                        text = "软件更新设置",
+                                        onClick = onOpenSettings,
                                     ),
                                 ),
                             ),
@@ -586,21 +582,6 @@ fun UpdatePage(onBack: () -> Unit) {
             }
         }
     }
-}
-
-private fun clearDownloadedPackages(context: Context) {
-    val deleted = context.filesDir.listFiles()
-        ?.count { file ->
-            file.name.startsWith("update-") &&
-                file.name.endsWith(".apk") &&
-                file.name != "update-.apk" &&
-                file.delete()
-        } ?: 0
-    Toast.makeText(
-        context,
-        if (deleted > 0) "已清理 $deleted 个安装包" else "暂无可清理的安装包",
-        Toast.LENGTH_SHORT,
-    ).show()
 }
 
 /**

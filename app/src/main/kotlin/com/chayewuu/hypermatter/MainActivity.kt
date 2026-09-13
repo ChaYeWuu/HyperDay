@@ -59,6 +59,7 @@ import com.chayewuu.hypermatter.ui.ThemePage
 import com.chayewuu.hypermatter.ui.ToolsPage
 import com.chayewuu.hypermatter.ui.UpdateAutoCheckHost
 import com.chayewuu.hypermatter.ui.UpdatePage
+import com.chayewuu.hypermatter.ui.UpdateSettingsPage
 import com.chayewuu.hypermatter.ui.WidgetPage
 import com.chayewuu.hypermatter.ui.prewarmWallpaperThumbs
 import com.chayewuu.hypermatter.ui.rememberBlurBackdrop
@@ -212,6 +213,9 @@ private sealed interface Route : NavKey {
     data object Update : Route
 
     @Serializable
+    data object UpdateSettings : Route
+
+    @Serializable
     data object DeerTracker : Route
 
     @Serializable
@@ -355,7 +359,13 @@ private fun App(pendingEventId: MutableState<String?>) {
                 LiveUpdatesPage(onBack = { backStack.removeLastOrNull() })
             }
             entry<Route.Update>(swipeDismiss = NavSwipeDirection.LeftToRight) {
-                UpdatePage(onBack = { backStack.removeLastOrNull() })
+                UpdatePage(
+                    onBack = { backStack.removeLastOrNull() },
+                    onOpenSettings = { backStack.add(Route.UpdateSettings) },
+                )
+            }
+            entry<Route.UpdateSettings>(swipeDismiss = NavSwipeDirection.LeftToRight) {
+                UpdateSettingsPage(onBack = { backStack.removeLastOrNull() })
             }
             entry<Route.DeerTracker>(swipeDismiss = NavSwipeDirection.LeftToRight) {
                 DeerTrackerPage(onBack = { backStack.removeLastOrNull() })
