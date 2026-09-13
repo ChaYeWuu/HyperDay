@@ -1,10 +1,12 @@
 package com.chayewuu.hypermatter.ui
 
 import android.content.ActivityNotFoundException
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -73,6 +75,8 @@ private const val MATERIALKOLOR_URL = "https://github.com/jordond/materialkolor"
 private const val SHIZUKU_URL = "https://github.com/RikkaApps/Shizuku"
 private const val NEXIO_URL = "https://github.com/HaoZai000/NexioSchedule"
 private const val HYPERINTERVALS_URL = "https://www.coolapk.com/u/2292343"
+private const val HYPERINTERVALS_DEEPLINK = "coolmarket://u/2292343"
+private const val KOTLIN_URL = "https://www.jetbrains.com/kotlin"
 
 // Official Miuix example card-blend presets
 // (example component/blend/ColorBlendToken.kt, Apache-2.0): dark theme uses
@@ -143,21 +147,7 @@ fun AboutPage(
 
     // Open the author's Coolapk profile in the Coolapk app via deep link,
     // falling back to the web page when the app is not installed.
-    fun openAuthorHome() {
-        val deeplink = Intent(Intent.ACTION_VIEW, Uri.parse(AUTHOR_DEEPLINK)).apply {
-            addCategory(Intent.CATEGORY_BROWSABLE)
-            setPackage("com.coolapk.market")
-        }
-        try {
-            context.startActivity(deeplink)
-        } catch (_: ActivityNotFoundException) {
-            runCatching {
-                context.startActivity(
-                    Intent(Intent.ACTION_VIEW, Uri.parse(AUTHOR_DEEPLINK))
-                )
-            }.onFailure { openUrl(AUTHOR_URL) }
-        }
-    }
+    fun openAuthorHome() = openLink(context, AUTHOR_URL, AUTHOR_DEEPLINK)
 
     // Top-bar progressive blur samples the whole page (shader + content).
     val barBackdrop = rememberBlurBackdrop()
@@ -351,89 +341,36 @@ fun AboutPage(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp),
                         ) {
-                            Text(
-                                text = "感谢 Miuix UI 项目提供的 HyperOS 设计语言 Compose 组件库，动态混色背景与磨砂玻璃效果移植自其官方 example。",
-                                color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                                style = MiuixTheme.textStyles.body2,
+                            CreditEntry(
+                                description = "感谢 Miuix UI 项目提供的 HyperOS 设计语言 Compose 组件库，动态混色背景与磨砂玻璃效果移植自其官方 example。",
+                                url = MIUIX_URL,
                             )
-                            Spacer(Modifier.height(4.dp))
-                            Text(
-                                text = MIUIX_URL.removePrefix("https://"),
-                                color = MiuixTheme.colorScheme.primary,
-                                fontSize = 13.sp,
+                            CreditEntry(
+                                description = "感谢 Kyant0 的 AndroidLiquidGlass（backdrop）库，液态玻璃应用风格与可拖拽折射底栏基于其实现。",
+                                url = BACKDROP_URL,
                             )
-                            Spacer(Modifier.height(12.dp))
-                            Text(
-                                text = "感谢 Kyant0 的 AndroidLiquidGlass（backdrop）库，液态玻璃应用风格与可拖拽折射底栏基于其实现。",
-                                color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                                style = MiuixTheme.textStyles.body2,
+                            CreditEntry(
+                                description = "感谢 MaterialKolor 项目为莫奈动态取色提供的 HCT 取色算法（经 Miuix 传递依赖）。",
+                                url = MATERIALKOLOR_URL,
                             )
-                            Spacer(Modifier.height(4.dp))
-                            Text(
-                                text = BACKDROP_URL.removePrefix("https://"),
-                                color = MiuixTheme.colorScheme.primary,
-                                fontSize = 13.sp,
+                            CreditEntry(
+                                description = "感谢 RikkaApps 的 Shizuku，小米超级岛提醒经由其特权 UserService 实现（XMSF 网络旁路方案）。",
+                                url = SHIZUKU_URL,
                             )
-                            Spacer(Modifier.height(12.dp))
-                            Text(
-                                text = "感谢 MaterialKolor 项目为莫奈动态取色提供的 HCT 取色算法（经 Miuix 传递依赖）。",
-                                color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                                style = MiuixTheme.textStyles.body2,
+                            CreditEntry(
+                                description = "感谢 NexioSchedule 项目，小米超级岛与 Android 16 实时动态通知的实现参考自其源码。",
+                                url = NEXIO_URL,
                             )
-                            Spacer(Modifier.height(4.dp))
-                            Text(
-                                text = MATERIALKOLOR_URL.removePrefix("https://"),
-                                color = MiuixTheme.colorScheme.primary,
-                                fontSize = 13.sp,
+                            CreditEntry(
+                                description = "感谢 HyperIntervals 与其作者 ShallowY_，软件版本页、工具页与更新流程的设计参考自其作品。",
+                                url = HYPERINTERVALS_URL,
+                                deeplink = HYPERINTERVALS_DEEPLINK,
                             )
-                            Spacer(Modifier.height(12.dp))
-                            Text(
-                                text = "感谢 RikkaApps 的 Shizuku，小米超级岛提醒经由其特权 UserService 实现（XMSF 网络旁路方案）。",
-                                color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                                style = MiuixTheme.textStyles.body2,
-                            )
-                            Spacer(Modifier.height(4.dp))
-                            Text(
-                                text = SHIZUKU_URL.removePrefix("https://"),
-                                color = MiuixTheme.colorScheme.primary,
-                                fontSize = 13.sp,
-                            )
-                            Spacer(Modifier.height(12.dp))
-                            Text(
-                                text = "感谢 NexioSchedule 项目，小米超级岛与 Android 16 实时动态通知的实现参考自其源码。",
-                                color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                                style = MiuixTheme.textStyles.body2,
-                            )
-                            Spacer(Modifier.height(4.dp))
-                            Text(
-                                text = NEXIO_URL.removePrefix("https://"),
-                                color = MiuixTheme.colorScheme.primary,
-                                fontSize = 13.sp,
-                            )
-                            Spacer(Modifier.height(12.dp))
-                            Text(
-                                text = "感谢 HyperIntervals 与其作者 ShallowY_，软件版本页、工具页与更新流程的设计参考自其作品。",
-                                color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                                style = MiuixTheme.textStyles.body2,
-                            )
-                            Spacer(Modifier.height(4.dp))
-                            Text(
-                                text = HYPERINTERVALS_URL.removePrefix("https://"),
-                                color = MiuixTheme.colorScheme.primary,
-                                fontSize = 13.sp,
-                            )
-                            Spacer(Modifier.height(12.dp))
-                            Text(
-                                text = "感谢 JetBrains 的 Kotlin 与 kotlinx.serialization，本应用的数据层基于其构建。",
-                                color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                                style = MiuixTheme.textStyles.body2,
-                            )
-                            Spacer(Modifier.height(4.dp))
-                            Text(
-                                text = "jetbrains.com/kotlin",
-                                color = MiuixTheme.colorScheme.primary,
-                                fontSize = 13.sp,
+                            CreditEntry(
+                                description = "感谢 JetBrains 的 Kotlin 与 kotlinx.serialization，本应用的数据层基于其构建。",
+                                url = KOTLIN_URL,
                             )
                         }
                     }
@@ -504,6 +441,62 @@ private fun BlurredCard(
         ),
     ) {
         content()
+    }
+}
+
+/**
+ * Open a credit link. Coolapk entries pass a deep link: first try the
+ * Coolapk app itself (explicit package), then the raw coolmarket:// link
+ * (any handler), and finally the web page in a browser.
+ */
+private fun openLink(context: Context, url: String, deeplink: String? = null) {
+    if (deeplink != null) {
+        try {
+            context.startActivity(
+                Intent(Intent.ACTION_VIEW, Uri.parse(deeplink)).apply {
+                    addCategory(Intent.CATEGORY_BROWSABLE)
+                    setPackage("com.coolapk.market")
+                },
+            )
+            return
+        } catch (_: ActivityNotFoundException) {
+            runCatching {
+                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(deeplink)))
+            }.onSuccess { return }
+        }
+    }
+    runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) }
+}
+
+/**
+ * One credit entry: description text plus a tappable link line. The link
+ * opens in the Coolapk app when a deep link is given and Coolapk is
+ * installed; everything else opens in the browser.
+ */
+@Composable
+private fun CreditEntry(
+    description: String,
+    url: String,
+    deeplink: String? = null,
+) {
+    val context = LocalContext.current
+    Column {
+        Text(
+            text = description,
+            color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+            style = MiuixTheme.textStyles.body2,
+        )
+        Spacer(Modifier.height(4.dp))
+        Text(
+            text = url
+                .removePrefix("https://")
+                .removePrefix("www."),
+            color = MiuixTheme.colorScheme.primary,
+            fontSize = 13.sp,
+            modifier = Modifier
+                .clip(RoundedCornerShape(4.dp))
+                .clickable { openLink(context, url, deeplink) },
+        )
     }
 }
 
