@@ -83,11 +83,19 @@ object DateUtils {
         return "属${names[index]}"
     }
 
-    /** "32 岁 · 属狗" for birthday events, null for everything else. */
-    fun birthdayLine(event: CountdownEvent): String? {
+    /**
+     * "距离 20 岁 · 属狗" for birthday events — the age part counts up to the
+     * NEXT birthday so it pairs with the day number on the card; on the
+     * birthday itself it reads "20 岁 · 属狗" (that age has just been
+     * reached). Null for everything else.
+     */
+    fun birthdayLine(event: CountdownEvent, today: LocalDate = today()): String? {
         if (!isBirthday(event)) return null
+        val daysLeft = effectiveEpochDay(event) - today.toEpochDay()
         val parts = buildList {
-            ageOf(event)?.let { add("$it 岁") }
+            ageOf(event, today)?.let { age ->
+                add(if (daysLeft <= 0L) "$age 岁" else "距离 ${age + 1} 岁")
+            }
             zodiacOf(event)?.let { add(it) }
         }
         return parts.joinToString(" · ").ifBlank { null }
