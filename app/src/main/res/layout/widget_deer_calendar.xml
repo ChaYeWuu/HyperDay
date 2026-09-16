@@ -1,9 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 🦌🦌记录器 month widget (2x2):
-       stat line (“已戒 N 天 · 本月破戒 M 次”),
-       a 一二三四五六日 header, then one dynamically added week row per week
-       (widget_deer_week.xml) — each cell is an ImageView switched between the
-       three day drawables, so no text is needed inside the grid. -->
+<!-- 🦌🦌记录器 month widget (2x2) — sized like the card widget: the box is
+     match_parent with a 7dp top anchor so it fills whatever drawable area the
+     host actually gives the cell (never computed from the reported options).
+
+     Content: stat line, 一二三四五六日 header, then SIX static weighted week
+     rows. Every row is layout_height=0dp + layout_weight=1, so the grid
+     always fills the remaining height exactly — a 5-week month simply hides
+     the last row (setViewVisibility(GONE)) and the five visible rows split
+     the same space, so the cells grow instead of leaving a gap. Rows are
+     static (not addView) on purpose: statically declared children are
+     guaranteed to keep their layout_weight, which is what makes the fill
+     work in RemoteViews.
+
+     Each day cell is a small TextView (not an ImageView) so it can carry the
+     day number as well as its state colour: 平时=小字日期, 破戒日=🦌 加日期
+     (white on the accent fill), 今天=日期（强调色）, 本月之外=空。provider
+     逐格 setTextViewText / setTextColor / setTextViewTextSize / setBackgroundResource。 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/widget_root"
     android:layout_width="match_parent"
@@ -16,7 +28,6 @@
         android:layout_height="match_parent"
         android:layout_marginTop="7dp"
         android:background="@drawable/widget_bg"
-        android:gravity="center_vertical"
         android:orientation="vertical"
         android:paddingStart="12dp"
         android:paddingTop="9dp"
@@ -124,11 +135,116 @@
                 android:textSize="8sp" />
         </LinearLayout>
 
+        <!-- Weighted grid: takes every pixel the stat/header rows leave. -->
         <LinearLayout
             android:id="@+id/deer_grid"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
+            android:layout_height="0dp"
             android:layout_marginTop="3dp"
-            android:orientation="vertical" />
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <LinearLayout
+                android:id="@+id/deer_week_0"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:orientation="horizontal"
+                android:visibility="gone">
+
+                <TextView android:id="@+id/deer_w0_c0" android:layout_width="0dp" android:layout_height="match_parent" android:layout_margin="1dp" android:layout_weight="1" android:background="@drawable/widget_deer_day_blank" android:gravity="center" android:includeFontPadding="false" android:lineSpacingExtra="0dp" android:maxLines="2" android:text="" android:textColor="@color/widget_text_secondary" android:textSize="8sp" />
+                <TextView android:id="@+id/deer_w0_c1" android:layout_width="0dp" android:layout_height="match_parent" android:layout_margin="1dp" android:layout_weight="1" android:background="@drawable/widget_deer_day_blank" android:gravity="center" android:includeFontPadding="false" android:lineSpacingExtra="0dp" android:maxLines="2" android:text="" android:textColor="@color/widget_text_secondary" android:textSize="8sp" />
+                <TextView android:id="@+id/deer_w0_c2" android:layout_width="0dp" android:layout_height="match_parent" android:layout_margin="1dp" android:layout_weight="1" android:background="@drawable/widget_deer_day_blank" android:gravity="center" android:includeFontPadding="false" android:lineSpacingExtra="0dp" android:maxLines="2" android:text="" android:textColor="@color/widget_text_secondary" android:textSize="8sp" />
+                <TextView android:id="@+id/deer_w0_c3" android:layout_width="0dp" android:layout_height="match_parent" android:layout_margin="1dp" android:layout_weight="1" android:background="@drawable/widget_deer_day_blank" android:gravity="center" android:includeFontPadding="false" android:lineSpacingExtra="0dp" android:maxLines="2" android:text="" android:textColor="@color/widget_text_secondary" android:textSize="8sp" />
+                <TextView android:id="@+id/deer_w0_c4" android:layout_width="0dp" android:layout_height="match_parent" android:layout_margin="1dp" android:layout_weight="1" android:background="@drawable/widget_deer_day_blank" android:gravity="center" android:includeFontPadding="false" android:lineSpacingExtra="0dp" android:maxLines="2" android:text="" android:textColor="@color/widget_text_secondary" android:textSize="8sp" />
+                <TextView android:id="@+id/deer_w0_c5" android:layout_width="0dp" android:layout_height="match_parent" android:layout_margin="1dp" android:layout_weight="1" android:background="@drawable/widget_deer_day_blank" android:gravity="center" android:includeFontPadding="false" android:lineSpacingExtra="0dp" android:maxLines="2" android:text="" android:textColor="@color/widget_text_secondary" android:textSize="8sp" />
+                <TextView android:id="@+id/deer_w0_c6" android:layout_width="0dp" android:layout_height="match_parent" android:layout_margin="1dp" android:layout_weight="1" android:background="@drawable/widget_deer_day_blank" android:gravity="center" android:includeFontPadding="false" android:lineSpacingExtra="0dp" android:maxLines="2" android:text="" android:textColor="@color/widget_text_secondary" android:textSize="8sp" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/deer_week_1"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:orientation="horizontal"
+                android:visibility="gone">
+
+                <TextView android:id="@+id/deer_w1_c0" android:layout_width="0dp" android:layout_height="match_parent" android:layout_margin="1dp" android:layout_weight="1" android:background="@drawable/widget_deer_day_blank" android:gravity="center" android:includeFontPadding="false" android:lineSpacingExtra="0dp" android:maxLines="2" android:text="" android:textColor="@color/widget_text_secondary" android:textSize="8sp" />
+                <TextView android:id="@+id/deer_w1_c1" android:layout_width="0dp" android:layout_height="match_parent" android:layout_margin="1dp" android:layout_weight="1" android:background="@drawable/widget_deer_day_blank" android:gravity="center" android:includeFontPadding="false" android:lineSpacingExtra="0dp" android:maxLines="2" android:text="" android:textColor="@color/widget_text_secondary" android:textSize="8sp" />
+                <TextView android:id="@+id/deer_w1_c2" android:layout_width="0dp" android:layout_height="match_parent" android:layout_margin="1dp" android:layout_weight="1" android:background="@drawable/widget_deer_day_blank" android:gravity="center" android:includeFontPadding="false" android:lineSpacingExtra="0dp" android:maxLines="2" android:text="" android:textColor="@color/widget_text_secondary" android:textSize="8sp" />
+                <TextView android:id="@+id/deer_w1_c3" android:layout_width="0dp" android:layout_height="match_parent" android:layout_margin="1dp" android:layout_weight="1" android:background="@drawable/widget_deer_day_blank" android:gravity="center" android:includeFontPadding="false" android:lineSpacingExtra="0dp" android:maxLines="2" android:text="" android:textColor="@color/widget_text_secondary" android:textSize="8sp" />
+                <TextView android:id="@+id/deer_w1_c4" android:layout_width="0dp" android:layout_height="match_parent" android:layout_margin="1dp" android:layout_weight="1" android:background="@drawable/widget_deer_day_blank" android:gravity="center" android:includeFontPadding="false" android:lineSpacingExtra="0dp" android:maxLines="2" android:text="" android:textColor="@color/widget_text_secondary" android:textSize="8sp" />
+                <TextView android:id="@+id/deer_w1_c5" android:layout_width="0dp" android:layout_height="match_parent" android:layout_margin="1dp" android:layout_weight="1" android:background="@drawable/widget_deer_day_blank" android:gravity="center" android:includeFontPadding="false" android:lineSpacingExtra="0dp" android:maxLines="2" android:text="" android:textColor="@color/widget_text_secondary" android:textSize="8sp" />
+                <TextView android:id="@+id/deer_w1_c6" android:layout_width="0dp" android:layout_height="match_parent" android:layout_margin="1dp" android:layout_weight="1" android:background="@drawable/widget_deer_day_blank" android:gravity="center" android:includeFontPadding="false" android:lineSpacingExtra="0dp" android:maxLines="2" android:text="" android:textColor="@color/widget_text_secondary" android:textSize="8sp" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/deer_week_2"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:orientation="horizontal"
+                android:visibility="gone">
+
+                <TextView android:id="@+id/deer_w2_c0" android:layout_width="0dp" android:layout_height="match_parent" android:layout_margin="1dp" android:layout_weight="1" android:background="@drawable/widget_deer_day_blank" android:gravity="center" android:includeFontPadding="false" android:lineSpacingExtra="0dp" android:maxLines="2" android:text="" android:textColor="@color/widget_text_secondary" android:textSize="8sp" />
+                <TextView android:id="@+id/deer_w2_c1" android:layout_width="0dp" android:layout_height="match_parent" android:layout_margin="1dp" android:layout_weight="1" android:background="@drawable/widget_deer_day_blank" android:gravity="center" android:includeFontPadding="false" android:lineSpacingExtra="0dp" android:maxLines="2" android:text="" android:textColor="@color/widget_text_secondary" android:textSize="8sp" />
+                <TextView android:id="@+id/deer_w2_c2" android:layout_width="0dp" android:layout_height="match_parent" android:layout_margin="1dp" android:layout_weight="1" android:background="@drawable/widget_deer_day_blank" android:gravity="center" android:includeFontPadding="false" android:lineSpacingExtra="0dp" android:maxLines="2" android:text="" android:textColor="@color/widget_text_secondary" android:textSize="8sp" />
+                <TextView android:id="@+id/deer_w2_c3" android:layout_width="0dp" android:layout_height="match_parent" android:layout_margin="1dp" android:layout_weight="1" android:background="@drawable/widget_deer_day_blank" android:gravity="center" android:includeFontPadding="false" android:lineSpacingExtra="0dp" android:maxLines="2" android:text="" android:textColor="@color/widget_text_secondary" android:textSize="8sp" />
+                <TextView android:id="@+id/deer_w2_c4" android:layout_width="0dp" android:layout_height="match_parent" android:layout_margin="1dp" android:layout_weight="1" android:background="@drawable/widget_deer_day_blank" android:gravity="center" android:includeFontPadding="false" android:lineSpacingExtra="0dp" android:maxLines="2" android:text="" android:textColor="@color/widget_text_secondary" android:textSize="8sp" />
+                <TextView android:id="@+id/deer_w2_c5" android:layout_width="0dp" android:layout_height="match_parent" android:layout_margin="1dp" android:layout_weight="1" android:background="@drawable/widget_deer_day_blank" android:gravity="center" android:includeFontPadding="false" android:lineSpacingExtra="0dp" android:maxLines="2" android:text="" android:textColor="@color/widget_text_secondary" android:textSize="8sp" />
+                <TextView android:id="@+id/deer_w2_c6" android:layout_width="0dp" android:layout_height="match_parent" android:layout_margin="1dp" android:layout_weight="1" android:background="@drawable/widget_deer_day_blank" android:gravity="center" android:includeFontPadding="false" android:lineSpacingExtra="0dp" android:maxLines="2" android:text="" android:textColor="@color/widget_text_secondary" android:textSize="8sp" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/deer_week_3"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:orientation="horizontal"
+                android:visibility="gone">
+
+                <TextView android:id="@+id/deer_w3_c0" android:layout_width="0dp" android:layout_height="match_parent" android:layout_margin="1dp" android:layout_weight="1" android:background="@drawable/widget_deer_day_blank" android:gravity="center" android:includeFontPadding="false" android:lineSpacingExtra="0dp" android:maxLines="2" android:text="" android:textColor="@color/widget_text_secondary" android:textSize="8sp" />
+                <TextView android:id="@+id/deer_w3_c1" android:layout_width="0dp" android:layout_height="match_parent" android:layout_margin="1dp" android:layout_weight="1" android:background="@drawable/widget_deer_day_blank" android:gravity="center" android:includeFontPadding="false" android:lineSpacingExtra="0dp" android:maxLines="2" android:text="" android:textColor="@color/widget_text_secondary" android:textSize="8sp" />
+                <TextView android:id="@+id/deer_w3_c2" android:layout_width="0dp" android:layout_height="match_parent" android:layout_margin="1dp" android:layout_weight="1" android:background="@drawable/widget_deer_day_blank" android:gravity="center" android:includeFontPadding="false" android:lineSpacingExtra="0dp" android:maxLines="2" android:text="" android:textColor="@color/widget_text_secondary" android:textSize="8sp" />
+                <TextView android:id="@+id/deer_w3_c3" android:layout_width="0dp" android:layout_height="match_parent" android:layout_margin="1dp" android:layout_weight="1" android:background="@drawable/widget_deer_day_blank" android:gravity="center" android:includeFontPadding="false" android:lineSpacingExtra="0dp" android:maxLines="2" android:text="" android:textColor="@color/widget_text_secondary" android:textSize="8sp" />
+                <TextView android:id="@+id/deer_w3_c4" android:layout_width="0dp" android:layout_height="match_parent" android:layout_margin="1dp" android:layout_weight="1" android:background="@drawable/widget_deer_day_blank" android:gravity="center" android:includeFontPadding="false" android:lineSpacingExtra="0dp" android:maxLines="2" android:text="" android:textColor="@color/widget_text_secondary" android:textSize="8sp" />
+                <TextView android:id="@+id/deer_w3_c5" android:layout_width="0dp" android:layout_height="match_parent" android:layout_margin="1dp" android:layout_weight="1" android:background="@drawable/widget_deer_day_blank" android:gravity="center" android:includeFontPadding="false" android:lineSpacingExtra="0dp" android:maxLines="2" android:text="" android:textColor="@color/widget_text_secondary" android:textSize="8sp" />
+                <TextView android:id="@+id/deer_w3_c6" android:layout_width="0dp" android:layout_height="match_parent" android:layout_margin="1dp" android:layout_weight="1" android:background="@drawable/widget_deer_day_blank" android:gravity="center" android:includeFontPadding="false" android:lineSpacingExtra="0dp" android:maxLines="2" android:text="" android:textColor="@color/widget_text_secondary" android:textSize="8sp" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/deer_week_4"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:orientation="horizontal"
+                android:visibility="gone">
+
+                <TextView android:id="@+id/deer_w4_c0" android:layout_width="0dp" android:layout_height="match_parent" android:layout_margin="1dp" android:layout_weight="1" android:background="@drawable/widget_deer_day_blank" android:gravity="center" android:includeFontPadding="false" android:lineSpacingExtra="0dp" android:maxLines="2" android:text="" android:textColor="@color/widget_text_secondary" android:textSize="8sp" />
+                <TextView android:id="@+id/deer_w4_c1" android:layout_width="0dp" android:layout_height="match_parent" android:layout_margin="1dp" android:layout_weight="1" android:background="@drawable/widget_deer_day_blank" android:gravity="center" android:includeFontPadding="false" android:lineSpacingExtra="0dp" android:maxLines="2" android:text="" android:textColor="@color/widget_text_secondary" android:textSize="8sp" />
+                <TextView android:id="@+id/deer_w4_c2" android:layout_width="0dp" android:layout_height="match_parent" android:layout_margin="1dp" android:layout_weight="1" android:background="@drawable/widget_deer_day_blank" android:gravity="center" android:includeFontPadding="false" android:lineSpacingExtra="0dp" android:maxLines="2" android:text="" android:textColor="@color/widget_text_secondary" android:textSize="8sp" />
+                <TextView android:id="@+id/deer_w4_c3" android:layout_width="0dp" android:layout_height="match_parent" android:layout_margin="1dp" android:layout_weight="1" android:background="@drawable/widget_deer_day_blank" android:gravity="center" android:includeFontPadding="false" android:lineSpacingExtra="0dp" android:maxLines="2" android:text="" android:textColor="@color/widget_text_secondary" android:textSize="8sp" />
+                <TextView android:id="@+id/deer_w4_c4" android:layout_width="0dp" android:layout_height="match_parent" android:layout_margin="1dp" android:layout_weight="1" android:background="@drawable/widget_deer_day_blank" android:gravity="center" android:includeFontPadding="false" android:lineSpacingExtra="0dp" android:maxLines="2" android:text="" android:textColor="@color/widget_text_secondary" android:textSize="8sp" />
+                <TextView android:id="@+id/deer_w4_c5" android:layout_width="0dp" android:layout_height="match_parent" android:layout_margin="1dp" android:layout_weight="1" android:background="@drawable/widget_deer_day_blank" android:gravity="center" android:includeFontPadding="false" android:lineSpacingExtra="0dp" android:maxLines="2" android:text="" android:textColor="@color/widget_text_secondary" android:textSize="8sp" />
+                <TextView android:id="@+id/deer_w4_c6" android:layout_width="0dp" android:layout_height="match_parent" android:layout_margin="1dp" android:layout_weight="1" android:background="@drawable/widget_deer_day_blank" android:gravity="center" android:includeFontPadding="false" android:lineSpacingExtra="0dp" android:maxLines="2" android:text="" android:textColor="@color/widget_text_secondary" android:textSize="8sp" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/deer_week_5"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:orientation="horizontal"
+                android:visibility="gone">
+
+                <TextView android:id="@+id/deer_w5_c0" android:layout_width="0dp" android:layout_height="match_parent" android:layout_margin="1dp" android:layout_weight="1" android:background="@drawable/widget_deer_day_blank" android:gravity="center" android:includeFontPadding="false" android:lineSpacingExtra="0dp" android:maxLines="2" android:text="" android:textColor="@color/widget_text_secondary" android:textSize="8sp" />
+                <TextView android:id="@+id/deer_w5_c1" android:layout_width="0dp" android:layout_height="match_parent" android:layout_margin="1dp" android:layout_weight="1" android:background="@drawable/widget_deer_day_blank" android:gravity="center" android:includeFontPadding="false" android:lineSpacingExtra="0dp" android:maxLines="2" android:text="" android:textColor="@color/widget_text_secondary" android:textSize="8sp" />
+                <TextView android:id="@+id/deer_w5_c2" android:layout_width="0dp" android:layout_height="match_parent" android:layout_margin="1dp" android:layout_weight="1" android:background="@drawable/widget_deer_day_blank" android:gravity="center" android:includeFontPadding="false" android:lineSpacingExtra="0dp" android:maxLines="2" android:text="" android:textColor="@color/widget_text_secondary" android:textSize="8sp" />
+                <TextView android:id="@+id/deer_w5_c3" android:layout_width="0dp" android:layout_height="match_parent" android:layout_margin="1dp" android:layout_weight="1" android:background="@drawable/widget_deer_day_blank" android:gravity="center" android:includeFontPadding="false" android:lineSpacingExtra="0dp" android:maxLines="2" android:text="" android:textColor="@color/widget_text_secondary" android:textSize="8sp" />
+                <TextView android:id="@+id/deer_w5_c4" android:layout_width="0dp" android:layout_height="match_parent" android:layout_margin="1dp" android:layout_weight="1" android:background="@drawable/widget_deer_day_blank" android:gravity="center" android:includeFontPadding="false" android:lineSpacingExtra="0dp" android:maxLines="2" android:text="" android:textColor="@color/widget_text_secondary" android:textSize="8sp" />
+                <TextView android:id="@+id/deer_w5_c5" android:layout_width="0dp" android:layout_height="match_parent" android:layout_margin="1dp" android:layout_weight="1" android:background="@drawable/widget_deer_day_blank" android:gravity="center" android:includeFontPadding="false" android:lineSpacingExtra="0dp" android:maxLines="2" android:text="" android:textColor="@color/widget_text_secondary" android:textSize="8sp" />
+                <TextView android:id="@+id/deer_w5_c6" android:layout_width="0dp" android:layout_height="match_parent" android:layout_margin="1dp" android:layout_weight="1" android:background="@drawable/widget_deer_day_blank" android:gravity="center" android:includeFontPadding="false" android:lineSpacingExtra="0dp" android:maxLines="2" android:text="" android:textColor="@color/widget_text_secondary" android:textSize="8sp" />
+            </LinearLayout>
+        </LinearLayout>
     </LinearLayout>
 </LinearLayout>

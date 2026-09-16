@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -778,39 +779,57 @@ private fun DeerCalendarWidgetPreview(
                     )
                 }
             }
-            // 12dp cells with 1dp gaps: 破戒 accent, 今天 soft accent,
-            // 本月内 faint tint, 本月外 transparent.
+            // Weighted rows, mirroring widget_deer_calendar.xml: the visible
+            // weeks split the leftover height, so the grid fills the cell
+            // (a 5-week month gets taller cells instead of a bottom gap).
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .weight(1f)
                     .padding(top = 3.dp),
             ) {
                 for (week in 0 until weeks) {
-                    Row(modifier = Modifier.fillMaxWidth()) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f),
+                    ) {
                         for (slot in 0 until 7) {
                             val day = week * 7 + slot - leading + 1
-                            val epochDay = if (day in 1..daysInMonth) {
-                                month.atDay(day).toEpochDay()
-                            } else {
-                                null
-                            }
+                            val inMonth = day in 1..daysInMonth
+                            val epochDay = if (inMonth) month.atDay(day).toEpochDay() else null
+                            val hit = epochDay != null &&
+                                records[epochDay] == DeerTrackerStore.STATUS_HIT
+                            val isToday = epochDay == todayEpochDay
                             val background = when {
-                                epochDay != null &&
-                                    records[epochDay] == DeerTrackerStore.STATUS_HIT ->
-                                    MiuixTheme.colorScheme.primary
-                                epochDay == todayEpochDay ->
-                                    MiuixTheme.colorScheme.primary.copy(alpha = 0.20f)
                                 epochDay == null -> Color.Transparent
+                                hit -> MiuixTheme.colorScheme.primary
+                                isToday -> MiuixTheme.colorScheme.primary.copy(alpha = 0.20f)
                                 else -> MiuixTheme.colorScheme.onSurface.copy(alpha = 0.07f)
                             }
                             Box(
                                 modifier = Modifier
                                     .weight(1f)
-                                    .height(12.dp)
+                                    .fillMaxHeight()
                                     .padding(1.dp)
                                     .clip(androidx.compose.foundation.shape.RoundedCornerShape(3.dp))
                                     .background(background),
-                            )
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                // Every cell carries its small day number; a
+                                // 破戒 day adds the 🦌 above the date.
+                                if (!inMonth) return@Box
+                                Text(
+                                    text = if (hit) "🦌\n$day" else day.toString(),
+                                    color = when {
+                                        hit -> Color.White
+                                        isToday -> MiuixTheme.colorScheme.primary
+                                        else -> MiuixTheme.colorScheme.onSurfaceVariantSummary
+                                    },
+                                    fontSize = if (hit) 7.sp else 8.sp,
+                                    textAlign = TextAlign.Center,
+                                )
+                            }
                         }
                     }
                 }

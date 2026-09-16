@@ -6,6 +6,8 @@ import android.appwidget.AppWidgetProvider
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.util.TypedValue
+import android.view.View
 import android.widget.RemoteViews
 import com.chayewuu.hypermatter.MainActivity
 import com.chayewuu.hypermatter.R
@@ -25,16 +27,51 @@ import java.time.YearMonth
  * countdown widgets the data does NOT flow through [com.chayewuu.hypermatter.data.EventStore],
  * so [pushDeerWidgets] is called by the recorder page itself after every
  * write.
+ *
+ * The 2x2 month grid uses SIX statically declared week rows, each
+ * `layout_height=0dp` + `layout_weight=1` (see widget_deer_calendar.xml):
+ * the visible rows always split the full remaining height, so a 5-week month
+ * gets taller cells instead of leaving a gap at the bottom. Static rows are
+ * deliberate — children created by RemoteViews.addView do not reliably keep
+ * their layout_weight, statically declared ones always do.
  */
 
-private val CELL_IDS = intArrayOf(
-    R.id.deer_cell_0,
-    R.id.deer_cell_1,
-    R.id.deer_cell_2,
-    R.id.deer_cell_3,
-    R.id.deer_cell_4,
-    R.id.deer_cell_5,
-    R.id.deer_cell_6,
+/** The six static week rows of the month grid, top to bottom. */
+private val WEEK_ROW_IDS = intArrayOf(
+    R.id.deer_week_0,
+    R.id.deer_week_1,
+    R.id.deer_week_2,
+    R.id.deer_week_3,
+    R.id.deer_week_4,
+    R.id.deer_week_5,
+)
+
+/** The 7 day cells of each static week row, in the same order as above. */
+private val WEEK_CELL_IDS = arrayOf(
+    intArrayOf(
+        R.id.deer_w0_c0, R.id.deer_w0_c1, R.id.deer_w0_c2, R.id.deer_w0_c3,
+        R.id.deer_w0_c4, R.id.deer_w0_c5, R.id.deer_w0_c6,
+    ),
+    intArrayOf(
+        R.id.deer_w1_c0, R.id.deer_w1_c1, R.id.deer_w1_c2, R.id.deer_w1_c3,
+        R.id.deer_w1_c4, R.id.deer_w1_c5, R.id.deer_w1_c6,
+    ),
+    intArrayOf(
+        R.id.deer_w2_c0, R.id.deer_w2_c1, R.id.deer_w2_c2, R.id.deer_w2_c3,
+        R.id.deer_w2_c4, R.id.deer_w2_c5, R.id.deer_w2_c6,
+    ),
+    intArrayOf(
+        R.id.deer_w3_c0, R.id.deer_w3_c1, R.id.deer_w3_c2, R.id.deer_w3_c3,
+        R.id.deer_w3_c4, R.id.deer_w3_c5, R.id.deer_w3_c6,
+    ),
+    intArrayOf(
+        R.id.deer_w4_c0, R.id.deer_w4_c1, R.id.deer_w4_c2, R.id.deer_w4_c3,
+        R.id.deer_w4_c4, R.id.deer_w4_c5, R.id.deer_w4_c6,
+    ),
+    intArrayOf(
+        R.id.deer_w5_c0, R.id.deer_w5_c1, R.id.deer_w5_c2, R.id.deer_w5_c3,
+        R.id.deer_w5_c4, R.id.deer_w5_c5, R.id.deer_w5_c6,
+    ),
 )
 
 /** Open the 🦌🦌记录器 page (separate request codes keep the PIs distinct). */
@@ -184,33 +221,62 @@ private fun updateDeerCalendarWidget(
         },
     )
 
-    // Monday-first grid: blanks before the 1st, one row per week (max 6).
+    // Monday-first grid: blanks before the 1st, one weighted row per week
+    // (max 6). Unused rows are GONE so the visible ones share the full height.
     val leading = month.atDay(1).dayOfWeek.value - 1
     val daysInMonth = month.lengthOfMonth()
     val weeks = ((leading + daysInMonth + 6) / 7).coerceAtMost(6)
     val todayEpochDay = today.toEpochDay()
+    val onAccent = context.getColor(R.color.widget_on_accent)
+    val accent = context.getColor(R.color.widget_accent)
+    val secondary = context.getColor(R.color.widget_text_secondary)
 
-    views.removeAllViews(R.id.deer_grid)
-    for (week in 0 until weeks) {
-        val row = RemoteViews(context.packageName, R.layout.widget_deer_week)
+    for (week in 0 until WEEK_ROW_IDS.size) {
+        val rowId = WEEK_ROW_IDS[week]
+        if (week >= weeks) {
+            views.setViewVisibility(rowId, View.GONE)
+            continue
+        }
+        views.setViewVisibility(rowId, View.VISIBLE)
         for (slot in 0 until 7) {
             val dayOfMonth = week * 7 + slot - leading + 1
-            val dayEpochDay = if (dayOfMonth in 1..daysInMonth) {
-                month.atDay(dayOfMonth).toEpochDay()
-            } else {
-                Long.MIN_VALUE
+            val cellId = WEEK_CELL_IDS[week][slot]
+            if (dayOfMonth !in 1..daysInMonth) {
+                // Outside this month (lead-in / trail): fully transparent,
+                // no date.
+                views.setInt(cellId, "setBackgroundResource", R.drawable.widget_deer_day_blank)
+                views.setTextViewText(cellId, "")
+                continue
             }
-            val cell = when {
-                // Outside this month (lead-in / trail): fully transparent.
-                dayEpochDay == Long.MIN_VALUE -> R.drawable.widget_deer_day_blank
-                records[dayEpochDay] == DeerTrackerStore.STATUS_HIT ->
-                    R.drawable.widget_deer_day_hit
-                dayEpochDay == todayEpochDay -> R.drawable.widget_deer_day_today
-                else -> R.drawable.widget_deer_day_none
-            }
-            row.setImageViewResource(CELL_IDS[slot], cell)
+            val dayEpochDay = month.atDay(dayOfMonth).toEpochDay()
+            val hit = records[dayEpochDay] == DeerTrackerStore.STATUS_HIT
+            val isToday = dayEpochDay == todayEpochDay
+            views.setInt(
+                cellId,
+                "setBackgroundResource",
+                when {
+                    hit -> R.drawable.widget_deer_day_hit
+                    isToday -> R.drawable.widget_deer_day_today
+                    else -> R.drawable.widget_deer_day_none
+                },
+            )
+            // Every cell carries its small day number; a 破戒 day adds the 🦌
+            // above the date so the blue box still says which day it is.
+            views.setTextViewText(cellId, if (hit) "🦌\n$dayOfMonth" else dayOfMonth.toString())
+            views.setTextColor(
+                cellId,
+                when {
+                    hit -> onAccent
+                    isToday -> accent
+                    else -> secondary
+                },
+            )
+            views.setTextViewTextSize(
+                cellId,
+                TypedValue.COMPLEX_UNIT_SP,
+                if (hit) 7f else 8f,
+            )
         }
-        views.addView(R.id.deer_grid, row)
     }
 
     views.setOnClickPendingIntent(R.id.widget_root, openDeerTracker(context, 5000 + appWidgetId))

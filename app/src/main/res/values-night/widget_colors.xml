@@ -12,4 +12,6 @@
     <color name="widget_accent_soft">#4D277AF7</color>
     <!-- Unrecorded day cell in the 🦌🦌记录器 month grid. -->
     <color name="widget_deer_day_empty">#1AFFFFFF</color>
+    <!-- Text on a solid accent fill (the 🦌 + date inside a 破戒 day cell). -->
+    <color name="widget_on_accent">#FFFFFFFF</color>
 </resources>

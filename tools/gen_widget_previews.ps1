@@ -280,19 +280,26 @@ $bmp.Save("$outDir\widget_deer_status_preview.png", [System.Drawing.Imaging.Imag
 $g.Dispose(); $bmp.Dispose()
 
 # ------------------------------------------------- deer recorder month 2x2
-# Stat line, 一二三四五六日 header, then a 6x7 month grid: recorded days in
-# accent, today in soft accent, the rest a faint tint.
+# Stat line, 一二三四五六日 header, then the sample month's 5 weighted weeks:
+# every cell carries its small day number, a 破戒 day is an accent box with a
+# 🦌 above the date, today is a soft accent box with an accent date.
 $bmp, $g = New-Canvas 600 734 64
 $pad = 50
 $fStat = Font $YaHei 26 ([System.Drawing.FontStyle]::Regular)
 $fWd = Font $YaHei 22 ([System.Drawing.FontStyle]::Regular)
+$fDay = Font $YaHei 26 ([System.Drawing.FontStyle]::Regular)
+$fDeer = Font 'Segoe UI Emoji' 34 ([System.Drawing.FontStyle]::Regular)
 
 $g.DrawString('已戒 3 天 · 本月破戒 2 次', $fStat, $bSecondary, $pad, 46)
 
 $gridW = 600 - 2 * $pad
 $gap = 8
 $cellW = ($gridW - 6 * $gap) / 7
-$cellH = 68
+# The real widget gives every visible week an equal share of the leftover
+# height (weighted rows), so the preview draws the sample month's 5 weeks
+# filling the card the same way.
+$rows = 5
+$cellH = (734 - 60 - 150 - ($rows - 1) * $gap) / $rows
 $gridTop = 150
 $wdY = $gridTop - 34
 
@@ -310,15 +317,17 @@ $todayDay = 25
 $leading = 2      # 1 号是周三
 $daysInMonth = 30
 
-for ($row = 0; $row -lt 6; $row++) {
+for ($row = 0; $row -lt $rows; $row++) {
     for ($col = 0; $col -lt 7; $col++) {
         $day = $row * 7 + $col - $leading + 1
         $x = $pad + $col * ($cellW + $gap)
         $y = $gridTop + $row * ($cellH + $gap)
         if ($day -lt 1 -or $day -gt $daysInMonth) { continue }
+        $isHit = $hitDays -contains $day
+        $isToday = $day -eq $todayDay
         $brush = $emptyBrush
-        if ($hitDays -contains $day) { $brush = $bAccent }
-        elseif ($day -eq $todayDay) { $brush = $softBrush }
+        if ($isHit) { $brush = $bAccent }
+        elseif ($isToday) { $brush = $softBrush }
         $rp = 14
         $cellPath = New-Object System.Drawing.Drawing2D.GraphicsPath
         $cellPath.AddArc($x, $y, 2 * $rp, 2 * $rp, 180, 90)
@@ -327,6 +336,23 @@ for ($row = 0; $row -lt 6; $row++) {
         $cellPath.AddArc($x, ($y + $cellH - 2 * $rp), 2 * $rp, 2 * $rp, 90, 90)
         $cellPath.CloseFigure()
         $g.FillPath($brush, $cellPath)
+
+        # Day number in every cell; a 破戒 day adds the 🦌 above it.
+        $label = "$day"
+        $ls = $g.MeasureString($label, $fDay)
+        if ($isHit) {
+            $ds = $g.MeasureString('🦌', $fDeer)
+            $g.DrawString('🦌', $fDeer, $whiteBrush,
+                ($x + ($cellW - $ds.Width) / 2), ($y + $cellH / 2 - $ds.Height + 6))
+            $g.DrawString($label, $fDay, $whiteBrush,
+                ($x + ($cellW - $ls.Width) / 2), ($y + $cellH / 2 + 4))
+        }
+        else {
+            $labelBrush = $bSecondary
+            if ($isToday) { $labelBrush = $bAccent }
+            $g.DrawString($label, $fDay, $labelBrush,
+                ($x + ($cellW - $ls.Width) / 2), ($y + ($cellH - $ls.Height) / 2))
+        }
     }
 }
 
