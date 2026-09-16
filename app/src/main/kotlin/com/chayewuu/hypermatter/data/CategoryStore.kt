@@ -10,7 +10,7 @@ import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
 
 /**
- * A user-visible category for events (纪念日 / 生活 / 工作 / custom).
+ * A user-visible category for events (纪念日 / 生日 / 生活 / 工作 / custom).
  * Built-in categories have fixed ids and cannot be deleted (rename allowed);
  * custom ones get a UUID id.
  */
@@ -94,13 +94,15 @@ class CategoryStore(context: Context) {
     companion object {
         private const val KEY_PERSISTED = "persisted"
 
-        /** Fixed ids for the three built-in categories. */
+        /** Fixed ids for the four built-in categories. */
         const val ID_ANNIVERSARY = "anniversary"
+        const val ID_BIRTHDAY = "birthday"
         const val ID_LIFE = "life"
         const val ID_WORK = "work"
 
         val BUILT_INS = listOf(
             EventCategory(ID_ANNIVERSARY, "纪念日", builtIn = true),
+            EventCategory(ID_BIRTHDAY, "生日", builtIn = true),
             EventCategory(ID_LIFE, "生活", builtIn = true),
             EventCategory(ID_WORK, "工作", builtIn = true),
         )

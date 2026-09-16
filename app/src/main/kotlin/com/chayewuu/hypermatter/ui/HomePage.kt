@@ -36,6 +36,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.chayewuu.hypermatter.data.CategoryStore
 import com.chayewuu.hypermatter.data.CountdownEvent
 import com.chayewuu.hypermatter.data.DateUtils
 import com.chayewuu.hypermatter.ui.glass.GlassFab
@@ -294,7 +295,7 @@ fun HomePage(
             onDismiss = { editTarget = null },
             onConfirm = { title, epochDay, note, repeatType,
                           lunarMonth, lunarDay, repeatWeekday, repeatMonthDay,
-                          repeatYearMonth, timeHour, timeMinute, category ->
+                          repeatYearMonth, timeHour, timeMinute, category, birthEpochDay ->
                 val fresh = viewModel.events.value.firstOrNull { it.id == target.id } ?: target
                 viewModel.updateEvent(
                     fresh.copy(
@@ -310,6 +311,13 @@ fun HomePage(
                         timeHour = timeHour,
                         timeMinute = timeMinute,
                         category = category,
+                        // Leaving the 生日 category drops the birth date so a
+                        // re-used event doesn't keep computing an age.
+                        birthEpochDay = if (category == CategoryStore.ID_BIRTHDAY) {
+                            birthEpochDay
+                        } else {
+                            null
+                        },
                     )
                 )
                 editTarget = null
@@ -385,6 +393,15 @@ private fun EventCard(
                         color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                         style = MiuixTheme.textStyles.body2,
                     )
+                    // 生日: 周岁 + 生肖 (hidden when no birth date is stored).
+                    DateUtils.birthdayLine(event)?.let { birthdayInfo ->
+                        Spacer(Modifier.height(2.dp))
+                        Text(
+                            text = birthdayInfo,
+                            color = MiuixTheme.colorScheme.primary,
+                            style = MiuixTheme.textStyles.body2,
+                        )
+                    }
                     if (!event.note.isNullOrBlank()) {
                         Spacer(Modifier.height(2.dp))
                         Text(

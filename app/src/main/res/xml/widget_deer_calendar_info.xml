@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:minWidth="110dp"
+    android:minHeight="110dp"
+    android:targetCellWidth="2"
+    android:targetCellHeight="2"
+    android:updatePeriodMillis="1800000"
+    android:initialLayout="@layout/widget_deer_calendar"
+    android:previewImage="@drawable/widget_deer_calendar_preview"
+    android:previewLayout="@layout/widget_deer_calendar"
+    android:description="@string/widget_deer_calendar_desc"
+    android:widgetCategory="home_screen" />

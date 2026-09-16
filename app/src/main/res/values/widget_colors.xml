@@ -8,4 +8,8 @@
     <color name="widget_text_primary">#FF000000</color>
     <color name="widget_text_secondary">#99000000</color>
     <color name="widget_accent">#FF3482FF</color>
+    <!-- Soft accent fill (today's cell in the 🦌🦌记录器 month grid). -->
+    <color name="widget_accent_soft">#333482FF</color>
+    <!-- Unrecorded day cell in the 🦌🦌记录器 month grid. -->
+    <color name="widget_deer_day_empty">#12000000</color>
 </resources>

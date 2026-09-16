@@ -686,6 +686,16 @@ fun EventDetailPage(
                                 style = MiuixTheme.textStyles.body2,
                             )
                         }
+                        // 生日: 周岁 + 生肖 under the title.
+                        DateUtils.birthdayLine(event)?.let { birthdayInfo ->
+                            Spacer(Modifier.height(6.dp))
+                            FancyText(
+                                text = birthdayInfo,
+                                autoColor = pillFg,
+                                settings = effFontSettings,
+                                style = MiuixTheme.textStyles.footnote1,
+                            )
+                        }
                         Spacer(Modifier.height(26.dp))
                         FancyText(
                             text = DateUtils.describe(event),

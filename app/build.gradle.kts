@@ -17,8 +17,8 @@ android {
         applicationId = "com.chayewuu.hypermatter"
         minSdk = 24
         targetSdk = 36
-        versionCode = 3
-        versionName = "1.2.0"
+        versionCode = 4
+        versionName = "1.3.0"
     }
 
     // Release signing: reads credentials from keystore.properties (gitignored).

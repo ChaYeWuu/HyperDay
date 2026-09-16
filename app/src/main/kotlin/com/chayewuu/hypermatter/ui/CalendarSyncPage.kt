@@ -57,6 +57,7 @@ import top.yukonga.miuix.kmp.icon.MiuixIcons
 import top.yukonga.miuix.kmp.icon.extended.Back
 import top.yukonga.miuix.kmp.overlay.OverlayDialog
 import top.yukonga.miuix.kmp.preference.ArrowPreference
+import top.yukonga.miuix.kmp.preference.SwitchPreference
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.utils.overScrollVertical
 import top.yukonga.miuix.kmp.utils.scrollEndHaptic
@@ -72,10 +73,12 @@ import java.time.format.DateTimeFormatter
  * calendar: 「全选」tristate row + one check row per event (persisted via
  * [CalendarSyncManager.getSelectedIds], null = all). 「立即同步」does a
  * full rebuild of the local calendar with exactly the selected events;
- * 「移除日历同步」deletes the calendar itself.
+ * 「自动同步」keeps doing that in the background whenever the event list
+ * changes; 「移除日历同步」deletes the calendar itself. The reverse
+ * direction lives one level deeper (从系统日历导入).
  */
 @Composable
-fun CalendarSyncPage(onBack: () -> Unit) {
+fun CalendarSyncPage(onBack: () -> Unit, onOpenImport: () -> Unit) {
     val viewModel = LocalEventViewModel.current
     val events by viewModel.events.collectAsState()
     val context = LocalContext.current
@@ -228,6 +231,33 @@ fun CalendarSyncPage(onBack: () -> Unit) {
                                 enabled = !syncing,
                                 onClick = { showRemoveDialog = true },
                             )
+                            // Auto-sync lives here rather than in 设置 so the
+                            // selection, the manual action and the background
+                            // behaviour stay on one screen.
+                            val autoSync = remember(syncTick) {
+                                CalendarSyncManager.isAutoSyncEnabled(context)
+                            }
+                            SwitchPreference(
+                                title = "自动同步",
+                                summary = "倒数日变动后自动更新到系统日历",
+                                checked = autoSync,
+                                onCheckedChange = { enabled ->
+                                    CalendarSyncManager.setAutoSyncEnabled(context, enabled)
+                                    syncTick++
+                                    if (enabled) {
+                                        // Immediate first sync so the switch has
+                                        // visible feedback (asks for permission
+                                        // first when it was never granted).
+                                        syncOrAskPermission()
+                                    } else {
+                                        Toast.makeText(
+                                            context,
+                                            "已关闭自动同步，日历内容保持不变",
+                                            Toast.LENGTH_SHORT,
+                                        ).show()
+                                    }
+                                },
+                            )
                         }
                     }
 
@@ -272,6 +302,25 @@ fun CalendarSyncPage(onBack: () -> Unit) {
                                     )
                                 }
                             }
+                        }
+                    }
+
+                    // Reverse direction: pull system-calendar events in as
+                    // countdown events (one level deeper, so the picking UI
+                    // stays out of the way here).
+                    item {
+                        Spacer(Modifier.height(12.dp))
+                        SmallTitle(text = "导入")
+                        LiquidGlassCard(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 12.dp),
+                        ) {
+                            ArrowPreference(
+                                title = "从系统日历导入",
+                                summary = "把系统日历中的日程导入为倒数日",
+                                onClick = onOpenImport,
+                            )
                         }
                     }
                 }

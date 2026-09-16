@@ -38,6 +38,7 @@ class EventViewModel(
         timeHour: Int? = null,
         timeMinute: Int? = null,
         category: String? = null,
+        birthEpochDay: Long? = null,
     ) {
         store.add(
             CountdownEvent(
@@ -54,6 +55,7 @@ class EventViewModel(
                 timeHour = timeHour,
                 timeMinute = timeMinute,
                 category = category,
+                birthEpochDay = birthEpochDay,
             )
         )
     }
@@ -71,6 +73,10 @@ class EventViewModel(
     }
 
     fun importEvents(events: List<CountdownEvent>): Int = store.importEvents(events)
+
+    /** 系统日历 → APP import; returns (added, updated). */
+    fun importSystemEvents(events: List<CountdownEvent>): Pair<Int, Int> =
+        store.importSystemEvents(events)
 
     companion object {
         val Factory: ViewModelProvider.Factory = viewModelFactory {

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Today's cell in the 🦌🦌记录器 month grid (unrecorded): a soft accent
+     tint so today is findable without looking like a relapse. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android">
+    <solid android:color="@color/widget_accent_soft" />
+    <corners android:radius="3dp" />
+</shape>

@@ -47,6 +47,14 @@ import kotlinx.serialization.Serializable
  *                        epochDay.
  * @param timeHour        For repeatType 1: hour of day 0..23 (display only).
  * @param timeMinute      For repeatType 1: minute 0..59 (display only).
+ * @param birthEpochDay   For 生日 category events: the actual birth date.
+ *                        Kept separate from epochDay because the latter is
+ *                        only the recurrence anchor (the add date) for
+ *                        recurring events — the age/生肖 display needs the
+ *                        real birth date, and stays hidden when it is null.
+ * @param sourceRef       "系统日历 → APP" import marker, "calendarId:eventId"
+ *                        of the originating system-calendar event; used to
+ *                        update instead of duplicating on re-import.
  */
 @Serializable
 data class CountdownEvent(
@@ -57,6 +65,8 @@ data class CountdownEvent(
     val isPast: Boolean? = null,
     /** Category id (CategoryStore); null = uncategorized. */
     val category: String? = null,
+    val birthEpochDay: Long? = null,
+    val sourceRef: String? = null,
     val repeatType: Int? = null,
     val lunarMonth: Int? = null,
     val lunarDay: Int? = null,

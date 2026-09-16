@@ -37,6 +37,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.chayewuu.hypermatter.data.DeerTrackerStore
+import com.chayewuu.hypermatter.widget.pushDeerWidgets
 import com.chayewuu.hypermatter.ui.glass.GlassCanvasRecorder
 import com.chayewuu.hypermatter.ui.glass.LiquidGlassCard
 import com.chayewuu.hypermatter.ui.glass.LocalGlassBackdrop
@@ -90,6 +91,9 @@ fun DeerTrackerPage(onBack: () -> Unit) {
     fun write(day: LocalDate, status: Int) {
         DeerTrackerStore.setRecord(context, day.toEpochDay(), status)
         records = DeerTrackerStore.getRecords(context)
+        // The 🦌🦌记录器 widgets read DeerTrackerStore directly (they are not
+        // driven by EventStore), so they need an explicit push here.
+        runCatching { pushDeerWidgets(context) }
     }
 
     fun toggleHit(day: LocalDate) {
@@ -382,6 +386,7 @@ fun DeerTrackerPage(onBack: () -> Unit) {
                         onClick = {
                             DeerTrackerStore.clearAll(context)
                             records = emptyMap()
+                            runCatching { pushDeerWidgets(context) }
                             showClearDialog = false
                             Toast.makeText(context, "已清空全部记录", Toast.LENGTH_SHORT).show()
                         },

@@ -380,4 +380,7 @@ fun updateAllWidgets(context: Context) {
     CardWidget.push(context)
     ListWidget.push(context)
     MinimalWidget.push(context)
+    // 🦌🦌记录器 widgets read DeerTrackerStore, not EventStore, but refreshing
+    // them here too keeps "one call refreshes everything" true for the caller.
+    pushDeerWidgets(context)
 }

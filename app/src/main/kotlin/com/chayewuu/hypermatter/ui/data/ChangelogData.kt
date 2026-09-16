@@ -16,6 +16,18 @@ data class ChangelogEntry(
 
 val changelogData = listOf(
     ChangelogEntry(
+        version = "v1.3.0 (4)",
+        date = "2026-09-16",
+        changes = listOf(
+            "新增 🦌🦌记录器桌面小部件两款：2×1 状态条与 2×2 本月记录一览",
+            "新增 「生日」分类，自动按年重复并展示周岁与生肖（按春节切换）",
+            "新增 同步系统日历支持自动同步，倒数日变动后自动更新",
+            "新增 从系统日历导入日程，可自由勾选并作为倒数日管理",
+            "优化 小部件点击直达记录器页面，记录后立即刷新",
+            "修复 导入的系统日程重复添加的问题（按来源更新）",
+        ),
+    ),
+    ChangelogEntry(
         version = "v1.2.0 (3)",
         date = "2026-09-08",
         changes = listOf(

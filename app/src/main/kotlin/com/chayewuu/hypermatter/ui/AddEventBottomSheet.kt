@@ -121,6 +121,7 @@ fun AddEventBottomSheet(
         timeHour: Int?,
         timeMinute: Int?,
         category: String?,
+        birthEpochDay: Long?,
     ) -> Unit,
 ) {
     val today = DateUtils.today()
@@ -130,7 +131,11 @@ fun AddEventBottomSheet(
 
     // Edit mode: the sheet is freshly composed for each edit target, so a
     // plain remember{} seeded from the event gives the prefilled draft.
-    val initialDate = editEvent?.let { LocalDate.ofEpochDay(it.epochDay) } ?: today
+    // Birthday events hold the real birth date separately from the
+    // recurrence anchor, so the picker seeds from that one.
+    val initialDate = editEvent?.let {
+        LocalDate.ofEpochDay(it.birthEpochDay ?: it.epochDay)
+    } ?: today
     var title by remember { mutableStateOf(editEvent?.title ?: "") }
     var note by remember { mutableStateOf(editEvent?.note ?: "") }
     var year by remember { mutableIntStateOf(initialDate.year) }
@@ -152,6 +157,11 @@ fun AddEventBottomSheet(
     // (not chosen manually in the repeat dropdown): leaving 纪念日 then
     // reverts the draft back to 不重复.
     var anniversaryAutoRepeat by remember { mutableStateOf(false) }
+    // Same idea for 生日: yearly by default, but the recurrence month/day
+    // come from the birth-date picker on the form itself.
+    var birthdayAutoRepeat by remember { mutableStateOf(false) }
+
+    val isBirthdayCategory = category == CategoryStore.ID_BIRTHDAY
 
     /** Shared "go back one level" used by the back gesture and × button. */
     fun pageBack() {
@@ -296,15 +306,43 @@ fun AddEventBottomSheet(
                         AddSheetPage.FORM -> {
                             if (title.isNotBlank()) {
                                 val date = safeLocalDate(year, month, day)
+                                // 生日: the picked date IS the birth date; it is
+                                // stored separately and also drives the yearly
+                                // recurrence (solar month/day, or the lunar
+                                // equivalent when 每年农历 was chosen).
+                                val birth = if (isBirthdayCategory) date else null
+                                val effectiveRepeat = when {
+                                    birth == null -> repeatType
+                                    repeatType == 5 -> 5
+                                    else -> 4
+                                }
+                                val lunar = if (birth != null && effectiveRepeat == 5) {
+                                    LunarCalendar.solarToLunar(birth)
+                                } else {
+                                    null
+                                }
                                 onConfirm(
                                     title, date.toEpochDay(), note,
-                                    repeatType, lunarMonth, lunarDay,
-                                    if (repeatType == 2) weekday else null,
-                                    if (repeatType == 3 || repeatType == 4) monthDay else null,
-                                    if (repeatType == 4) yearMonth else null,
-                                    if (repeatType == 1) hour else null,
-                                    if (repeatType == 1) minute else null,
+                                    effectiveRepeat,
+                                    lunar?.month ?: lunarMonth,
+                                    lunar?.day ?: lunarDay,
+                                    if (effectiveRepeat == 2) weekday else null,
+                                    when {
+                                        birth != null && effectiveRepeat == 4 ->
+                                            birth.dayOfMonth
+                                        effectiveRepeat == 3 || effectiveRepeat == 4 -> monthDay
+                                        else -> null
+                                    },
+                                    when {
+                                        birth != null && effectiveRepeat == 4 ->
+                                            birth.monthValue
+                                        effectiveRepeat == 4 -> yearMonth
+                                        else -> null
+                                    },
+                                    if (effectiveRepeat == 1) hour else null,
+                                    if (effectiveRepeat == 1) minute else null,
                                     category,
+                                    birth?.toEpochDay(),
                                 )
                             }
                         }
@@ -425,6 +463,22 @@ fun AddEventBottomSheet(
                                     repeatType = 0
                                     anniversaryAutoRepeat = false
                                 }
+                                if (picked == CategoryStore.ID_BIRTHDAY) {
+                                    // 生日 defaults to a yearly repeat, but no
+                                    // config page: the birth-date picker right
+                                    // below supplies the month/day (and the year
+                                    // that drives 年龄/生肖).
+                                    val selected = safeLocalDate(year, month, day)
+                                    if (repeatType == 0 || repeatType == 4) {
+                                        repeatType = 4
+                                        yearMonth = selected.monthValue
+                                        monthDay = selected.dayOfMonth
+                                    }
+                                    birthdayAutoRepeat = true
+                                } else if (birthdayAutoRepeat && picked != CategoryStore.ID_BIRTHDAY) {
+                                    repeatType = 0
+                                    birthdayAutoRepeat = false
+                                }
                                 category = picked
                             },
                         )
@@ -441,10 +495,21 @@ fun AddEventBottomSheet(
                         )
                     }
 
+                    // 生日 needs an explicit birth date on the form itself
+                    // (the recurrence is yearly, but 年龄/生肖 need the year).
+                    if (isBirthdayCategory) {
+                        Text(
+                            text = "出生日期（用于计算年龄与生肖）",
+                            color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                            style = MiuixTheme.textStyles.body2,
+                            modifier = Modifier.padding(horizontal = 16.dp),
+                        )
+                    }
+
                     // Date picker — only meaningful for one-off events.
                     // Recurring events get their parameters (weekday /
                     // month-day / lunar date / time) from the config page.
-                    if (repeatType == 0) {
+                    if (repeatType == 0 || isBirthdayCategory) {
                         Card(
                             modifier = Modifier.fillMaxWidth(),
                             insideMargin = PaddingValues(16.dp),
@@ -457,7 +522,13 @@ fun AddEventBottomSheet(
                             NumberPicker(
                                 value = year,
                                 onValueChange = { year = it },
-                                range = (today.year - 50)..(today.year + 50),
+                                // 生日 reaches back 120 years for the real birth
+                                // year; one-off events stay near today.
+                                range = if (isBirthdayCategory) {
+                                    (today.year - 120)..today.year
+                                } else {
+                                    (today.year - 50)..(today.year + 50)
+                                },
                                 label = { "${it}年" },
                                 modifier = Modifier.weight(1.5f),
                             )
@@ -494,8 +565,31 @@ fun AddEventBottomSheet(
 
                     // One-line live preview (compact — keeps the form
                     // short enough to never need scrolling).
-                    val previewText = when (repeatType) {
-                        0 -> {
+                    val previewText = when {
+                        // 生日: the picked date is the birth date, so the
+                        // preview can already show 周岁 + 生肖.
+                        isBirthdayCategory -> {
+                            val birth = safeLocalDate(year, month, day)
+                            val probe = CountdownEvent(
+                                id = "preview",
+                                title = "",
+                                epochDay = birth.toEpochDay(),
+                                birthEpochDay = birth.toEpochDay(),
+                                category = CategoryStore.ID_BIRTHDAY,
+                                repeatType = 4,
+                                repeatMonthDay = birth.dayOfMonth,
+                                repeatYearMonth = birth.monthValue,
+                            )
+                            val nextDate = DateUtils.effectiveDate(probe)
+                            val diff = nextDate.toEpochDay() - DateUtils.todayEpochDay()
+                            val info = DateUtils.birthdayLine(probe).orEmpty()
+                            buildString {
+                                append(info.ifBlank { DateUtils.repeatLabel(probe) })
+                                if (diff == 0L) append("，就是今天")
+                                else append("，还有 $diff 天")
+                            }
+                        }
+                        repeatType == 0 -> {
                             val selectedDate = safeLocalDate(year, month, day)
                             val diff = selectedDate.toEpochDay() - DateUtils.todayEpochDay()
                             when {
@@ -505,7 +599,7 @@ fun AddEventBottomSheet(
                             }
                         }
                         // Daily: the countdown is always "today" — just the rule.
-                        1 -> repeatSummary
+                        repeatType == 1 -> repeatSummary
                         else -> {
                             val probe = com.chayewuu.hypermatter.data.CountdownEvent(
                                 id = "preview",

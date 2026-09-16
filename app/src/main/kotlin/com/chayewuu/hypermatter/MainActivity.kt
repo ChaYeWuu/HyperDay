@@ -36,6 +36,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.chayewuu.hypermatter.data.CalendarSyncManager
 import com.chayewuu.hypermatter.data.CategoryStore
 import com.chayewuu.hypermatter.data.EventStore
 import com.chayewuu.hypermatter.data.EventViewModel
@@ -46,6 +47,7 @@ import com.chayewuu.hypermatter.reminder.ReminderScheduler
 import com.chayewuu.hypermatter.ui.AboutPage
 import com.chayewuu.hypermatter.ui.AddEventBottomSheet
 import com.chayewuu.hypermatter.ui.BlurredBar
+import com.chayewuu.hypermatter.ui.CalendarImportPage
 import com.chayewuu.hypermatter.ui.CalendarSyncPage
 import com.chayewuu.hypermatter.ui.CategoryPage
 import com.chayewuu.hypermatter.ui.DeerTrackerPage
@@ -107,6 +109,9 @@ class MainActivity : ComponentActivity() {
     /** Event deep-link target set by the home-screen widgets. */
     private val pendingEventId = mutableStateOf<String?>(null)
 
+    /** 🦌🦌记录器 widget deep link: open the recorder page. */
+    private val pendingDeerTracker = mutableStateOf(false)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge(
@@ -114,6 +119,7 @@ class MainActivity : ComponentActivity() {
             navigationBarStyle = SystemBarStyle.auto(0, 0),
         )
         pendingEventId.value = intent?.getStringExtra(EXTRA_EVENT_ID)
+        pendingDeerTracker.value = intent?.getBooleanExtra(EXTRA_OPEN_DEER_TRACKER, false) == true
 
         val eventStore = EventStore(this)
         val settingsStore = SettingsStore(this)
@@ -161,7 +167,7 @@ class MainActivity : ComponentActivity() {
                     LocalCategoryStore provides categoryStore,
                     LocalReminderStore provides reminderStore,
                 ) {
-                    App(pendingEventId)
+                    App(pendingEventId, pendingDeerTracker)
                 }
             }
         }
@@ -171,11 +177,15 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         pendingEventId.value = intent.getStringExtra(EXTRA_EVENT_ID)
+        pendingDeerTracker.value = intent.getBooleanExtra(EXTRA_OPEN_DEER_TRACKER, false)
     }
 
     companion object {
         /** Widget PendingIntents use this extra to deep-link an event detail page. */
         const val EXTRA_EVENT_ID = "hyperday.extra.EVENT_ID"
+
+        /** 🦌🦌记录器 widgets use this extra to open the recorder page. */
+        const val EXTRA_OPEN_DEER_TRACKER = "hyperday.extra.OPEN_DEER_TRACKER"
     }
 }
 
@@ -196,6 +206,9 @@ private sealed interface Route : NavKey {
 
     @Serializable
     data object CalendarSync : Route
+
+    @Serializable
+    data object CalendarImport : Route
 
     @Serializable
     data object Category : Route
@@ -256,7 +269,10 @@ private fun rememberSystemCornerRadius(): Dp {
 }
 
 @Composable
-private fun App(pendingEventId: MutableState<String?>) {
+private fun App(
+    pendingEventId: MutableState<String?>,
+    pendingDeerTracker: MutableState<Boolean>,
+) {
     // Liquid Glass app style: enabled by the settings switch and only when
     // the device supports RenderEffect (API 31+); below that every glass
     // component silently falls back to its classic Miuix counterpart.
@@ -279,8 +295,23 @@ private fun App(pendingEventId: MutableState<String?>) {
 
     // Re-plan reminder alarms on start and whenever the event list changes
     // (added events with a reminded category immediately get an alarm).
+    // The same hook drives 自动同步: with the switch on, the system calendar
+    // is rebuilt from the current selection after every data change (and on
+    // start), off the main thread and silent unless it fails.
     LaunchedEffect(events) {
         runCatching { ReminderScheduler.reschedule(context) }
+        withContext(Dispatchers.IO) {
+            runCatching { CalendarSyncManager.autoSyncIfEnabled(context, events) }
+        }
+    }
+
+    // 🦌🦌记录器 widget deep link: push the recorder page once, then consume.
+    LaunchedEffect(pendingDeerTracker.value) {
+        if (pendingDeerTracker.value) {
+            backStack.removeAll { it is Route.DeerTracker }
+            backStack.add(Route.DeerTracker)
+            pendingDeerTracker.value = false
+        }
     }
 
     // Widget deep link: push the event detail page once, then consume.
@@ -340,7 +371,13 @@ private fun App(pendingEventId: MutableState<String?>) {
                 WidgetPage(onBack = { backStack.removeLastOrNull() })
             }
             entry<Route.CalendarSync>(swipeDismiss = NavSwipeDirection.LeftToRight) {
-                CalendarSyncPage(onBack = { backStack.removeLastOrNull() })
+                CalendarSyncPage(
+                    onBack = { backStack.removeLastOrNull() },
+                    onOpenImport = { backStack.add(Route.CalendarImport) },
+                )
+            }
+            entry<Route.CalendarImport>(swipeDismiss = NavSwipeDirection.LeftToRight) {
+                CalendarImportPage(onBack = { backStack.removeLastOrNull() })
             }
             entry<Route.Category>(swipeDismiss = NavSwipeDirection.LeftToRight) {
                 CategoryPage(onBack = { backStack.removeLastOrNull() })
@@ -553,11 +590,11 @@ private fun MainTabs(
                     onDismiss = { showAddSheet = false },
                     onConfirm = { title, epochDay, note, repeatType, lunarMonth, lunarDay,
                                   repeatWeekday, repeatMonthDay, repeatYearMonth, timeHour, timeMinute,
-                                  category ->
+                                  category, birthEpochDay ->
                         viewModel.addEvent(
                             title, epochDay, note, repeatType, lunarMonth, lunarDay,
                             repeatWeekday, repeatMonthDay, repeatYearMonth, timeHour, timeMinute,
-                            category,
+                            category, birthEpochDay,
                         )
                         showAddSheet = false
                     },

@@ -9,4 +9,8 @@
     <string name="widget_minimal_label">倒数日 · 极简</string>
     <string name="widget_minimal_desc">极简天数显示，一目了然</string>
     <string name="widget_empty_title">还没有倒数日</string>
+    <string name="widget_deer_status_label">🦌🦌记录器 · 状态</string>
+    <string name="widget_deer_status_desc">显示已戒天数、最长纪录与今日状态，点击进入记录器</string>
+    <string name="widget_deer_calendar_label">🦌🦌记录器 · 本月</string>
+    <string name="widget_deer_calendar_desc">本月记录一览：破戒日高亮，今天描边，附已戒天数与本月破戒次数</string>
 </resources>

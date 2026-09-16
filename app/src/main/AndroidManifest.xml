@@ -85,6 +85,34 @@
                 android:resource="@xml/widget_minimal_info" />
         </receiver>
 
+        <!-- 🦌🦌记录器 widgets (status 2x1 / month 2x2) -->
+        <receiver
+            android:name=".widget.DeerStatusWidget"
+            android:exported="false"
+            android:label="@string/widget_deer_status_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="android.intent.action.DATE_CHANGED" />
+                <action android:name="android.intent.action.TIMEZONE_CHANGED" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_deer_status_info" />
+        </receiver>
+        <receiver
+            android:name=".widget.DeerCalendarWidget"
+            android:exported="false"
+            android:label="@string/widget_deer_calendar_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="android.intent.action.DATE_CHANGED" />
+                <action android:name="android.intent.action.TIMEZONE_CHANGED" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_deer_calendar_info" />
+        </receiver>
+
         <!-- Scheduled reminder notifications (HyperOS focus-notification aware) -->
         <receiver
             android:name=".reminder.ReminderReceiver"

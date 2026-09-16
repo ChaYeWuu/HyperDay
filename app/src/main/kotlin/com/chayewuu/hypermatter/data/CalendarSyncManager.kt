@@ -1,10 +1,13 @@
 package com.chayewuu.hypermatter.data
 
+import android.Manifest
 import android.content.ContentResolver
 import android.content.ContentValues
 import android.content.Context
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.provider.CalendarContract
+import androidx.core.content.ContextCompat
 import java.time.LocalDate
 import java.time.ZoneId
 import java.util.TimeZone
@@ -37,6 +40,9 @@ object CalendarSyncManager {
 
     /** Selected event ids; key absent = selection never customized (all). */
     private const val KEY_SELECTED_IDS = "selected_ids"
+
+    /** 自动同步 switch: re-sync after every data change / app start. */
+    private const val KEY_AUTO_SYNC = "auto_sync"
 
     /** Calendar accent color (HyperDay blue). */
     private const val CALENDAR_COLOR = 0xFF5B8DEF.toInt()
@@ -129,6 +135,25 @@ object CalendarSyncManager {
             "${CalendarContract.Events.CALENDAR_ID}=?",
             arrayOf(calendarId.toString()),
         )
+    }
+
+    /**
+     * Ids of calendars this app created. The 系统日历 → APP importer uses it
+     * to skip its own mirrored events (they came FROM the app).
+     */
+    fun ownCalendarIds(context: Context): Set<Long> {
+        val ids = mutableSetOf<Long>()
+        context.contentResolver.query(
+            CalendarContract.Calendars.CONTENT_URI,
+            arrayOf(CalendarContract.Calendars._ID),
+            "${CalendarContract.Calendars.ACCOUNT_NAME}=? AND " +
+                "${CalendarContract.Calendars.ACCOUNT_TYPE}=?",
+            arrayOf(ACCOUNT_NAME, ACCOUNT_TYPE),
+            null,
+        )?.use { cursor ->
+            while (cursor.moveToNext()) ids += cursor.getLong(0)
+        }
+        return ids
     }
 
     // ------------------------------------------------------------------
@@ -282,6 +307,54 @@ object CalendarSyncManager {
             .edit()
             .putStringSet(KEY_SELECTED_IDS, ids)
             .apply()
+    }
+
+    /** The events the current selection covers (null selection = all). */
+    fun selectedEvents(context: Context, events: List<CountdownEvent>): List<CountdownEvent> {
+        val ids = getSelectedIds(context) ?: return events
+        return events.filter { it.id in ids }
+    }
+
+    // ------------------------------------------------------------------
+    // 自动同步
+    // ------------------------------------------------------------------
+
+    fun isAutoSyncEnabled(context: Context): Boolean =
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .getBoolean(KEY_AUTO_SYNC, false)
+
+    /**
+     * Turning this off does NOT touch the calendar — it only stops the app
+     * from re-syncing on every data change (a manual 立即同步 still works).
+     */
+    fun setAutoSyncEnabled(context: Context, enabled: Boolean) {
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .edit()
+            .putBoolean(KEY_AUTO_SYNC, enabled)
+            .apply()
+    }
+
+    /** True when both calendar permissions are granted. */
+    fun hasCalendarPermission(context: Context): Boolean =
+        ContextCompat.checkSelfPermission(context, Manifest.permission.READ_CALENDAR) ==
+            PackageManager.PERMISSION_GRANTED &&
+            ContextCompat.checkSelfPermission(context, Manifest.permission.WRITE_CALENDAR) ==
+            PackageManager.PERMISSION_GRANTED
+
+    /**
+     * Background auto-sync hook, called whenever the event list changes and
+     * on app start. Silent no-op unless the user enabled 自动同步, granted the
+     * permissions and has at least one selected event; never throws.
+     *
+     * Note it is a full rebuild ([syncAll]) like the manual action, so the
+     * calendar stays an exact mirror of the selection with no diffing state.
+     */
+    fun autoSyncIfEnabled(context: Context, events: List<CountdownEvent>) {
+        if (!isAutoSyncEnabled(context)) return
+        if (!hasCalendarPermission(context)) return
+        val selected = selectedEvents(context, events)
+        if (selected.isEmpty()) return
+        runCatching { syncAll(context, selected) }
     }
 
     private fun rememberSync(context: Context, count: Int) {

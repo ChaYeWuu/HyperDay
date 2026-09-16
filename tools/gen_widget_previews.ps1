@@ -235,4 +235,102 @@ $g.DrawString($numText, $fNum, $bAccent, ($rightEdge - $us.Width - 10 - $ns.Widt
 $bmp.Save("$outDir\widget_minimal_preview.png", [System.Drawing.Imaging.ImageFormat]::Png)
 $g.Dispose(); $bmp.Dispose()
 
+# ------------------------------------------------- deer recorder status 2x1
+# Top row: 「已戒」tag pill (left) + today's state (right);
+# bottom row: big days-quit number + 天 (left) + 最长 record (right).
+$bmp, $g = New-Canvas 600 336 64
+$pad = 50
+$fTag = Font $YaHei 24 ([System.Drawing.FontStyle]::Regular)
+$fNum = Font $YaHei 76 ([System.Drawing.FontStyle]::Bold)
+$fUnit = Font $YaHei 26 ([System.Drawing.FontStyle]::Regular)
+$fRight = Font $YaHei 26 ([System.Drawing.FontStyle]::Regular)
+
+$topY = 44
+$tagText = '已戒'
+$tagSize = $g.MeasureString($tagText, $fTag)
+$tagW = $tagSize.Width + 24
+$tagH = $tagSize.Height + 14
+$tagPath = New-Object System.Drawing.Drawing2D.GraphicsPath
+$r = 14
+$tagPath.AddArc($pad, $topY, 2 * $r, 2 * $r, 180, 90)
+$tagPath.AddArc(($pad + $tagW - 2 * $r), $topY, 2 * $r, 2 * $r, 270, 90)
+$tagPath.AddArc(($pad + $tagW - 2 * $r), ($topY + $tagH - 2 * $r), 2 * $r, 2 * $r, 0, 90)
+$tagPath.AddArc($pad, ($topY + $tagH - 2 * $r), 2 * $r, 2 * $r, 90, 90)
+$tagPath.CloseFigure()
+$tagBg = New-Object System.Drawing.SolidBrush([System.Drawing.Color]::FromArgb(0x14, 0x00, 0x00, 0x00))
+$g.FillPath($tagBg, $tagPath)
+$g.DrawString($tagText, $fTag, $bSecondary, ($pad + 12), ($topY + 7))
+
+$rightEdge = 600 - $pad
+$stateText = '今日未记录'
+$stateSize = $g.MeasureString($stateText, $fTag)
+$g.DrawString($stateText, $fTag, $bSecondary, ($rightEdge - $stateSize.Width), ($topY + ($tagH - $stateSize.Height) / 2))
+
+$rowCy = (($topY + $tagH) + (336 - 44)) / 2
+$numText = '3'
+$ns = $g.MeasureString($numText, $fNum)
+$us = $g.MeasureString('天', $fUnit)
+$g.DrawString($numText, $fNum, $bAccent, $pad, ($rowCy - $ns.Height / 2))
+$g.DrawString('天', $fUnit, $bSecondary, ($pad + $ns.Width + 4), ($rowCy + $ns.Height / 2 - $us.Height))
+$bestText = '最长 12 天'
+$bs = $g.MeasureString($bestText, $fRight)
+$g.DrawString($bestText, $fRight, $bSecondary, ($rightEdge - $bs.Width), ($rowCy - $bs.Height / 2))
+
+$bmp.Save("$outDir\widget_deer_status_preview.png", [System.Drawing.Imaging.ImageFormat]::Png)
+$g.Dispose(); $bmp.Dispose()
+
+# ------------------------------------------------- deer recorder month 2x2
+# Stat line, 一二三四五六日 header, then a 6x7 month grid: recorded days in
+# accent, today in soft accent, the rest a faint tint.
+$bmp, $g = New-Canvas 600 734 64
+$pad = 50
+$fStat = Font $YaHei 26 ([System.Drawing.FontStyle]::Regular)
+$fWd = Font $YaHei 22 ([System.Drawing.FontStyle]::Regular)
+
+$g.DrawString('已戒 3 天 · 本月破戒 2 次', $fStat, $bSecondary, $pad, 46)
+
+$gridW = 600 - 2 * $pad
+$gap = 8
+$cellW = ($gridW - 6 * $gap) / 7
+$cellH = 68
+$gridTop = 150
+$wdY = $gridTop - 34
+
+$weekLabels = @('一', '二', '三', '四', '五', '六', '日')
+for ($c = 0; $c -lt 7; $c++) {
+    $ls = $g.MeasureString($weekLabels[$c], $fWd)
+    $cx = $pad + $c * ($cellW + $gap) + ($cellW - $ls.Width) / 2
+    $g.DrawString($weekLabels[$c], $fWd, $bSecondary, $cx, $wdY)
+}
+
+$emptyBrush = New-Object System.Drawing.SolidBrush([System.Drawing.Color]::FromArgb(0x12, 0x00, 0x00, 0x00))
+$softBrush = New-Object System.Drawing.SolidBrush([System.Drawing.Color]::FromArgb(0x33, 0x34, 0x82, 0xFF))
+$hitDays = @(3, 17)
+$todayDay = 25
+$leading = 2      # 1 号是周三
+$daysInMonth = 30
+
+for ($row = 0; $row -lt 6; $row++) {
+    for ($col = 0; $col -lt 7; $col++) {
+        $day = $row * 7 + $col - $leading + 1
+        $x = $pad + $col * ($cellW + $gap)
+        $y = $gridTop + $row * ($cellH + $gap)
+        if ($day -lt 1 -or $day -gt $daysInMonth) { continue }
+        $brush = $emptyBrush
+        if ($hitDays -contains $day) { $brush = $bAccent }
+        elseif ($day -eq $todayDay) { $brush = $softBrush }
+        $rp = 14
+        $cellPath = New-Object System.Drawing.Drawing2D.GraphicsPath
+        $cellPath.AddArc($x, $y, 2 * $rp, 2 * $rp, 180, 90)
+        $cellPath.AddArc(($x + $cellW - 2 * $rp), $y, 2 * $rp, 2 * $rp, 270, 90)
+        $cellPath.AddArc(($x + $cellW - 2 * $rp), ($y + $cellH - 2 * $rp), 2 * $rp, 2 * $rp, 0, 90)
+        $cellPath.AddArc($x, ($y + $cellH - 2 * $rp), 2 * $rp, 2 * $rp, 90, 90)
+        $cellPath.CloseFigure()
+        $g.FillPath($brush, $cellPath)
+    }
+}
+
+$bmp.Save("$outDir\widget_deer_calendar_preview.png", [System.Drawing.Imaging.ImageFormat]::Png)
+$g.Dispose(); $bmp.Dispose()
+
 Get-ChildItem $outDir\widget_*_preview.png | Select-Object Name, Length

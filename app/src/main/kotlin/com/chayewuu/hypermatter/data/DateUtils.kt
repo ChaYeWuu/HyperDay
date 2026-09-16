@@ -28,15 +28,69 @@ object DateUtils {
 
     /**
      * Effective repeat type: an explicit setting (1..5) always wins; events in
-     * the built-in 纪念日 category default to yearly (4) — anniversaries roll
-     * to the next year after the day passes instead of falling into "past".
+     * the built-in 纪念日 / 生日 categories default to yearly (4) —
+     * anniversaries and birthdays roll to the next year after the day passes
+     * instead of falling into "past".
      *
      * Public so [CalendarSyncManager] can map it onto RRULEs.
      */
     fun effectiveRepeatType(event: CountdownEvent): Int {
         val explicit = event.repeatType ?: 0
         if (explicit != 0) return explicit
-        return if (event.category == CategoryStore.ID_ANNIVERSARY) 4 else 0
+        return if (event.category == CategoryStore.ID_ANNIVERSARY ||
+            event.category == CategoryStore.ID_BIRTHDAY
+        ) {
+            4
+        } else {
+            0
+        }
+    }
+
+    // ------------------------------------------------------------------
+    // 生日 category: 周岁 + 生肖
+    // ------------------------------------------------------------------
+
+    /** Whether the event belongs to the built-in 生日 category. */
+    fun isBirthday(event: CountdownEvent): Boolean =
+        event.category == CategoryStore.ID_BIRTHDAY
+
+    /** The stored birth date, or null when the event has none. */
+    fun birthDate(event: CountdownEvent): LocalDate? =
+        event.birthEpochDay?.let { LocalDate.ofEpochDay(it) }
+
+    /**
+     * Full years lived (周岁) on [today], or null when the event is not a
+     * birthday or has no plausible birth date.
+     */
+    fun ageOf(event: CountdownEvent, today: LocalDate = today()): Int? {
+        if (!isBirthday(event)) return null
+        val birth = birthDate(event) ?: return null
+        val age = ChronoUnit.YEARS.between(birth, today)
+        return if (age in 0..130) age.toInt() else null
+    }
+
+    /**
+     * 生肖 of a birthday event. The switch happens at 春节, not 元旦: a birth
+     * date before that year's Spring Festival belongs to the previous lunar
+     * year, which is exactly how [LunarCalendar.solarToLunar] reports it.
+     */
+    fun zodiacOf(event: CountdownEvent): String? {
+        if (!isBirthday(event)) return null
+        val birth = birthDate(event) ?: return null
+        if (birth.year !in 1900..2100) return null
+        val names = arrayOf("鼠", "牛", "虎", "兔", "龙", "蛇", "马", "羊", "猴", "鸡", "狗", "猪")
+        val index = ((LunarCalendar.solarToLunar(birth).year - 1900) % 12 + 12) % 12
+        return "属${names[index]}"
+    }
+
+    /** "32 岁 · 属狗" for birthday events, null for everything else. */
+    fun birthdayLine(event: CountdownEvent): String? {
+        if (!isBirthday(event)) return null
+        val parts = buildList {
+            ageOf(event)?.let { add("$it 岁") }
+            zodiacOf(event)?.let { add(it) }
+        }
+        return parts.joinToString(" · ").ifBlank { null }
     }
 
     /**

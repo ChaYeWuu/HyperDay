@@ -83,6 +83,45 @@ class EventStore(context: Context) {
         return fresh.size
     }
 
+    /**
+     * Merge 系统日历-imported events. An incoming event whose `sourceRef`
+     * already exists updates that event in place (its id, wallpaper and font
+     * customizations survive); everything else is appended. Returns
+     * (added, updated).
+     */
+    fun importSystemEvents(incoming: List<CountdownEvent>): Pair<Int, Int> {
+        if (incoming.isEmpty()) return 0 to 0
+        val current = _events.value
+        val byRef = current.mapNotNull { event ->
+            event.sourceRef?.let { it to event }
+        }.toMap()
+        val result = current.toMutableList()
+        var added = 0
+        var updated = 0
+        incoming.forEach { event ->
+            val existing = event.sourceRef?.let { byRef[it] }
+            val index = if (existing != null) result.indexOfFirst { it.id == existing.id } else -1
+            if (existing != null && index >= 0) {
+                result[index] = existing.copy(
+                    title = event.title,
+                    epochDay = event.epochDay,
+                    note = event.note,
+                    repeatType = event.repeatType,
+                    repeatWeekday = event.repeatWeekday,
+                    repeatMonthDay = event.repeatMonthDay,
+                    repeatYearMonth = event.repeatYearMonth,
+                )
+                updated++
+            } else {
+                result += event
+                added++
+            }
+        }
+        persist(result)
+        _events.value = result
+        return added to updated
+    }
+
     /** Seed a couple of sample events the first time the app is opened. */
     private fun defaultSeed(): List<CountdownEvent> {
         val today = DateUtils.today()

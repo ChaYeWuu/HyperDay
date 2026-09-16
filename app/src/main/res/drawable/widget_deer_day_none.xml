@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Untouched day in the 🦌🦌记录器 month grid: a faint tint so the month's
+     shape stays visible instead of reading as an empty box. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android">
+    <solid android:color="@color/widget_deer_day_empty" />
+    <corners android:radius="3dp" />
+</shape>
