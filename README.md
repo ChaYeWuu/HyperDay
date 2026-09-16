@@ -162,4 +162,6 @@ app/src/main/kotlin/com/chayewuu/hypermatter/
 
 ## 许可
 
-本项目仅供学习交流。所依赖的开源项目分别遵循其各自的开源许可（Miuix、AndroidLiquidGlass、Shizuku 均为 Apache-2.0）。
+本项目基于 [MIT License](LICENSE) 开源，可自由使用、修改与再分发（请保留版权声明）。
+
+所依赖的开源项目分别遵循其各自的开源许可（Miuix、AndroidLiquidGlass、Shizuku 均为 Apache-2.0）。
