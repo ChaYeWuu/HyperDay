@@ -201,7 +201,8 @@ private fun updateDeerCalendarWidget(
                 Long.MIN_VALUE
             }
             val cell = when {
-                dayEpochDay == Long.MIN_VALUE -> R.drawable.widget_deer_day_none
+                // Outside this month (lead-in / trail): fully transparent.
+                dayEpochDay == Long.MIN_VALUE -> R.drawable.widget_deer_day_blank
                 records[dayEpochDay] == DeerTrackerStore.STATUS_HIT ->
                     R.drawable.widget_deer_day_hit
                 dayEpochDay == todayEpochDay -> R.drawable.widget_deer_day_today

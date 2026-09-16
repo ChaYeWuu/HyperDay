@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Day cell outside the shown month in the 🦌🦌记录器 month grid (lead-in
+     before the 1st / trail after the last day): fully transparent so the
+     month's rectangle boundary stays readable. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android">
+    <solid android:color="@android:color/transparent" />
+    <corners android:radius="3dp" />
+</shape>

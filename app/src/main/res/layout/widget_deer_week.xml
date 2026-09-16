@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <!-- One week row of the 🦌🦌记录器 month widget: 7 identical cells, each an
      ImageView whose drawable the provider switches per day state
      (none / 破戒 / 今天). Ids repeat across rows on purpose — every row is its
@@ -11,7 +11,7 @@
     <ImageView
         android:id="@+id/deer_cell_0"
         android:layout_width="0dp"
-        android:layout_height="13dp"
+        android:layout_height="12dp"
         android:layout_margin="1dp"
         android:layout_weight="1"
         android:scaleType="fitXY"
@@ -20,7 +20,7 @@
     <ImageView
         android:id="@+id/deer_cell_1"
         android:layout_width="0dp"
-        android:layout_height="13dp"
+        android:layout_height="12dp"
         android:layout_margin="1dp"
         android:layout_weight="1"
         android:scaleType="fitXY"
@@ -29,7 +29,7 @@
     <ImageView
         android:id="@+id/deer_cell_2"
         android:layout_width="0dp"
-        android:layout_height="13dp"
+        android:layout_height="12dp"
         android:layout_margin="1dp"
         android:layout_weight="1"
         android:scaleType="fitXY"
@@ -38,7 +38,7 @@
     <ImageView
         android:id="@+id/deer_cell_3"
         android:layout_width="0dp"
-        android:layout_height="13dp"
+        android:layout_height="12dp"
         android:layout_margin="1dp"
         android:layout_weight="1"
         android:scaleType="fitXY"
@@ -47,7 +47,7 @@
     <ImageView
         android:id="@+id/deer_cell_4"
         android:layout_width="0dp"
-        android:layout_height="13dp"
+        android:layout_height="12dp"
         android:layout_margin="1dp"
         android:layout_weight="1"
         android:scaleType="fitXY"
@@ -56,7 +56,7 @@
     <ImageView
         android:id="@+id/deer_cell_5"
         android:layout_width="0dp"
-        android:layout_height="13dp"
+        android:layout_height="12dp"
         android:layout_margin="1dp"
         android:layout_weight="1"
         android:scaleType="fitXY"
@@ -65,7 +65,7 @@
     <ImageView
         android:id="@+id/deer_cell_6"
         android:layout_width="0dp"
-        android:layout_height="13dp"
+        android:layout_height="12dp"
         android:layout_margin="1dp"
         android:layout_weight="1"
         android:scaleType="fitXY"
