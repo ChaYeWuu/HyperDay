@@ -45,6 +45,7 @@ import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.sp
 import com.chayewuu.hypermatter.data.CountdownEvent
 import com.chayewuu.hypermatter.data.DateUtils
+import com.chayewuu.hypermatter.data.DeerTrackerStore
 import com.chayewuu.hypermatter.R
 import com.chayewuu.hypermatter.ui.glass.GlassCanvasRecorder
 import com.chayewuu.hypermatter.ui.glass.LiquidGlassCard
@@ -56,6 +57,8 @@ import com.chayewuu.hypermatter.widget.WidgetPrefs
 import com.chayewuu.hypermatter.widget.eventDateLine
 import com.chayewuu.hypermatter.widget.listRowDateLine
 import com.chayewuu.hypermatter.widget.todayLine
+import java.time.LocalDate
+import java.time.YearMonth
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
 import top.yukonga.miuix.kmp.basic.Scaffold
@@ -73,9 +76,9 @@ import top.yukonga.miuix.kmp.utils.scrollEndHaptic
 /**
  * Widget preview & binding page (设置 → 小部件).
  *
- *  - 小部件预览: live Compose re-drawings of all three home-screen widgets
- *    (卡片 2×2 / 列表 4×2 / 极简 2×1) using the current event data, so the
- *    user can see what each looks like before adding it.
+ *  - 小部件预览: live Compose re-drawings of all five home-screen widgets
+ *    (卡片 2×2 / 列表 4×2 / 极简 2×1 plus the two 🦌🦌记录器 widgets) using the
+ *    current data, so the user can see what each looks like before adding it.
  *  - 卡片事件绑定: pick which event the card widget is pinned to
  *    (persisted via [WidgetPrefs], refreshed via [CardWidget.push]).
  */
@@ -90,6 +93,9 @@ fun WidgetPage(
     // Selection state mirrors WidgetPrefs so rows re-render immediately;
     // null = auto (nearest event).
     var selectedId by remember { mutableStateOf(WidgetPrefs.getSingleEventId(context)) }
+
+    // 🦌🦌记录器 widgets read DeerTrackerStore rather than countdown events.
+    val deerRecords = remember { DeerTrackerStore.getRecords(context) }
 
     val upcoming = events
         .filter { !DateUtils.isPastEvent(it) }
@@ -199,6 +205,42 @@ fun WidgetPage(
                                 .aspectRatio(1.88f),
                         )
                         PreviewCaption("列表 4×2")
+                    }
+
+                    // 🦌🦌记录器 widgets — mirrored from widget_deer_*.xml the
+                    // same way (their data comes from DeerTrackerStore).
+                    item {
+                        Spacer(Modifier.height(12.dp))
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 12.dp),
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                DeerCalendarWidgetPreview(
+                                    records = deerRecords,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        // Real 2x2 cell proportions.
+                                        .aspectRatio(0.925f),
+                                )
+                                PreviewCaption("🦌🦌记录器 2×2")
+                            }
+                            Spacer(Modifier.width(10.dp))
+                            Column(
+                                modifier = Modifier.weight(1f),
+                                verticalArrangement = Arrangement.Bottom,
+                            ) {
+                                DeerStatusWidgetPreview(
+                                    records = deerRecords,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        // Real 2x1 cell proportions.
+                                        .aspectRatio(1.93f),
+                                )
+                                PreviewCaption("🦌🦌记录器 2×1")
+                            }
+                        }
                     }
 
                     item {
@@ -323,12 +365,31 @@ private fun PreviewCaption(text: String) {
     )
 }
 
-/** 距离/过去 tag pill shared by all widget previews.
+/** 距离/过去 tag pill shared by the countdown widget previews.
  *  Defaults mirror the small row pill (10sp, 6/2dp); the card widget's
  *  pill is bigger (11sp, 8/3dp) — see widget_card.xml vs widget_list_row.xml. */
 @Composable
 private fun WidgetTagPill(
     event: CountdownEvent?,
+    modifier: Modifier = Modifier,
+    fontSize: TextUnit = 10.sp,
+    horizontal: Dp = 6.dp,
+    vertical: Dp = 2.dp,
+) {
+    Pill(
+        text = if (event == null) "距离"
+        else if (DateUtils.isPastEvent(event)) "过去" else "距离",
+        modifier = modifier,
+        fontSize = fontSize,
+        horizontal = horizontal,
+        vertical = vertical,
+    )
+}
+
+/** The rounded 8dp tag pill itself (widget_tag_bg in the real layouts). */
+@Composable
+private fun Pill(
+    text: String,
     modifier: Modifier = Modifier,
     fontSize: TextUnit = 10.sp,
     horizontal: Dp = 6.dp,
@@ -341,8 +402,7 @@ private fun WidgetTagPill(
             .padding(horizontal = horizontal, vertical = vertical),
     ) {
         Text(
-            text = if (event == null) "距离"
-            else if (DateUtils.isPastEvent(event)) "过去" else "距离",
+            text = text,
             color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
             fontSize = fontSize,
         )
@@ -596,6 +656,164 @@ private fun MinimalWidgetPreview(
                     fontSize = 11.sp,
                     modifier = Modifier.padding(start = 3.dp),
                 )
+            }
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// 🦌🦌记录器 widget previews — mirrors of widget_deer_status.xml (2×1) and
+// widget_deer_calendar.xml (2×2), fed by the live DeerTrackerStore records.
+// ---------------------------------------------------------------------------
+
+@Composable
+private fun DeerStatusWidgetPreview(
+    records: Map<Long, Int>,
+    modifier: Modifier = Modifier,
+) {
+    val today = remember { LocalDate.now() }
+    val quit = DeerTrackerStore.daysQuit(records, today)
+    val todayHit = records[today.toEpochDay()] == DeerTrackerStore.STATUS_HIT
+    // Design space = the real 2x1 cell (~164 x 85 dp).
+    ScaledWidgetBox(designWidth = 164.dp, designHeight = 85.dp, modifier = modifier) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 14.dp, vertical = 8.dp),
+        ) {
+            // Top row: 已戒 pill (left) + today's state (right).
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Pill(text = "已戒")
+                Spacer(Modifier.weight(1f))
+                Text(
+                    text = if (todayHit) "今日已记录" else "今日未记录",
+                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                    fontSize = 10.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            // Bottom row: 24sp days-quit number + 天 (left), 最长 N 天 (right).
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .padding(top = 2.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = quit?.toString() ?: "--",
+                    color = MiuixTheme.colorScheme.primary,
+                    fontSize = 24.sp,
+                    fontWeight = FontWeight.Bold,
+                )
+                if (quit != null) {
+                    Text(
+                        text = "天",
+                        color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                        fontSize = 11.sp,
+                        modifier = Modifier.padding(start = 3.dp),
+                    )
+                }
+                Spacer(Modifier.weight(1f))
+                Text(
+                    text = if (quit == null) "还没有记录"
+                    else "最长 ${DeerTrackerStore.bestQuit(records, today)} 天",
+                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                    fontSize = 11.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun DeerCalendarWidgetPreview(
+    records: Map<Long, Int>,
+    modifier: Modifier = Modifier,
+) {
+    val today = remember { LocalDate.now() }
+    val month = remember(today) { YearMonth.from(today) }
+    val quit = DeerTrackerStore.daysQuit(records, today)
+    // Monday-first grid, blanks before the 1st, one row per week (max 6) —
+    // exactly what the provider renders.
+    val leading = month.atDay(1).dayOfWeek.value - 1
+    val daysInMonth = month.lengthOfMonth()
+    val weeks = ((leading + daysInMonth + 6) / 7).coerceAtMost(6)
+    val todayEpochDay = today.toEpochDay()
+    // Design space = the real 2x2 cell (~185 x 200 dp).
+    ScaledWidgetBox(designWidth = 185.dp, designHeight = 200.dp, modifier = modifier) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 12.dp, vertical = 9.dp),
+        ) {
+            Text(
+                text = buildString {
+                    append(if (quit == null) "还没有记录" else "已戒 $quit 天")
+                    append(" · 本月破戒 ${DeerTrackerStore.monthHits(records, month)} 次")
+                },
+                color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                fontSize = 11.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            // 一二三四五六日 header (8sp), one equal-width column per cell.
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 4.dp),
+            ) {
+                listOf("一", "二", "三", "四", "五", "六", "日").forEach { label ->
+                    Text(
+                        text = label,
+                        color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                        fontSize = 8.sp,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(horizontal = 1.dp),
+                    )
+                }
+            }
+            // 12dp cells with 1dp gaps: 破戒 accent, 今天 soft accent,
+            // 本月内 faint tint, 本月外 transparent.
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 3.dp),
+            ) {
+                for (week in 0 until weeks) {
+                    Row(modifier = Modifier.fillMaxWidth()) {
+                        for (slot in 0 until 7) {
+                            val day = week * 7 + slot - leading + 1
+                            val epochDay = if (day in 1..daysInMonth) {
+                                month.atDay(day).toEpochDay()
+                            } else {
+                                null
+                            }
+                            val background = when {
+                                epochDay != null &&
+                                    records[epochDay] == DeerTrackerStore.STATUS_HIT ->
+                                    MiuixTheme.colorScheme.primary
+                                epochDay == todayEpochDay ->
+                                    MiuixTheme.colorScheme.primary.copy(alpha = 0.20f)
+                                epochDay == null -> Color.Transparent
+                                else -> MiuixTheme.colorScheme.onSurface.copy(alpha = 0.07f)
+                            }
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(12.dp)
+                                    .padding(1.dp)
+                                    .clip(androidx.compose.foundation.shape.RoundedCornerShape(3.dp))
+                                    .background(background),
+                            )
+                        }
+                    }
+                }
             }
         }
     }
