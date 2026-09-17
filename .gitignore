@@ -24,7 +24,7 @@ keystore.properties
 Thumbs.db
 
 CLAUDE.md
-release-notes-v1.0.0.md
+release-notes-*.md
 
 widget_dump.xml
 
