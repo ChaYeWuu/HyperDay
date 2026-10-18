@@ -145,7 +145,12 @@
                 android:resource="@xml/file_paths" />
         </provider>
 
-        <!-- Shizuku IPC entry (超级岛 XMSF 网络绕过) -->
+        <!-- Shizuku IPC entry (超级岛 XMSF 网络绕过).
+             UserService (PrivilegedServiceImpl) is NOT declared here on
+             purpose: Shizuku instantiates it by reflection inside its own
+             server process from the ComponentName passed to
+             bindUserService(), so it is not an android.app.Service and must
+             not be registered as one (lint Instantiatable). -->
         <provider
             android:name="rikka.shizuku.ShizukuProvider"
             android:authorities="${applicationId}.shizuku"

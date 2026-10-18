@@ -71,10 +71,19 @@ object FocusNotification {
         focusProtocolVersion(context) >= 3
     }
 
-    /** Whether the app's focus-notification permission is enabled. */
+    /**
+     * Whether the app's focus-notification permission is enabled.
+     *
+     * The provider lives in SystemUI (`com.android.systemui
+     * .statusbar.notification.NotificationProvider`) and is guarded by
+     * `com.android.systemui.permission.NOTIFICATION`, so a third-party app
+     * normally gets SecurityException here; the catch below reports false.
+     * URI/method/extra match what SystemUI itself logs
+     * (`content://statusbar.notification canShowFocus packageName=…`).
+     */
     fun canShowFocus(context: Context): Boolean = try {
-        val uri = Uri.parse("content://miui.statusbar.notification.public")
-        val extras = Bundle().apply { putString("package", context.packageName) }
+        val uri = Uri.parse("content://statusbar.notification")
+        val extras = Bundle().apply { putString("packageName", context.packageName) }
         context.contentResolver.call(uri, "canShowFocus", null, extras)
             ?.getBoolean("canShowFocus", false) ?: false
     } catch (_: Exception) {

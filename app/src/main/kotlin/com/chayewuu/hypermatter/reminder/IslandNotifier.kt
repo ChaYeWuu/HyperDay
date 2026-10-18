@@ -3,9 +3,9 @@ package com.chayewuu.hypermatter.reminder
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
-import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.app.PendingIntent
 import android.graphics.drawable.Icon
 import android.os.Bundle
 import android.util.Log
@@ -27,12 +27,19 @@ import kotlinx.coroutines.sync.withLock
  * 失败时系统走本地兜底渲染超级岛，发完立即恢复网络。
  *
  * 流程由 Mutex 串行化 + try/finally 保证 XMSF 网络必定恢复；Shizuku 不可
- * 用或切断失败时直接发送（降级为普通焦点通知）。
+ * 用或切断失败时降级发送（普通焦点通知）。
+ *
+ * 关键时序：通知 post 之后必须**等 XMSF 云端校验确实失败**才能恢复网络。
+ * 校验是异步发起的，恢复太早（原先 100ms）时请求仍能出去并返回「无权限」，
+ * 系统就把通知当普通通知处理（dumpsys 里 focusType=PARAMS 而不是 ISLAND）。
  */
 object IslandNotifier {
 
     private const val TAG = "IslandNotifier"
     const val CHANNEL_ISLAND = "reminders_island"
+
+    /** 切断 XMSF 后保持断网的时长：覆盖一次云端校验往返。 */
+    private const val BYPASS_HOLD_MS = 1200L
 
     val scope = CoroutineScope(Dispatchers.IO)
 
@@ -64,6 +71,7 @@ object IslandNotifier {
         notification: Notification,
     ) {
         if (!isBypassAvailable(context)) {
+            Log.i(TAG, "Shizuku unavailable, posting without bypass")
             postDirect(context, notificationId, notification)
             return
         }
@@ -75,18 +83,20 @@ object IslandNotifier {
                 false
             }
             if (!disabled) {
-                Log.w(TAG, "Failed to disable XMSF networking, sending directly")
+                Log.e(TAG, "Failed to disable XMSF networking, sending directly")
                 postDirect(context, notificationId, notification)
                 return@withLock
             }
             try {
-                Log.d(TAG, "XMSF networking disabled, sending notification")
+                Log.i(TAG, "XMSF networking disabled, posting island notification")
                 postDirect(context, notificationId, notification)
-                delay(100)
+                // Hold the cut long enough for the cloud whitelist check to
+                // fail and HyperOS to fall back to local island rendering.
+                delay(BYPASS_HOLD_MS)
             } finally {
                 try {
                     ShizukuManager.setXmsfNetworkingEnabled(context, true)
-                    Log.d(TAG, "XMSF networking restored")
+                    Log.i(TAG, "XMSF networking restored")
                 } catch (e: Exception) {
                     Log.e(TAG, "CRITICAL: Failed to restore XMSF networking!", e)
                 }
@@ -98,8 +108,9 @@ object IslandNotifier {
         val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         try {
             manager.notify(notificationId, notification)
-        } catch (_: SecurityException) {
-            // POST_NOTIFICATIONS denied — nothing to show.
+            Log.i(TAG, "Notification posted id=$notificationId")
+        } catch (e: SecurityException) {
+            Log.e(TAG, "SecurityException posting notification (POST_NOTIFICATIONS denied?)", e)
         }
     }
 

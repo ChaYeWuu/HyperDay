@@ -18,6 +18,9 @@ local.properties
 *.keystore
 keystore.properties
 
+# Kotlin build cache
+.kotlin/
+
 # Logs / OS
 *.log
 .DS_Store

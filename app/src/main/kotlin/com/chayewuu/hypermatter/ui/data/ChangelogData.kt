@@ -16,6 +16,13 @@ data class ChangelogEntry(
 
 val changelogData = listOf(
     ChangelogEntry(
+        version = "v1.3.1 (5)",
+        date = "2026-09-18",
+        changes = listOf(
+            "修复 超级岛测试只弹普通通知的问题",
+        ),
+    ),
+    ChangelogEntry(
         version = "v1.3.0 (4)",
         date = "2026-09-17",
         changes = listOf(
